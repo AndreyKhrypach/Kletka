@@ -42,6 +42,10 @@ sudo dpkg -i kletka_1.0-1_amd64.deb
 ````
 🛠️ Building from Source
 
+### Prerequisites
+- **Java 17 (Liberica Full JDK recommended)** — download from [BellSoft](https://bell-sw.com/pages/downloads/#/java-17-lts)
+- **Maven** — install via `brew install maven` (macOS) or `sudo apt install maven` (Linux)
+
 ````bash
 
 git clone https://github.com/AndreyKhrypach/Kletka.git
