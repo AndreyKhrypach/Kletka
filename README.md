@@ -15,6 +15,19 @@
 
 ---
 
+## 🖥️ Screenshots
+
+### English
+| ![Main Window](screenshots/Main_en.png) | ![PGN file browser](screenshots/Browser_en.png) |
+
+### Русский
+| ![Главное окно](screenshots/Main_ru.png) | ![Пгн файл обозреватель](screenshots/Browser_ru.png) |
+
+### 中文 (Chinese)
+| ![主窗口](screenshots/Main_zh.png) | ![PGN 浏览器](screenshots/Browser_zh.png) |
+
+---
+
 ## 📦 Installation
 
 ### Windows
