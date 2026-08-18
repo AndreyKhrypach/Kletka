@@ -26,7 +26,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: target/installer/Kletka.exe
+          asset_path: target/installer/Kletka-1.0.0.exe
           asset_name: Kletka-${{ github.ref_name }}-windows.exe
           asset_content_type: application/octet-stream
         if: github.event_name == 'release'
@@ -52,7 +52,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: target/installer/kletka_1.0-1_amd64.deb
+          asset_path: target/installer/kletka_1.0.0-1_amd64.deb
           asset_name: Kletka-${{ github.ref_name }}-linux.deb
           asset_content_type: application/octet-stream
         if: github.event_name == 'release'
@@ -67,14 +67,16 @@ jobs:
           java-version: '17'
           java-package: 'jdk+fx'
       - name: Build with Maven
-        run: mvn clean package -P mac
+        run: |
+          export PATH="$JAVA_HOME/bin:$PATH"
+          mvn clean package -P mac
       - name: Upload installer to release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: target/installer/Kletka.dmg
+          asset_path: target/installer/Kletka-1.0.0.dmg
           asset_name: Kletka-${{ github.ref_name }}-macos.dmg
           asset_content_type: application/octet-stream
         if: github.event_name == 'release'
