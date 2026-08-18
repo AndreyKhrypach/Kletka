@@ -20,6 +20,13 @@ jobs:
         run: choco install wixtoolset -y
       - name: Build with Maven
         run: mvn clean package -P windows
+      - name: List target directory
+        run: dir target\
+        shell: cmd
+      - name: List installer directory
+        run: dir target\installer\
+        shell: cmd
+        continue-on-error: true
       - name: Upload installer to release
         uses: actions/upload-release-asset@v1
         env:
@@ -46,6 +53,11 @@ jobs:
           sudo apt install fakeroot dpkg -y
       - name: Build with Maven
         run: mvn clean package -P linux
+      - name: List target directory
+        run: ls -la target/
+      - name: List installer directory
+        run: ls -la target/installer/ || echo "Installer directory does not exist"
+        continue-on-error: true
       - name: Upload installer to release
         uses: actions/upload-release-asset@v1
         env:
@@ -67,7 +79,14 @@ jobs:
           java-version: '17'
           java-package: 'jdk+fx'
       - name: Build with Maven
-        run: mvn clean package -P mac
+        run: |
+          export PATH="$JAVA_HOME/bin:$PATH"
+          mvn clean package -P mac
+      - name: List target directory
+        run: ls -la target/
+      - name: List installer directory
+        run: ls -la target/installer/ || echo "Installer directory does not exist"
+        continue-on-error: true
       - name: Upload installer to release
         uses: actions/upload-release-asset@v1
         env:
