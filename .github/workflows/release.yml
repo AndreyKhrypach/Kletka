@@ -20,13 +20,16 @@ jobs:
         run: choco install wixtoolset -y
       - name: Build with Maven
         run: mvn clean package -P windows
+      - name: List installer files
+        run: dir target\installer\
+        shell: cmd
       - name: Upload installer to release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: target/installer/*.exe
+          asset_path: target/installer/Kletka.exe  # ← ТОЧНОЕ ИМЯ
           asset_name: Kletka-windows.exe
           asset_content_type: application/octet-stream
         if: github.event_name == 'release'
@@ -46,13 +49,15 @@ jobs:
           sudo apt install fakeroot dpkg -y
       - name: Build with Maven
         run: mvn clean package -P linux
+      - name: List installer files
+        run: ls -la target/installer/
       - name: Upload installer to release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: target/installer/*.deb
+          asset_path: target/installer/kletka_1.0-1_amd64.deb  # ← ТОЧНОЕ ИМЯ
           asset_name: Kletka-linux.deb
           asset_content_type: application/octet-stream
         if: github.event_name == 'release'
@@ -68,13 +73,15 @@ jobs:
           java-package: 'jdk+fx'
       - name: Build with Maven
         run: mvn clean package -P mac
+      - name: List installer files
+        run: ls -la target/installer/
       - name: Upload installer to release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: target/installer/*.dmg
+          asset_path: target/installer/Kletka.dmg  # ← ТОЧНОЕ ИМЯ
           asset_name: Kletka-macos.dmg
           asset_content_type: application/octet-stream
         if: github.event_name == 'release'
