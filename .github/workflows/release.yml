@@ -2,7 +2,7 @@ name: Build Installers
 
 on:
   push:
-    branches: [ develop, master ]
+    branches: [ develop ]
   release:
     types: [ created ]
 
@@ -20,11 +20,16 @@ jobs:
         run: choco install wixtoolset -y
       - name: Build with Maven
         run: mvn clean package -P windows
-      - name: Upload installer
-        uses: actions/upload-artifact@v5
+      - name: Upload installer to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: Kletka-windows
-          path: target/installer/*.exe
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: target/installer/*.exe
+          asset_name: Kletka-windows.exe
+          asset_content_type: application/octet-stream
+        if: github.event_name == 'release'
 
   build-linux:
     runs-on: ubuntu-latest
@@ -41,11 +46,16 @@ jobs:
           sudo apt install fakeroot dpkg -y
       - name: Build with Maven
         run: mvn clean package -P linux
-      - name: Upload installer
-        uses: actions/upload-artifact@v5
+      - name: Upload installer to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: Kletka-linux
-          path: target/installer/*.deb
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: target/installer/*.deb
+          asset_name: Kletka-linux.deb
+          asset_content_type: application/octet-stream
+        if: github.event_name == 'release'
 
   build-macos:
     runs-on: macos-latest
@@ -58,8 +68,13 @@ jobs:
           java-package: 'jdk+fx'
       - name: Build with Maven
         run: mvn clean package -P mac
-      - name: Upload installer
-        uses: actions/upload-artifact@v5
+      - name: Upload installer to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: Kletka-macos
-          path: target/installer/*.dmg
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: target/installer/*.dmg
+          asset_name: Kletka-macos.dmg
+          asset_content_type: application/octet-stream
+        if: github.event_name == 'release'
