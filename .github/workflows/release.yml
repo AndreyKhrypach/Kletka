@@ -20,20 +20,13 @@ jobs:
         run: choco install wixtoolset -y
       - name: Build with Maven
         run: mvn clean package -P windows
-      - name: List target directory
-        run: dir target\
-        shell: cmd
-      - name: List installer directory
-        run: dir target\installer\
-        shell: cmd
-        continue-on-error: true
       - name: Upload installer to release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: target/installer/Kletka.exe
+          asset_path: target/installer/Kletka-1.0.0.exe
           asset_name: Kletka-${{ github.ref_name }}-windows.exe
           asset_content_type: application/octet-stream
         if: github.event_name == 'release'
@@ -53,18 +46,13 @@ jobs:
           sudo apt install fakeroot dpkg -y
       - name: Build with Maven
         run: mvn clean package -P linux
-      - name: List target directory
-        run: ls -la target/
-      - name: List installer directory
-        run: ls -la target/installer/ || echo "Installer directory does not exist"
-        continue-on-error: true
       - name: Upload installer to release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: target/installer/kletka_1.0-1_amd64.deb
+          asset_path: target/installer/kletka_1.0.0-1_amd64.deb
           asset_name: Kletka-${{ github.ref_name }}-linux.deb
           asset_content_type: application/octet-stream
         if: github.event_name == 'release'
@@ -82,18 +70,13 @@ jobs:
         run: |
           export PATH="$JAVA_HOME/bin:$PATH"
           mvn clean package -P mac
-      - name: List target directory
-        run: ls -la target/
-      - name: List installer directory
-        run: ls -la target/installer/ || echo "Installer directory does not exist"
-        continue-on-error: true
       - name: Upload installer to release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: target/installer/Kletka.dmg
+          asset_path: target/installer/Kletka-1.0.0.dmg
           asset_name: Kletka-${{ github.ref_name }}-macos.dmg
           asset_content_type: application/octet-stream
         if: github.event_name == 'release'
