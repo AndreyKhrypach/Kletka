@@ -569,35 +569,22 @@ public class ChessBoardView extends Application {
                 "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 1, 0.5, 0, 0);";
 
         if (showCoordinates) {
-            for (int col = 0; col < 8; col++) {
-                Label label = new Label(files[col]);
-                label.setAlignment(Pos.CENTER);
-                label.setPrefSize(tileSize, fontSize + 8);
-                label.setStyle(coordStyle);
-                boardGrid.add(label, col + 1, 0);
+            // Буквы (верх и низ)
+            for (int row : new int[]{0, 9}) {
+                for (int col = 0; col < 8; col++) {
+                    String column = boardFlipped ? files[7 - col] : files[col];
+                    Label label = createCoordinateLabel(column, tileSize, fontSize + 8, coordStyle);
+                    boardGrid.add(label, col + 1, row);
+                }
             }
-            for (int col = 0; col < 8; col++) {
-                Label label = new Label(files[col]);
-                label.setAlignment(Pos.CENTER);
-                label.setPrefSize(tileSize, fontSize + 8);
-                label.setStyle(coordStyle);
-                boardGrid.add(label, col + 1, 9);
-            }
-            for (int row = 0; row < 8; row++) {
-                String rank = boardFlipped ? ranks[7 - row] : ranks[row];
-                Label label = new Label(rank);
-                label.setAlignment(Pos.CENTER);
-                label.setPrefSize(fontSize + 8, tileSize);
-                label.setStyle(coordStyle);
-                boardGrid.add(label, 0, row + 1);
-            }
-            for (int row = 0; row < 8; row++) {
-                String rank = boardFlipped ? ranks[7 - row] : ranks[row];
-                Label label = new Label(rank);
-                label.setAlignment(Pos.CENTER);
-                label.setPrefSize(fontSize + 8, tileSize);
-                label.setStyle(coordStyle);
-                boardGrid.add(label, 9, row + 1);
+
+            // Цифры (лево и право)
+            for (int col : new int[]{0, 9}) {
+                for (int row = 0; row < 8; row++) {
+                    String rank = boardFlipped ? ranks[7 - row] : ranks[row];
+                    Label label = createCoordinateLabel(rank, fontSize + 8, tileSize, coordStyle);
+                    boardGrid.add(label, col, row + 1);
+                }
             }
         }
 
@@ -610,6 +597,14 @@ public class ChessBoardView extends Application {
 
         currentBoardGrid = boardGrid;
         return boardGrid;
+    }
+
+    private Label createCoordinateLabel(String text, double width, double height, String style) {
+        Label label = new Label(text);
+        label.setAlignment(Pos.CENTER);
+        label.setPrefSize(width, height);
+        label.setStyle(style);
+        return label;
     }
 
     private StackPane createTile(int row, int col) {
