@@ -66,6 +66,7 @@ public final class UciConstants {
     public static final String SET_OPTION_NAME = "name";
     public static final String SET_OPTION_VALUE = "value";
     public static final String MULTI_PV = "MultiPV";
+    public static final String UCI_SHOW_WDL = "UCI_ShowWDL";
 
     private UciConstants() {} // запрет создания экземпляра
 }

@@ -21,6 +21,8 @@
 package Khrypach.Andrey.chess.kletka.gui.settings;
 
 import Khrypach.Andrey.chess.kletka.gui.board.BoardSizeController;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
@@ -28,6 +30,7 @@ import java.util.prefs.Preferences;
 public class AppPreferences {
 
     private static final Preferences PREFS = Preferences.userNodeForPackage(AppPreferences.class);
+    private static final Logger log = LoggerFactory.getLogger(AppPreferences.class);
 
     private static final String PREF_ENGINE_PATH = "engine.path";
     private static final String PREF_ENGINE_ENABLED = "engine.enabled";
@@ -52,13 +55,22 @@ public class AppPreferences {
 
     public static void saveEnginePath(String path) {
         if (path != null && !path.isEmpty()) {
+            log.debug("Saving engine path: {}", path);
             PREFS.put(PREF_ENGINE_PATH, path);
             PREFS.putBoolean(PREF_ENGINE_ENABLED, true);
+            try {
+                PREFS.flush();
+                log.debug("Engine path saved successfully");
+            } catch (BackingStoreException e) {
+                log.error("Failed to flush preferences: {}", e.getMessage());
+            }
         }
     }
 
     public static String getEnginePath() {
-        return PREFS.get(PREF_ENGINE_PATH, null);
+        String path = PREFS.get(PREF_ENGINE_PATH, null);
+        log.debug("Retrieved engine path: {}", path);
+        return path;
     }
 
     public static void resetEngineSettings() {

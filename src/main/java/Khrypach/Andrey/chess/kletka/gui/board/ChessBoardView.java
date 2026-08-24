@@ -1117,6 +1117,34 @@ public class ChessBoardView extends Application {
         refreshBoard();
         primaryStage.setTitle(lang.get(APP_TITLE));
         notifyPositionChanged();
+
+        // Уведомляем панель анализа о смене позиции
+        if (analysisPanel != null) {
+            analysisPanel.onPositionChanged();
+        }
+    }
+
+    /**
+     * Проверяет, является ли текущая позиция легальной
+     * (есть оба короля, нет пешек на 1/8 ряду и т.д.)
+     */
+    public boolean isPositionLegal() {
+        if (chessBoard == null) return false;
+
+        boolean hasWhiteKing = false;
+        boolean hasBlackKing = false;
+
+        for (int rank = 0; rank < 8; rank++) {
+            for (int file = 0; file < 8; file++) {
+                Square square = Square.squareAt(rank * 8 + file);
+                Piece piece = chessBoard.getPiece(square);
+
+                if (piece == Piece.WHITE_KING) hasWhiteKing = true;
+                if (piece == Piece.BLACK_KING) hasBlackKing = true;
+            }
+        }
+
+        return hasWhiteKing && hasBlackKing;
     }
 
     public void forceResetGame() {

@@ -1068,6 +1068,12 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.FAILED_TOKENIZE_PGN, "无法对 PGN 进行分词");
         strings.put(LanguageKeys.ERROR_PARSING_MOVE, "解析走法时出错：%s");
         strings.put(LanguageKeys.ERROR_PARSING_PGN_TO_TREE, "将 PGN 解析为变体树时出错：%s");
+
+        // WDL
+        strings.put(LanguageKeys.WDL_WIN, "胜");
+        strings.put(LanguageKeys.WDL_DRAW, "和");
+        strings.put(LanguageKeys.WDL_LOSS, "负");
+        strings.put(LanguageKeys.WDL_FOR, "方");
     }
 
     private static StringBuilder createShortcutsContent() {

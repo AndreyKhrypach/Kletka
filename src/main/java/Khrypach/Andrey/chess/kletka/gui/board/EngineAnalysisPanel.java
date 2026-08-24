@@ -77,7 +77,7 @@ public class EngineAnalysisPanel extends VBox {
     private final Button removeLineButton;
 
     private AnimationTimer analysisTimer;
-    private  AtomicBoolean isAnalyzing = new AtomicBoolean(false);
+    private final AtomicBoolean isAnalyzing = new AtomicBoolean(false);
 
     private final Label currentEvaluationLabel;
     private final Label currentDepthLabel;
@@ -269,7 +269,7 @@ public class EngineAnalysisPanel extends VBox {
         }
     }
 
-    void startAnalysis() {
+    public void startAnalysis() {
         if (!engineManager.isEngineRunning()) {
             showEngineNotRunningAlert();
             return;
@@ -292,7 +292,7 @@ public class EngineAnalysisPanel extends VBox {
         engineManager.startAnalysisWithDepth(14);
     }
 
-    private void stopAnalysis() {
+    public void stopAnalysis() {
         log.debug("Stopping analysis");
         isAnalyzing.set(false);
         engineStatusLabel.setText("⚙️ " + engineManager.getEngineName() + ": " + lang.get(ANALYSIS_ENGINE_STOPPED));
@@ -328,6 +328,7 @@ public class EngineAnalysisPanel extends VBox {
         Board currentBoard = boardView.getCurrentBoard();
         boolean isWhiteToMove = currentBoard.getSideToMove() == Side.WHITE;
 
+        // ========== ОПРЕДЕЛЯЕМ, ДЛЯ КОГО WDL ==========
         for (int i = 0; i < analysisLines.size(); i++) {
             int lineNumber = i + 1;
             AnalysisInfo info = engineManager.getAnalysisInfo(lineNumber);
@@ -335,48 +336,26 @@ public class EngineAnalysisPanel extends VBox {
             if (info != null) {
                 int rawScore = info.getScore();
                 int displayScore = isWhiteToMove ? rawScore : -rawScore;
-
                 String pvToShow = info.getPv();
 
-                // ===== ФИЛЬТРАЦИЯ ДЛЯ UI =====
-                // Проверяем, есть ли данные для отображения
+                // ===== ФИЛЬТРАЦИЯ =====
                 if (pvToShow != null && !pvToShow.isEmpty()) {
-                    String[] moves = pvToShow.split(" ");
-                    int depth = info.getDepth();
-                    int score = info.getScore();
-
-                    // Условия пропуска нестабильного анализа:
-                    boolean shouldSkip = false;
-
-                    if (depth > 20 && score == 0 && moves.length < 3) {
-                        shouldSkip = true;
-                        log.trace("Skipping unstable analysis: depth={}, score=0, moves={}",
-                                depth, moves.length);
-                    } else if (depth > 25 && moves.length < 3) {
-                        shouldSkip = true;
-                        log.trace("Skipping incomplete PV at depth {}: {} moves",
-                                depth, moves.length);
-                    } else if (depth > 15 && moves.length < 2) {
-                        shouldSkip = true;
-                        log.trace("Skipping too short PV at depth {}: {} moves",
-                                depth, moves.length);
-                    }
+                    boolean shouldSkip = isShouldSkip(pvToShow, info);
 
                     if (shouldSkip) {
-                        continue; // Не обновляем, оставляем предыдущее значение
+                        continue;
                     }
 
-                    // ===== ОБНОВЛЕНИЕ UI =====
                     analysisLines.get(i).update(
                             pvToShow,
                             info.getDepth(),
                             displayScore,
                             info.isScoreIsMate(),
                             currentBoard
+                            // <-- ПЕРЕДАЕМ INFO ДЛЯ WDL
                     );
 
                 } else if (info.getCurrMove() != null && !info.getCurrMove().isEmpty()) {
-                    // PV пустой, но есть currmove - показываем как fallback
                     pvToShow = "🔍 " + info.getCurrMove() + " ...";
                     analysisLines.get(i).update(
                             pvToShow,
@@ -386,7 +365,6 @@ public class EngineAnalysisPanel extends VBox {
                             currentBoard
                     );
                 } else {
-                    // Нет данных для отображения - очищаем линию
                     analysisLines.get(i).update(
                             "",
                             info.getDepth(),
@@ -396,32 +374,68 @@ public class EngineAnalysisPanel extends VBox {
                     );
                 }
 
-                // ===== ОБНОВЛЕНИЕ EVALUATION LABEL (для первой линии) =====
+                // ===== ОБНОВЛЯЕМ EVALUATION LABEL С WDL =====
                 if (lineNumber == 1) {
                     MoveAnnotation evalSymbol = scoreToEvaluationSymbol(displayScore, info.isScoreIsMate());
                     currentEvaluationLabel.setText(evalSymbol.getSymbol() + " " +
                             formatScoreNumber(displayScore, info.isScoreIsMate()));
 
-                    if (displayScore > 50) {
-                        currentEvaluationLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-min-width: 80px; -fx-text-fill: #2e8b57;");
-                    } else if (displayScore < -50) {
-                        currentEvaluationLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-min-width: 80px; -fx-text-fill: #dc143c;");
-                    } else {
-                        currentEvaluationLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-min-width: 80px; -fx-text-fill: #ffa500;");
+                    // Формируем информацию о глубине и WDL
+                    StringBuilder infoText = new StringBuilder();
+
+                    // Глубина
+                    if (info.getDepth() > 0) {
+                        infoText.append("(").append(lang.get(ANALYSIS_DEPTH)).append(": ").append(info.getDepth());
+                        if (info.getSelDepth() > 0) {
+                            infoText.append("/").append(info.getSelDepth());
+                        }
+                        infoText.append(")");
                     }
 
-                    String depthInfo = "";
-                    if (info.getDepth() > 0) {
-                        depthInfo = "(" + lang.get(ANALYSIS_DEPTH) + ": " + info.getDepth();
-                        if (info.getSelDepth() > 0) {
-                            depthInfo += "/" + info.getSelDepth();
+                    // WDL - ВСЕГДА СИНИЙ
+                    if (info.hasWdl()) {
+                        String sideName = isWhiteToMove ?
+                                lang.get(GAME_WHITE) : lang.get(GAME_BLACK);
+                        String wdlText = info.getFormattedWdl(sideName);
+
+                        if (!infoText.isEmpty()) {
+                            infoText.append("  ");
                         }
-                        depthInfo += ")";
+                        infoText.append(wdlText);
                     }
-                    currentDepthLabel.setText(depthInfo);
+
+                    currentDepthLabel.setText(infoText.toString());
+
+                    // ОЦЕНКА - цветная (зеленый/красный/синий)
+                    if (displayScore > 50) {
+                        currentEvaluationLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-min-width: 80px; -fx-text-fill: #2e8b57;");
+                        currentDepthLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #1a6fb5;");
+                    } else if (displayScore < -50) {
+                        currentEvaluationLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-min-width: 80px; -fx-text-fill: #dc143c;");
+                        currentDepthLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #1a6fb5;");
+                    } else {
+                        currentEvaluationLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-min-width: 80px; -fx-text-fill: #1a6fb5;");
+                        currentDepthLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #1a6fb5;");
+                    }
                 }
             }
         }
+    }
+
+    private static boolean isShouldSkip(String pvToShow, AnalysisInfo info) {
+        String[] moves = pvToShow.split(" ");
+        int depth = info.getDepth();
+        int score = info.getScore();
+
+        boolean shouldSkip = false;
+        if (depth > 20 && score == 0 && moves.length < 3) {
+            shouldSkip = true;
+        } else if (depth > 25 && moves.length < 3) {
+            shouldSkip = true;
+        } else if (depth > 15 && moves.length < 2) {
+            shouldSkip = true;
+        }
+        return shouldSkip;
     }
 
     /**
@@ -535,6 +549,30 @@ public class EngineAnalysisPanel extends VBox {
     }
 
     /**
+     * Очищает все данные анализа и останавливает анализ
+     */
+    public void clearAnalysis() {
+        // Останавливаем анализ если он активен
+        if (isAnalyzing.get()) {
+            stopAnalysis();
+        }
+
+        // Очищаем все линии анализа
+        Platform.runLater(() -> {
+            for (AnalysisLine line : analysisLines) {
+                line.clear();
+            }
+            currentEvaluationLabel.setText("—");
+            currentDepthLabel.setText("");
+            engineStatusLabel.setText("⚙️ " + lang.get(ANALYSIS_ENGINE_STOPPED));
+            engineStatusLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #ff6b6b; -fx-font-weight: bold;");
+            startStopButton.setText("▶");
+            startStopButton.setStyle("-fx-background-color: #2e8b57; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-min-width: 60px; -fx-min-height: 30px;");
+            thinkingIndicator.setVisible(false);
+        });
+    }
+
+    /**
      * Класс для отображения одной линии анализа (компактная версия)
      */
     private class AnalysisLine extends HBox {
@@ -568,23 +606,21 @@ public class EngineAnalysisPanel extends VBox {
 
         public void update(String pv, int depth, int score, boolean isMate, Board board) {
             Platform.runLater(() -> {
+                // Обновляем оценку
                 MoveAnnotation evalSymbol = scoreToEvaluationSymbol(score, isMate);
                 evaluationLabel.setText(evalSymbol.getSymbol());
 
-                if (score > 50) {
-                    evaluationLabel.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-min-width: 45px; -fx-text-fill: #2e8b57;");
-                } else if (score < -50) {
-                    evaluationLabel.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-min-width: 45px; -fx-text-fill: #dc143c;");
-                } else {
-                    evaluationLabel.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-min-width: 45px; -fx-text-fill: #ffa500;");
-                }
+                currentEvaluationLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-min-width: 80px; -fx-text-fill: #1a6fb5;");
+                currentDepthLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #1a6fb5;");
 
+                // Обновляем глубину
                 if (depth > 0) {
                     depthLabel.setText("(" + depth + ")");
                 } else {
                     depthLabel.setText("");
                 }
 
+                // Обновляем PV
                 if (pv != null && !pv.isEmpty()) {
                     displayPv(pv, board);
                 } else {

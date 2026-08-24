@@ -189,6 +189,31 @@ public class MainController {
     public void resetGame() {
         log.debug("Resetting game via MainController");
 
+        // Останавливаем анализ перед сбросом
+        if (boardView.getAnalysisPanel() != null && boardView.getAnalysisPanel().isAnalyzingActive()) {
+            boardView.getAnalysisPanel().stopAnalysis();
+        }
+
+        // Очищаем панель анализа
+        if (boardView.getAnalysisPanel() != null) {
+            boardView.getAnalysisPanel().clearAnalysis();
+        }
+
+        // Если позиция нелегальная - просто сбрасываем без вопросов
+        if (!boardView.isPositionLegal()) {
+            log.debug("Illegal position detected, resetting to initial position");
+            if (boardView.getNavController() != null) {
+                boardView.getNavController().resetInitialPosition();
+            }
+            boardView.forceResetGame();
+            if (notationView != null) {
+                notationView.clearGameData();
+            }
+            startBodyHash = 0;
+            loadedFullHash = 0;
+            return;
+        }
+
         if (boardView.isTerminalPosition()) {
             Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
             alert.setTitle(lang.get(NEW_GAME_TITLE));
@@ -911,7 +936,6 @@ public class MainController {
                                         gameTree.getInitialBoard()
                                 );
 
-                                navController.goToFirstMove();
 
                                 Board fenBoard = new Board();
                                 fenBoard.loadFromFen(fen);
@@ -1538,13 +1562,17 @@ public class MainController {
                     return;
                 } catch (IOException e) {
                     log.error("Failed to start engine from saved path: {}", e.getMessage());
-                    AppPreferences.resetEngineSettings();
+                    // НЕ СБРАСЫВАЕМ НАСТРОЙКИ ПРИ ОДНОЙ ОШИБКЕ!
+                    // Просто показываем диалог настройки
                 }
             } else {
-                AppPreferences.resetEngineSettings();
+                log.warn("Engine file not found at: {}, will show setup dialog", savedPath);
+                // НЕ СБРАСЫВАЕМ НАСТРОЙКИ СРАЗУ!
+                // Даем пользователю шанс указать новый путь
             }
         }
 
+        // Показываем диалог только если движок не запущен
         showEngineSetupDialog();
     }
 

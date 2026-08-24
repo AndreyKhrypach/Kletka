@@ -1019,4 +1019,10 @@ public class LanguageKeys {
     public static final String FAILED_TOKENIZE_PGN = "pgn.exeption.msg.tokenize";
     public static final String ERROR_PARSING_MOVE = "pgn.exeption.msg.move.parsing";
     public static final String ERROR_PARSING_PGN_TO_TREE = "pgn.exeption.msg.parsing.tree";
+
+    // WDL
+    public static final String WDL_WIN = "wdl.win";
+    public static final String WDL_DRAW = "wdl.draw";
+    public static final String WDL_LOSS = "wdl.loss";
+    public static final String WDL_FOR = "wdl.for";
 }

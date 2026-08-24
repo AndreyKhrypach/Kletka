@@ -1083,6 +1083,12 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.FAILED_TOKENIZE_PGN, "Failed to tokenize PGN");
         strings.put(LanguageKeys.ERROR_PARSING_MOVE, "Error parsing move: %s");
         strings.put(LanguageKeys.ERROR_PARSING_PGN_TO_TREE, "Error parsing PGN to tree: %s");
+
+        // WDL
+        strings.put(LanguageKeys.WDL_WIN, "W");
+        strings.put(LanguageKeys.WDL_DRAW, "D");
+        strings.put(LanguageKeys.WDL_LOSS, "L");
+        strings.put(LanguageKeys.WDL_FOR, "for");
     }
 
     private static StringBuilder createShortcutsContent() {

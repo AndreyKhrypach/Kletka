@@ -46,6 +46,10 @@ public class AnalysisInfo {
     private String currMove = "";
     private int currMoveNumber = 0;
 
+    private int wdlWin = -1;
+    private int wdlDraw = -1;
+    private int wdlLoss = -1;
+
     public String getFormattedScore() {
         if (scoreIsMate) {
             int mateIn = score > 0 ? 30000 - score : -30000 - score;
@@ -81,5 +85,42 @@ public class AnalysisInfo {
 
     public boolean hasPv() {
         return pv != null && !pv.isEmpty() && !pv.equals(currMove);
+    }
+
+    public boolean hasWdl() {
+        return wdlWin >= 0 && wdlDraw >= 0 && wdlLoss >= 0;
+    }
+
+    /**
+     * Возвращает отформатированную строку WDL
+     * @param sideName - название стороны, для которой отображается WDL ("Белые" или "Черные")
+     */
+    public String getFormattedWdl(String sideName) {
+        if (!hasWdl()) return "";
+
+        LanguageManager lang = LanguageManager.getInstance();
+
+        // WDL приходит в промилле (тысячных долях), делим на 10 для процентов
+        return String.format("%s %s %d%% %s %d%% %s %d%%",
+                sideName,
+                lang.get(LanguageKeys.WDL_WIN),
+                wdlWin / 10,
+                lang.get(LanguageKeys.WDL_DRAW),
+                wdlDraw / 10,
+                lang.get(LanguageKeys.WDL_LOSS),
+                wdlLoss / 10
+        );
+    }
+
+    /**
+     * Возвращает отформатированную строку WDL без указания стороны
+     */
+    public String getFormattedWdl() {
+        if (!hasWdl()) return "";
+        return String.format("W:%d%% D:%d%% L:%d%%",
+                wdlWin / 10,
+                wdlDraw / 10,
+                wdlLoss / 10
+        );
     }
 }

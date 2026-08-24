@@ -117,7 +117,7 @@ public class MarkerOverlay extends Pane {
         endY -= Math.sin(angle) * offset;
 
         gc.setStroke(color);
-        gc.setLineWidth(10);
+        gc.setLineWidth(6.5);
         gc.setLineCap(StrokeLineCap.ROUND);
         gc.strokeLine(startX, startY, endX, endY);
 

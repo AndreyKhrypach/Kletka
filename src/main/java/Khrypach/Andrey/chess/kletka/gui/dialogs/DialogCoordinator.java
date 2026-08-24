@@ -223,29 +223,42 @@ public class DialogCoordinator {
                 languageManager.get(LanguageKeys.GAME_WHITE) :
                 languageManager.get(LanguageKeys.GAME_BLACK);
 
-        // Сортируем: главная линия первая
-        variations.sort((v1, v2) -> {
-            if (v1.isMainLine() && !v2.isMainLine()) return -1;
-            if (!v1.isMainLine() && v2.isMainLine()) return 1;
-            return v1.getName().compareTo(v2.getName());
-        });
-
         List<VariationChoiceDialog.Choice> choices = new ArrayList<>();
+
+        // Сначала добавляем главную линию (если есть)
+        Variation mainLineVar = null;
         for (Variation var : variations) {
+            if (var.isMainLine()) {
+                mainLineVar = var;
+                break;
+            }
+        }
+
+        if (mainLineVar != null) {
+            String moveDesc = getVariationFirstMoveDesc(mainLineVar);
+            choices.add(new VariationChoiceDialog.Choice(
+                    mainLineVar,
+                    String.format("★ %s (%s): %s",
+                            languageManager.get(LanguageKeys.MAIN_LINE),
+                            sideStr,
+                            ChessSymbols.convertToChessSymbols(moveDesc)),
+                    false
+            ));
+        }
+
+        // Затем все остальные варианты в том порядке, в котором они хранятся
+        for (Variation var : variations) {
+            if (var.isMainLine()) continue; // уже добавили
+
             String moveDesc = getVariationFirstMoveDesc(var);
-
-            String displayName = var.isMainLine() ?
-                    languageManager.get(LanguageKeys.MAIN_LINE) : var.getName();
-
+            String displayName = var.getName();
             if (displayName == null || displayName.isEmpty()) {
                 displayName = languageManager.get(LanguageKeys.VARIATION_DEFAULT_NAME);
             }
 
-            String prefix = var.isMainLine() ? "★ " : "";
             choices.add(new VariationChoiceDialog.Choice(
                     var,
-                    String.format("%s%s (%s): %s",
-                            prefix,
+                    String.format("%s (%s): %s",
                             displayName,
                             sideStr,
                             ChessSymbols.convertToChessSymbols(moveDesc)),

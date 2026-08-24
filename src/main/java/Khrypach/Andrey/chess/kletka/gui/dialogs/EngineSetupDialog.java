@@ -21,6 +21,7 @@
 package Khrypach.Andrey.chess.kletka.gui.dialogs;
 
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageManager;
+import Khrypach.Andrey.chess.kletka.gui.settings.AppPreferences;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -162,9 +163,14 @@ public class EngineSetupDialog {
         });
 
         okButton.setOnAction(e -> {
-            selectedEnginePath = pathField.getText();
-            confirmed = true;
-            dialogStage.close();
+            String path = pathField.getText();
+            if (path != null && !path.isEmpty()) {
+                // Сохраняем путь ДО теста
+                AppPreferences.saveEnginePath(path);
+                selectedEnginePath = path;
+                confirmed = true;
+                dialogStage.close();
+            }
         });
 
         cancelButton.setOnAction(e -> dialogStage.close());

@@ -1093,6 +1093,12 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.FAILED_TOKENIZE_PGN, "Невозможно токенизировать PGN");
         strings.put(LanguageKeys.ERROR_PARSING_MOVE, "Ошибка парсинга хода: %s");
         strings.put(LanguageKeys.ERROR_PARSING_PGN_TO_TREE, "Ошибка парсинга PGN в дерево вариантов: %s");
+
+        // WDL
+        strings.put(LanguageKeys.WDL_WIN, "В");
+        strings.put(LanguageKeys.WDL_DRAW, "Н");
+        strings.put(LanguageKeys.WDL_LOSS, "П");
+        strings.put(LanguageKeys.WDL_FOR, "для");
     }
 
     private static StringBuilder createShortcutsContent() {
