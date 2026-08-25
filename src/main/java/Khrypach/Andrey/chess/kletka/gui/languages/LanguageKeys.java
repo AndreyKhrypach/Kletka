@@ -194,6 +194,19 @@ public class LanguageKeys {
     public static final String MENU_HELP_SHORTCUTS = "menu.help.shortcuts";
     public static final String MENU_HELP_ABOUT = "menu.help.about";
     public static final String MENU_HELP_DONATE = "menu.help.donate";
+    public static final String MENU_HELP_GITHUB = "menu.help.github";
+    public static final String MENU_HELP_CHECK_UPDATES = "menu.help.check.updates";
+    public static final String MENU_HELP_GITHUB_ERROR = "menu.help.github.error";
+    public static final String MENU_HELP_CHECKING_UPDATES = "menu.help.checking.updates";
+    public static final String MENU_HELP_CHECKING_UPDATES_MSG = "menu.help.checking.updates.msg";
+    public static final String MENU_HELP_UPDATE_AVAILABLE = "menu.help.update.available";
+    public static final String MENU_HELP_UPDATE_AVAILABLE_HEADER = "menu.help.update.available.header";
+    public static final String MENU_HELP_UPDATE_AVAILABLE_MSG = "menu.help.update.available.msg";
+    public static final String MENU_HELP_UPDATE_DOWNLOAD = "menu.help.update.download";
+    public static final String MENU_HELP_UPDATE_LATER = "menu.help.update.later";
+    public static final String MENU_HELP_NO_UPDATES = "menu.help.no.updates";
+    public static final String MENU_HELP_NO_UPDATES_MSG = "menu.help.no.updates.msg";
+    public static final String MENU_HELP_UPDATE_CHECK_ERROR = "menu.help.update.check.error";
 
     // Language menu
     public static final String MENU_LANGUAGE_RUSSIAN = "menu.language.russian";

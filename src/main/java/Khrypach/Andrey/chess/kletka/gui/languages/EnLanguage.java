@@ -157,6 +157,19 @@ public class EnLanguage implements Language {
         // Help menu
         strings.put(LanguageKeys.MENU_HELP_SHORTCUTS, "Keyboard Shortcuts");
         strings.put(LanguageKeys.MENU_HELP_ABOUT, "About");
+        strings.put(LanguageKeys.MENU_HELP_GITHUB, "GitHub");
+        strings.put(LanguageKeys.MENU_HELP_CHECK_UPDATES, "Check for Updates");
+        strings.put(LanguageKeys.MENU_HELP_GITHUB_ERROR, "Failed to open GitHub page");
+        strings.put(LanguageKeys.MENU_HELP_CHECKING_UPDATES, "Checking for updates...");
+        strings.put(LanguageKeys.MENU_HELP_CHECKING_UPDATES_MSG, "Checking for new version...");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_AVAILABLE, "Update Available!");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_AVAILABLE_HEADER, "New version %s available");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_AVAILABLE_MSG, "Go to download page?");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_DOWNLOAD, "Download");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_LATER, "Later");
+        strings.put(LanguageKeys.MENU_HELP_NO_UPDATES, "No Updates");
+        strings.put(LanguageKeys.MENU_HELP_NO_UPDATES_MSG, "You have the latest version of Kletka.");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_CHECK_ERROR, "Update check failed");
 
         // === Edit Menu ===
         strings.put(LanguageKeys.MENU_EDIT, "Edit");

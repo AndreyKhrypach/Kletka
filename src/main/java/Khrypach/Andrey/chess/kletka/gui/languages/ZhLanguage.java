@@ -176,6 +176,19 @@ public class ZhLanguage implements Language {
         // ========== HELP MENU ==========
         strings.put(LanguageKeys.MENU_HELP_SHORTCUTS, "快捷键");
         strings.put(LanguageKeys.MENU_HELP_ABOUT, "关于");
+        strings.put(LanguageKeys.MENU_HELP_GITHUB, "GitHub");
+        strings.put(LanguageKeys.MENU_HELP_CHECK_UPDATES, "检查更新");
+        strings.put(LanguageKeys.MENU_HELP_GITHUB_ERROR, "无法打开 GitHub 页面");
+        strings.put(LanguageKeys.MENU_HELP_CHECKING_UPDATES, "正在检查更新...");
+        strings.put(LanguageKeys.MENU_HELP_CHECKING_UPDATES_MSG, "正在检查新版本...");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_AVAILABLE, "有更新！");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_AVAILABLE_HEADER, "新版本 %s 可用");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_AVAILABLE_MSG, "前往下载页面？");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_DOWNLOAD, "下载");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_LATER, "稍后");
+        strings.put(LanguageKeys.MENU_HELP_NO_UPDATES, "没有更新");
+        strings.put(LanguageKeys.MENU_HELP_NO_UPDATES_MSG, "您已安装最新版本的 Kletka。");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_CHECK_ERROR, "检查更新失败");
 
         // ========== EDIT MENU ==========
         strings.put(LanguageKeys.MENU_EDIT, "编辑");

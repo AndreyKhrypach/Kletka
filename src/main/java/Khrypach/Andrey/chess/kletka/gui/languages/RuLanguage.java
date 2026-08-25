@@ -179,6 +179,19 @@ public class RuLanguage implements Language {
         // Пункты меню Help
         strings.put(LanguageKeys.MENU_HELP_SHORTCUTS, "Горячие клавиши");
         strings.put(LanguageKeys.MENU_HELP_ABOUT, "О программе");
+        strings.put(LanguageKeys.MENU_HELP_GITHUB, "GitHub");
+        strings.put(LanguageKeys.MENU_HELP_CHECK_UPDATES, "Проверить обновления");
+        strings.put(LanguageKeys.MENU_HELP_GITHUB_ERROR, "Не удалось открыть страницу GitHub");
+        strings.put(LanguageKeys.MENU_HELP_CHECKING_UPDATES, "Проверка обновлений...");
+        strings.put(LanguageKeys.MENU_HELP_CHECKING_UPDATES_MSG, "Проверяем наличие новой версии...");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_AVAILABLE, "Доступно обновление!");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_AVAILABLE_HEADER, "Доступна новая версия %s");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_AVAILABLE_MSG, "Перейти на страницу загрузки?");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_DOWNLOAD, "Скачать");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_LATER, "Позже");
+        strings.put(LanguageKeys.MENU_HELP_NO_UPDATES, "Нет обновлений");
+        strings.put(LanguageKeys.MENU_HELP_NO_UPDATES_MSG, "У вас установлена последняя версия Kletka.");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_CHECK_ERROR, "Ошибка проверки обновлений");
 
         // === Меню Правка ===
         strings.put(LanguageKeys.MENU_EDIT, "Правка");

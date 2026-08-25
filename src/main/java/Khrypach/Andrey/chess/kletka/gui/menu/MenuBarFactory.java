@@ -49,6 +49,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Objects;
@@ -556,7 +558,7 @@ public class MenuBarFactory {
             }
         });
 
-        // Добавляем все пункты в меню (с подменю темы)
+        // Добавляем все пункты в меню (подменю темы)
         menu.getItems().addAll(
                 flipBoardItem,
                 coordinatesItem,
@@ -675,6 +677,12 @@ public class MenuBarFactory {
         MenuItem aboutItem = new MenuItem(lang.get(MENU_HELP_ABOUT));
         aboutItem.setOnAction(e -> controller.showAboutDialog());
 
+        MenuItem githubItem = new MenuItem(lang.get(MENU_HELP_GITHUB));
+        githubItem.setOnAction(e -> openGitHubPage());
+
+        MenuItem checkUpdatesItem = new MenuItem(lang.get(MENU_HELP_CHECK_UPDATES));
+        checkUpdatesItem.setOnAction(e -> checkForUpdates());
+
         MenuItem donateItem = new MenuItem(lang.get(MENU_HELP_DONATE));
         donateItem.setOnAction(e -> {
             DonateDialog dialog = new DonateDialog(primaryStage);
@@ -684,6 +692,9 @@ public class MenuBarFactory {
         menu.getItems().addAll(
                 shortcutsItem,
                 aboutItem,
+                new SeparatorMenuItem(),
+                githubItem,
+                checkUpdatesItem,
                 new SeparatorMenuItem(),
                 donateItem
         );
@@ -816,5 +827,189 @@ public class MenuBarFactory {
         if (coordinatesItem != null) {
             coordinatesItem.setSelected(selected);
         }
+    }
+
+    /**
+     * Открывает страницу проекта на GitHub
+     */
+    private void openGitHubPage() {
+        try {
+            String url = "https://github.com/AndreyKhrypach/Kletka";
+            java.awt.Desktop.getDesktop().browse(java.net.URI.create(url));
+        } catch (Exception e) {
+            showError(lang.get(MENU_HELP_GITHUB_ERROR));
+        }
+    }
+
+    /**
+     * Проверяет наличие обновлений на GitHub
+     */
+    private void checkForUpdates() {
+        // Показываем индикатор загрузки
+        Alert loadingAlert = new Alert(Alert.AlertType.INFORMATION);
+        loadingAlert.setTitle(lang.get(MENU_HELP_CHECKING_UPDATES));
+        loadingAlert.setHeaderText(null);
+        loadingAlert.setContentText(lang.get(MENU_HELP_CHECKING_UPDATES_MSG));
+        loadingAlert.show();
+
+        new Thread(() -> {
+            try {
+                // Получаем последний релиз с GitHub API
+                String apiUrl = "https://api.github.com/repos/AndreyKhrypach/Kletka/releases/latest";
+                java.net.URL url = new java.net.URL(apiUrl);
+                java.net.HttpURLConnection connection = (java.net.HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("GET");
+                connection.setRequestProperty("Accept", "application/json");
+
+                int responseCode = connection.getResponseCode();
+                if (responseCode == 200) {
+                    // Читаем ответ
+                    String json = readAnswer(connection);
+                    String latestVersion = extractVersionFromJson(json);
+                    String currentVersion = getCurrentVersion();
+
+                    javafx.application.Platform.runLater(() -> {
+                        loadingAlert.close();
+                        if (isNewerVersion(latestVersion, currentVersion)) {
+                            showUpdateAvailableDialog(latestVersion);
+                        } else {
+                            showNoUpdatesDialog();
+                        }
+                    });
+                } else {
+                    javafx.application.Platform.runLater(() -> {
+                        loadingAlert.close();
+                        showError(lang.get(MENU_HELP_UPDATE_CHECK_ERROR));
+                    });
+                }
+            } catch (Exception e) {
+                javafx.application.Platform.runLater(() -> {
+                    loadingAlert.close();
+                    showError(lang.get(MENU_HELP_UPDATE_CHECK_ERROR) + ": " + e.getMessage());
+                });
+            }
+        }).start();
+    }
+
+    private static String readAnswer(HttpURLConnection connection) throws IOException {
+        java.io.BufferedReader reader = new java.io.BufferedReader(
+                new java.io.InputStreamReader(connection.getInputStream())
+        );
+        StringBuilder response = new StringBuilder();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            response.append(line);
+        }
+        reader.close();
+
+        // Парсим JSON вручную (без библиотек, чтобы не добавлять зависимости)
+        return response.toString();
+    }
+
+    /**
+     * Извлекает версию из JSON ответа GitHub API
+     */
+    private String extractVersionFromJson(String json) {
+        // Ищем "tag_name": "v1.1.0"
+        String tagKey = "\"tag_name\":";
+        int tagIndex = json.indexOf(tagKey);
+        if (tagIndex < 0) return null;
+
+        int startQuote = json.indexOf("\"", tagIndex + tagKey.length());
+        if (startQuote < 0) return null;
+
+        int endQuote = json.indexOf("\"", startQuote + 1);
+        if (endQuote < 0) return null;
+
+        String tag = json.substring(startQuote + 1, endQuote);
+        // Удаляем префикс "v" если есть
+        if (tag.startsWith("v")) {
+            tag = tag.substring(1);
+        }
+        return tag;
+    }
+
+    /**
+     * Возвращает текущую версию программы
+     */
+    private String getCurrentVersion() {
+        // Читаем из pom.xml или из ресурсов
+        try {
+            java.util.Properties props = new java.util.Properties();
+            java.io.InputStream is = getClass().getResourceAsStream("/version.properties");
+            if (is != null) {
+                props.load(is);
+                return props.getProperty("version", "1.1.0");
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return "1.1.0"; // fallback
+    }
+
+    /**
+     * Сравнивает версии
+     */
+    private boolean isNewerVersion(String latest, String current) {
+        if (latest == null || current == null) return false;
+        String[] latestParts = latest.split("\\.");
+        String[] currentParts = current.split("\\.");
+
+        int maxLength = Math.max(latestParts.length, currentParts.length);
+        for (int i = 0; i < maxLength; i++) {
+            int latestVal = i < latestParts.length ? Integer.parseInt(latestParts[i]) : 0;
+            int currentVal = i < currentParts.length ? Integer.parseInt(currentParts[i]) : 0;
+            if (latestVal > currentVal) return true;
+            if (latestVal < currentVal) return false;
+        }
+        return false;
+    }
+
+    /**
+     * Показывает диалог о наличии обновления
+     */
+    private void showUpdateAvailableDialog(String latestVersion) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(lang.get(MENU_HELP_UPDATE_AVAILABLE));
+        alert.setHeaderText(String.format(lang.get(MENU_HELP_UPDATE_AVAILABLE_HEADER), latestVersion));
+        alert.setContentText(lang.get(MENU_HELP_UPDATE_AVAILABLE_MSG));
+
+        ButtonType downloadButton = new ButtonType(lang.get(MENU_HELP_UPDATE_DOWNLOAD));
+        ButtonType laterButton = new ButtonType(lang.get(MENU_HELP_UPDATE_LATER));
+        alert.getButtonTypes().setAll(downloadButton, laterButton);
+
+        alert.showAndWait().ifPresent(response -> {
+            if (response == downloadButton) {
+                try {
+                    java.awt.Desktop.getDesktop().browse(
+                            java.net.URI.create("https://github.com/AndreyKhrypach/Kletka/releases/latest")
+                    );
+                } catch (Exception e) {
+                    showError(lang.get(MENU_HELP_GITHUB_ERROR));
+                }
+            }
+        });
+    }
+
+    /**
+     * Показывает диалог "Нет обновлений"
+     */
+    private void showNoUpdatesDialog() {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(lang.get(MENU_HELP_NO_UPDATES));
+        alert.setHeaderText(null);
+        alert.setContentText(lang.get(MENU_HELP_NO_UPDATES_MSG));
+        alert.showAndWait();
+    }
+
+    /**
+     * Показывает ошибку
+     */
+    private void showError(String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(lang.get(NOTIFICATION_ERROR));
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 }
