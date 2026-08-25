@@ -51,7 +51,6 @@ public class EditGameHeadersDialog {
 
     // UI компоненты (точно как в SaveGameDialog)
     private Dialog<GameData> dialog;
-    private TabPane tabPane;
 
     // Вкладка "Игроки и результат"
     private TextField whiteField;
@@ -117,7 +116,7 @@ public class EditGameHeadersDialog {
         );
         dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, cancelButtonType);
 
-        tabPane = new TabPane();
+        TabPane tabPane = new TabPane();
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
 
         Tab playersTab = new Tab(lang.get(SAVE_TAB_PLAYERS));

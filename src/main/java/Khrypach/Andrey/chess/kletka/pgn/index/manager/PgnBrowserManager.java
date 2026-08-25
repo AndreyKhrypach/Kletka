@@ -23,9 +23,10 @@ package Khrypach.Andrey.chess.kletka.pgn.index.manager;
 import Khrypach.Andrey.chess.kletka.database.model.GameData;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageManager;
 import Khrypach.Andrey.chess.kletka.pgn.index.PgnFileEditor;
-import Khrypach.Andrey.chess.kletka.pgn.index.PgnIndexManager;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.GameIndexEntry;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.PgnIndex;
+import Khrypach.Andrey.chess.kletka.pgn.index.operation.BatchOperationResult;
+import Khrypach.Andrey.chess.kletka.pgn.index.operation.PgnBatchOperation;
 import Khrypach.Andrey.chess.kletka.pgn.index.operation.PgnGameOperation;
 import Khrypach.Andrey.chess.kletka.pgn.index.ui.PgnFileBrowser;
 import Khrypach.Andrey.chess.kletka.pgn.index.ui.ProgressDialog;
@@ -62,7 +63,7 @@ public class PgnBrowserManager {
 
     // === Лимиты ===
     public static final int MAX_BROWSERS = 10;
-    public static final int MAX_COPY_GAMES = 1000;
+    public static final int MAX_COPY_GAMES = 100000;  // 100k
 
     // === Хранилище браузеров ===
     private final Map<Path, PgnFileBrowser> browsers = new LinkedHashMap<>();
@@ -428,6 +429,7 @@ public class PgnBrowserManager {
 
     /**
      * Вставляет партии из буфера в целевой браузер с прогрессом
+     * Использует пакетную обработку для больших объемов
      */
     public int pasteGamesWithProgress(PgnFileBrowser targetBrowser, ClipboardContent content,
                                       ProgressDialog progressDialog) throws Exception {
@@ -452,7 +454,7 @@ public class PgnBrowserManager {
                     String.format(lang.get(PGN_BROWSER_PASTE_TOTAL), total));
         }
 
-        log.info("Pasting {} games (big amount) into {}", total, targetPath.getFileName());
+        log.info("Pasting {} games into {}", total, targetPath.getFileName());
 
         PgnIndex targetIndex = targetBrowser.getCurrentIndex();
         if (targetIndex == null) {
@@ -461,62 +463,92 @@ public class PgnBrowserManager {
             );
         }
 
-        PgnGameOperation operation = new PgnGameOperation(targetPath, targetIndex);
+        // ========== ИСПОЛЬЗУЕМ BATCH ОПЕРАЦИЮ ==========
+        PgnBatchOperation batchOp = new PgnBatchOperation(targetPath, targetIndex);
         PgnFileEditor sourceEditor = new PgnFileEditor(content.sourceFile(), null);
 
-        int inserted = 0;
-        int processed = 0;
+        // Собираем все PGN содержимое в список
+        List<String> pgnContents = new ArrayList<>(total);
 
         try {
+            // Читаем все партии из исходного файла
+            if (showProgress) {
+                progressDialog.updateProgress(0.1,
+                        lang.get(PGN_BROWSER_PASTE_READING),
+                        String.format(lang.get(PGN_BROWSER_PASTE_READING_PROGRESS), 0, total));
+            }
+
+            int readCount = 0;
             for (GameIndexEntry entry : content.entries()) {
                 try {
                     String pgnContent = sourceEditor.readGame(entry);
-                    operation.addGame(pgnContent);
-                    inserted++;
-                    processed++;
+                    pgnContents.add(pgnContent);
+                    readCount++;
 
-                    if (showProgress && processed % 10 == 0) {
-                        double progress = (double) processed / total;
+                    if (showProgress && readCount % 100 == 0) {
+                        double progress = 0.1 + (0.3 * (double) readCount / total);
                         progressDialog.updateProgress(progress,
-                                String.format(lang.get(PGN_BROWSER_PASTE_PROGRESS), processed, total),
-                                String.format(lang.get(PGN_BROWSER_PASTE_ADDED), inserted));
+                                String.format(lang.get(PGN_BROWSER_PASTE_PROGRESS), readCount, total),
+                                String.format(lang.get(PGN_BROWSER_PASTE_ADDED), readCount));
                     }
                 } catch (IOException e) {
                     if (e.getMessage().contains("No space left on device") ||
                             e.getMessage().contains("Not enough space")) {
                         throw new IOException(
-                                String.format(lang.get(PGN_BROWSER_DISK_SPACE_INSUFFICIENT), inserted)
+                                String.format(lang.get(PGN_BROWSER_DISK_SPACE_INSUFFICIENT), readCount)
                         );
                     }
                     throw e;
                 }
             }
 
-            if (inserted > 0) {
-                PgnIndexManager indexManager = new PgnIndexManager();
-                indexManager.saveIndex(targetPath, targetIndex);
+            if (showProgress) {
+                progressDialog.updateProgress(0.4,
+                        lang.get(PGN_BROWSER_PASTE_WRITING),
+                        String.format(lang.get(PGN_BROWSER_PASTE_TOTAL), total));
+            }
 
-                // ========== ВАЖНО: ОБНОВЛЯЕМ UI В FX ПОТОКЕ ==========
+            // ========== ПАКЕТНАЯ ВСТАВКА ==========
+            BatchOperationResult result = batchOp.pasteGamesBatch(pgnContents, processed -> {
+                if (showProgress) {
+                    double progress = 0.4 + (0.6 * (double) processed / total);
+                    Platform.runLater(() -> progressDialog.updateProgress(progress,
+                            String.format(lang.get(PGN_BROWSER_PASTE_PROGRESS), processed, total),
+                            String.format(lang.get(PGN_BROWSER_PASTE_ADDED), processed)));
+                }
+            });
+
+            // ========== ОБНОВЛЕНИЕ UI ==========
+            if (result.successful() > 0) {
+                // Индекс уже сохранен в batchOp, просто обновляем кэш
+                targetIndex.refreshCache();
                 Platform.runLater(targetBrowser::refresh);
             }
 
             if (showProgress) {
                 progressDialog.updateProgress(1.0,
-                        String.format(lang.get(PGN_BROWSER_PASTE_COMPLETE), inserted),
+                        String.format(lang.get(PGN_BROWSER_PASTE_COMPLETE), result.successful()),
                         String.format(lang.get(PGN_BROWSER_PASTE_TARGET), targetPath.getFileName()));
                 Thread.sleep(500);
                 progressDialog.close();
             }
 
             clearClipboard();
-            log.info("Successfully pasted {} games (big amount)", inserted);
-            return inserted;
+            log.info("Successfully pasted {} games (batch)", result.successful());
+
+            // Если были ошибки - бросаем исключение с деталями
+            if (!result.isComplete()) {
+                throw new IOException(String.format(lang.get(PGN_BROWSER_PASTE_PARTIAL),
+                        result.successful(), result.totalRequested(), result.failed()));
+            }
+
+            return result.successful();
 
         } catch (Exception e) {
-            // Если ошибка - показываем сообщение
             String errorMessage = e.getMessage();
             if (!errorMessage.contains(lang.get(PGN_BROWSER_DISK_SPACE_ERROR))) {
-                errorMessage = String.format(lang.get(PGN_BROWSER_PASTE_INTERRUPTED), inserted, e.getMessage());
+                errorMessage = String.format(lang.get(PGN_BROWSER_PASTE_INTERRUPTED),
+                        pgnContents.size(), e.getMessage());
             }
 
             if (progressDialog != null) {

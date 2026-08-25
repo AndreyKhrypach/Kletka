@@ -842,7 +842,7 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.PGN_BROWSER_MSG_EDIT_UNAVAILABLE, "编辑暂时不可用");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_SELECT_GAMES, "选择要删除的对局");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_DELETE_UNAVAILABLE, "此模式下删除不可用");
-        strings.put(LanguageKeys.PGN_BROWSER_MSG_COPY_LIMIT, "一次不能复制超过1000局。已选: %d");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_COPY_LIMIT, "一次不能复制超过100000局。已选: %d");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_COPY_UNAVAILABLE, "此模式下复制不可用");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_DUPLICATE_UNAVAILABLE, "复制不可用");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_UNAVAILABLE, "粘贴不可用。剪贴板为空或目标文件与源文件相同。");
@@ -864,6 +864,10 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_ERROR, "粘贴错误: %s");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_GAMES, "📋 粘贴对局");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_START, "开始粘贴...");
+        strings.put(LanguageKeys.PGN_BROWSER_PASTE_PARTIAL, "已粘贴对局: 成功 - %d, 总计 - %d, 失败 - %d");
+        strings.put(LanguageKeys.PGN_BROWSER_PASTE_WRITING, "正在粘贴对局...");
+        strings.put(LanguageKeys.PGN_BROWSER_PASTE_READING_PROGRESS,  "正在读取对局以粘贴: %d, %d");
+        strings.put(LanguageKeys.PGN_BROWSER_PASTE_READING, "正在从源文件读取对局...");
 
         // ========== PGN BROWSER - PROGRESS ==========
         strings.put(LanguageKeys.PGN_BROWSER_DELETING, "删除 %d 局...");
@@ -1074,6 +1078,10 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.WDL_DRAW, "和");
         strings.put(LanguageKeys.WDL_LOSS, "负");
         strings.put(LanguageKeys.WDL_FOR, "方");
+
+        //BATCH
+        strings.put(LanguageKeys.PGN_BATCH_EXCEPTION_LIMIT, "批量删除对局过多: %d");
+        strings.put(LanguageKeys.PGN_BATCH_EXCEPTION_ALREADY_DELETED, "对局已删除: %d");
     }
 
     private static StringBuilder createShortcutsContent() {

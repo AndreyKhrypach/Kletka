@@ -33,6 +33,8 @@ import java.util.function.Consumer;
  * Шахматный таймер для тренировок
  */
 public class ChessTimer {
+    @Setter
+    @Getter
     private int totalSeconds;
     @Getter
     private int remainingSeconds;
@@ -67,14 +69,6 @@ public class ChessTimer {
         isRunning = false;
     }
 
-    public void reset() {
-        pause();
-        remainingSeconds = totalSeconds;
-        if (onTick != null) {
-            onTick.accept(remainingSeconds);
-        }
-    }
-
     public void setTime(int seconds) {
         this.totalSeconds = seconds;
         this.remainingSeconds = seconds;
@@ -99,7 +93,4 @@ public class ChessTimer {
         }
     }
 
-    public void stop() {
-        pause();
-    }
 }

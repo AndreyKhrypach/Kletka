@@ -217,7 +217,7 @@ public class VariationParser {
                     hasMoveNumberInfo = true;
                     log.trace("First move is WHITE: {}.", moveNumber);
 
-                    forkNode = determineForkNodeForWhite(parentNode, moveNumber);
+                    forkNode = determineForkNodeForWhite(parentNode);
                     break;
                 } catch (NumberFormatException e) {
                     log.warn("Failed to parse move number = {}", token.value());
@@ -243,7 +243,7 @@ public class VariationParser {
     /**
      * Определяет forkNode для белого хода
      */
-    private ParentNode determineForkNodeForWhite(ParentNode parentNode, int moveNumber) {
+    private ParentNode determineForkNodeForWhite(ParentNode parentNode) {
         if (parentNode == null || parentNode.isRoot()) {
             return treeBuilder.getRootVariation().getFirstNode();
         }

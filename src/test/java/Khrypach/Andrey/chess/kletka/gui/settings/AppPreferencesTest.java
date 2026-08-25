@@ -1,30 +1,7 @@
-/*
- *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
- *  *
- *  * This program is free software: you can redistribute it and/or modify
- *  * it under the terms of the GNU General Public License as published by
- *  * the Free Software Foundation, either version 3 of the License, or
- *  * (at your option) any later version.
- *  *
- *  * This program is distributed in the hope that it will be useful,
- *  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  * GNU General Public License for more details.
- *  *
- *  * You should have received a copy of the GNU General Public License
- *  * along with this program. If not, see <https://www.gnu.org/licenses/>.
- *
- *
- */
-
 package Khrypach.Andrey.chess.kletka.gui.settings;
 
 import Khrypach.Andrey.chess.kletka.gui.board.BoardSizeController;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 
 import java.util.prefs.BackingStoreException;
 
@@ -33,10 +10,57 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("AppPreferences - Настройки приложения")
 class AppPreferencesTest {
 
+    // Сохраняем настройки перед тестами
+    private String savedEnginePath;
+    private String savedLanguage;
+    private int savedTileSize;
+    private boolean savedBoardFlipped;
+    private boolean savedShowCoordinates;
+    private int savedBoardTheme;
+    private String savedSaveDirectory;
+    private String savedDatabasePath;
+    private String savedLastOpened;
+
     @BeforeEach
     void setUp() throws BackingStoreException {
+        // ========== СОХРАНЯЕМ ТЕКУЩИЕ НАСТРОЙКИ ==========
+        savedEnginePath = AppPreferences.getEnginePath();
+        savedLanguage = AppPreferences.getLanguage();
+        savedTileSize = AppPreferences.getTileSize();
+        savedBoardFlipped = AppPreferences.isBoardFlipped();
+        savedShowCoordinates = AppPreferences.isShowCoordinates();
+        savedBoardTheme = AppPreferences.getBoardThemeIndex();
+        savedSaveDirectory = AppPreferences.getSaveDirectory();
+        savedDatabasePath = AppPreferences.getDatabasePath();
+        savedLastOpened = AppPreferences.getLastOpened();
+
+        // ========== ОЧИЩАЕМ НАСТРОЙКИ ДЛЯ ТЕСТОВ ==========
         AppPreferences.resetAllPreferences();
         AppPreferences.resetEngineSettings();
+    }
+
+    @AfterEach
+    void tearDown() {
+        // ========== ВОССТАНАВЛИВАЕМ НАСТРОЙКИ ==========
+        if (savedEnginePath != null) {
+            AppPreferences.saveEnginePath(savedEnginePath);
+        }
+        if (savedLanguage != null) {
+            AppPreferences.saveLanguage(savedLanguage);
+        }
+        AppPreferences.saveTileSize(savedTileSize);
+        AppPreferences.saveBoardFlipped(savedBoardFlipped);
+        AppPreferences.saveShowCoordinates(savedShowCoordinates);
+        AppPreferences.saveBoardTheme(savedBoardTheme);
+        if (savedSaveDirectory != null) {
+            AppPreferences.saveSaveDirectory(savedSaveDirectory);
+        }
+        if (savedDatabasePath != null) {
+            AppPreferences.saveDatabasePath(savedDatabasePath);
+        }
+        if (savedLastOpened != null) {
+            AppPreferences.saveLastOpened(savedLastOpened);
+        }
     }
 
     // ============================================================
@@ -182,7 +206,6 @@ class AppPreferencesTest {
 
             // then
             assertThat(result).isBetween(BoardSizeController.MIN_TILE_SIZE, BoardSizeController.MAX_TILE_SIZE);
-            // Проверяем, что результат кратен STEP_SIZE
             assertThat(result % BoardSizeController.STEP_SIZE).isEqualTo(0);
         }
 
@@ -319,7 +342,7 @@ class AppPreferencesTest {
     }
 
     // ============================================================
-    // 8. ТЕСТЫ ДЛЯ @Deprecated МЕТОДОВ (для будущей версии)
+    // 8. ТЕСТЫ ДЛЯ @Deprecated МЕТОДОВ
     // ============================================================
 
     @Nested

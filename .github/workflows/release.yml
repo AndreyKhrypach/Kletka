@@ -29,7 +29,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: target/installer/Kletka-1.0.0.exe
+          asset_path: target/installer/Kletka-1.1.0.exe
           asset_name: Kletka-${{ github.ref_name }}-windows.exe
           asset_content_type: application/octet-stream
         if: github.event_name == 'release'
@@ -55,7 +55,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: target/installer/kletka_1.0.0-1_amd64.deb
+          asset_path: target/installer/kletka_1.1.0-1_amd64.deb
           asset_name: Kletka-${{ github.ref_name }}-linux.deb
           asset_content_type: application/octet-stream
         if: github.event_name == 'release'
@@ -79,7 +79,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: target/installer/Kletka-1.0.0.dmg
+          asset_path: target/installer/Kletka-1.1.0.dmg
           asset_name: Kletka-${{ github.ref_name }}-macos.dmg
           asset_content_type: application/octet-stream
         if: github.event_name == 'release'

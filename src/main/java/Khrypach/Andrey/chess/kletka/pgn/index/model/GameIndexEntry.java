@@ -69,30 +69,6 @@ public class GameIndexEntry implements Serializable {
     }
 
     /**
-     * Создает новую версию записи (для редактирования)
-     */
-    public GameIndexEntry newVersion(long newOffset, int newLength, int newHash) {
-        return GameIndexEntry.builder()
-                .id(this.id)
-                .offset(newOffset)
-                .length(newLength)
-                .version(this.version + 1)
-                .deleted(false)
-                .hash(newHash)
-                .white(this.white)
-                .black(this.black)
-                .eco(this.eco)
-                .result(this.result)
-                .year(this.year)
-                .event(this.event)
-                .site(this.site)
-                .opening(this.opening)
-                .variation(this.variation)
-                .plyCount(this.plyCount)
-                .build();
-    }
-
-    /**
      * Создает запись-маркер удаления (версия увеличивается, deleted = true)
      */
     public GameIndexEntry markDeleted() {

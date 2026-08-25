@@ -44,6 +44,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.scene.control.CheckMenuItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,66 +65,23 @@ public class MenuBarFactory {
     private final Stage primaryStage;
     private final BoardSizeController sizeController;
 
-    // ========== МЕНЮ ==========
-    private Menu fileMenu;
-    private Menu databaseMenu;
-    private Menu editMenu;
-    private Menu viewMenu;
     private Menu windowsMenu;
-    private Menu engineMenu;
-    private Menu helpMenu;
-    private Menu languageMenu;
 
-    // ========== ПУНКТЫ МЕНЮ ==========
-    private MenuItem newGameItem;
-    private MenuItem openPgnItem;
-    private MenuItem openPgnBrowserItem;
-    private MenuItem refreshBrowserItem;
-    private MenuItem savePgnItem;
-    private MenuItem exportCurrentItem;
-    private MenuItem importClipboardItem;
-    private MenuItem setupPositionItem;
-    private MenuItem exitItem;
-
-    private MenuItem connectItem;
-    private MenuItem openLastItem;
-    private MenuItem importItem;
-    private MenuItem searchItem;
-    private MenuItem statsItem;
-    private MenuItem infoItem;
-
-    private MenuItem undoItem;
-    private MenuItem redoItem;
-    private MenuItem preferencesItem;
-
-    private MenuItem flipBoardItem;
     private CheckMenuItem coordinatesItem;
-    private MenuItem zoomInItem;
-    private MenuItem zoomOutItem;
-    private MenuItem zoomResetItem;
-    private MenuItem toggleNotationItem;
 
     private MenuItem windowsClipboardStatusItem;
     private MenuItem windowsClearClipboardItem;
     private MenuItem windowsCloseAllItem;
 
-    private MenuItem engineConfigureItem;
-    private MenuItem engineAnalyzeItem;
+    // ========== ПУНКТЫ МЕНЮ ЯЗЫКА ==========
+    private CheckMenuItem russianItem;
+    private CheckMenuItem englishItem;
+    private CheckMenuItem chineseItem;
 
-    private MenuItem shortcutsItem;
-    private MenuItem aboutItem;
-    private MenuItem donateItem;
-
-    // ========== КНОПКИ ЯЗЫКОВ ==========
-    private Button ruButton;
-    private Button cnButton;
-    private Button usButton;
     private StackPane ruWrapper;
     private StackPane cnWrapper;
     private StackPane usWrapper;
 
-    // ========== ПУНКТЫ МЕНЮ "ТЕМА ДОСКИ" ==========
-    private Menu boardThemeMenu;
     private RadioMenuItem woodThemeItem;
     private RadioMenuItem classicThemeItem;
     private RadioMenuItem greenThemeItem;
@@ -140,14 +98,15 @@ public class MenuBarFactory {
         MenuBar menuBar = new MenuBar();
 
         // Создаем все меню
-        fileMenu = createFileMenu();
-        databaseMenu = createDatabaseMenu();
-        editMenu = createEditMenu();
-        viewMenu = createViewMenu();
+        // ========== МЕНЮ ==========
+        Menu fileMenu = createFileMenu();
+        Menu databaseMenu = createDatabaseMenu();
+        Menu editMenu = createEditMenu();
+        Menu viewMenu = createViewMenu();
         windowsMenu = createWindowsMenu();
-        engineMenu = createEngineMenu();
-        languageMenu = createLanguageMenu();
-        helpMenu = createHelpMenu();
+        Menu engineMenu = createEngineMenu();
+        Menu languageMenu = createLanguageMenu();
+        Menu helpMenu = createHelpMenu();
 
         menuBar.getMenus().addAll(
                 fileMenu,
@@ -181,26 +140,49 @@ public class MenuBarFactory {
     private Menu createLanguageMenu() {
         Menu menu = new Menu(lang.get(MENU_LANGUAGE));
 
-        MenuItem russianItem = new MenuItem(lang.get(MENU_LANGUAGE_RUSSIAN));
+        russianItem = new CheckMenuItem(lang.get(MENU_LANGUAGE_RUSSIAN));
         russianItem.setOnAction(e -> changeLanguage("ru"));
 
-        MenuItem englishItem = new MenuItem(lang.get(MENU_LANGUAGE_ENGLISH));
+        englishItem = new CheckMenuItem(lang.get(MENU_LANGUAGE_ENGLISH));
         englishItem.setOnAction(e -> changeLanguage("en"));
 
-        MenuItem chineseItem = new MenuItem(lang.get(MENU_LANGUAGE_CHINESE));
+        chineseItem = new CheckMenuItem(lang.get(MENU_LANGUAGE_CHINESE));
         chineseItem.setOnAction(e -> changeLanguage("zh"));
 
         menu.getItems().addAll(russianItem, englishItem, chineseItem);
+
+        updateLanguageMenuCheckmarks();
+
         return menu;
+    }
+
+    /**
+     * Обновляет состояние галочек в меню "Язык"
+     */
+    private void updateLanguageMenuCheckmarks() {
+        String currentLang = lang.getCurrentLanguage().getCode();
+
+        if (russianItem != null) {
+            russianItem.setSelected("ru".equals(currentLang));
+        }
+        if (englishItem != null) {
+            englishItem.setSelected("en".equals(currentLang));
+        }
+        if (chineseItem != null) {
+            chineseItem.setSelected("zh".equals(currentLang));
+        }
     }
 
     // ========== КНОПКИ ЯЗЫКОВ ==========
     private HBox createLanguageButtons() {
         LanguageManager lang = LanguageManager.getInstance();
 
-        ruButton = createLanguageButton("/images/flags/Rus.png", "Русский", "ru");
-        cnButton = createLanguageButton("/images/flags/Zng.png", "中文", "zh");
-        usButton = createLanguageButton("/images/flags/Eng.png", "English", "en");
+        // ========== КНОПКИ ЯЗЫКОВ ==========
+        Button ruButton = createLanguageButton("/images/flags/Rus.png", "Русский", "ru");
+        Button cnButton = createLanguageButton("/images/flags/Zng.png", "中文", "zh");
+        Button usButton = createLanguageButton("/images/flags/Eng.png", "English", "en");
+
+        Button donateButton = createDonateButton();
 
         ruWrapper = wrapWithBorder(ruButton);
         cnWrapper = wrapWithBorder(cnButton);
@@ -217,7 +199,7 @@ public class MenuBarFactory {
         HBox box = new HBox(6);
         box.setAlignment(Pos.CENTER_RIGHT);
         box.setPadding(new Insets(0, 12, 0, 0));
-        box.getChildren().addAll(ruWrapper, cnWrapper, usWrapper);
+        box.getChildren().addAll(ruWrapper, cnWrapper, usWrapper, donateButton);
 
         return box;
     }
@@ -296,8 +278,58 @@ public class MenuBarFactory {
         return button;
     }
 
+    /**
+     * Создает кнопку Donate
+     */
+    private Button createDonateButton() {
+        Button button = new Button(lang.get(MENU_HELP_DONATE));
+        button.setStyle(
+                "-fx-background-color: #d0d0d0; " +
+                        "-fx-text-fill: #1a1a1a; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-font-size: 12px; " +
+                        "-fx-padding: 5 10 5 10; " +
+                        "-fx-border-radius: 4; " +
+                        "-fx-background-radius: 4; " +
+                        "-fx-cursor: hand;"
+        );
+        button.setTooltip(new Tooltip(lang.get(MENU_HELP_DONATE)));
+
+        // При наведении - чуть темнее
+        button.setOnMouseEntered(e ->
+                button.setStyle(
+                        "-fx-background-color: #bebebe; " +
+                                "-fx-text-fill: #1a1a1a; " +
+                                "-fx-font-weight: bold; " +
+                                "-fx-font-size: 12px; " +
+                                "-fx-padding: 5 10 5 10; " +
+                                "-fx-border-radius: 4; " +
+                                "-fx-background-radius: 4; " +
+                                "-fx-cursor: hand;"
+                )
+        );
+        button.setOnMouseExited(e ->
+                button.setStyle(
+                        "-fx-background-color: #d0d0d0; " +
+                                "-fx-text-fill: #1a1a1a; " +
+                                "-fx-font-weight: bold; " +
+                                "-fx-font-size: 12px; " +
+                                "-fx-padding: 5 10 5 10; " +
+                                "-fx-border-radius: 4; " +
+                                "-fx-background-radius: 4; " +
+                                "-fx-cursor: hand;"
+                )
+        );
+
+        button.setOnAction(e -> {
+            DonateDialog dialog = new DonateDialog(primaryStage);
+            dialog.showAndWait();
+        });
+
+        return button;
+    }
+
     private void changeLanguage(String languageCode) {
-        // Сохраняем язык
         String languageName = getLanguageDisplayName(languageCode);
 
         LanguageManager.getInstance().setLanguage(languageCode);
@@ -305,7 +337,10 @@ public class MenuBarFactory {
         if (languageCode.equals("ru") || languageCode.equals("en") || languageCode.equals("zh")) {
             updateActiveLanguageBorder(languageCode);
         }
-        // Показываем диалог перезапуска
+
+        // ========== ОБНОВЛЯЕМ ГАЛОЧКИ В МЕНЮ ==========
+        updateLanguageMenuCheckmarks();
+
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(lang.get(LANG_CHANGE_TITLE));
         alert.setHeaderText(String.format(lang.get(LANG_CHANGE_HEADER), languageName));
@@ -328,12 +363,13 @@ public class MenuBarFactory {
     private Menu createFileMenu() {
         Menu menu = new Menu(lang.get(MENU_FILE));
 
-        newGameItem = new MenuItem(lang.get(MENU_FILE_NEW_GAME));
+        // ========== ПУНКТЫ МЕНЮ ==========
+        MenuItem newGameItem = new MenuItem(lang.get(MENU_FILE_NEW_GAME));
         newGameItem.setId("newGameMenuItem");
         newGameItem.setAccelerator(KeyCombination.keyCombination("Ctrl+N"));
         newGameItem.setOnAction(e -> controller.resetGame());
 
-        openPgnItem = new MenuItem(lang.get(MENU_FILE_OPEN_PGN));
+        MenuItem openPgnItem = new MenuItem(lang.get(MENU_FILE_OPEN_PGN));
         openPgnItem.setAccelerator(KeyCombination.keyCombination("Ctrl+O"));
         openPgnItem.setOnAction(e -> {
             FileChooser fileChooser = new FileChooser();
@@ -347,15 +383,15 @@ public class MenuBarFactory {
             }
         });
 
-        openPgnBrowserItem = new MenuItem(lang.get(MENU_FILE_OPEN_BROWSER));
+        MenuItem openPgnBrowserItem = new MenuItem(lang.get(MENU_FILE_OPEN_BROWSER));
         openPgnBrowserItem.setAccelerator(KeyCombination.keyCombination("Ctrl+B"));
         openPgnBrowserItem.setOnAction(e -> controller.showPgnBrowser());
 
-        refreshBrowserItem = new MenuItem(lang.get(MENU_FILE_REFRESH_BROWSER));
+        MenuItem refreshBrowserItem = new MenuItem(lang.get(MENU_FILE_REFRESH_BROWSER));
         refreshBrowserItem.setAccelerator(KeyCombination.keyCombination("Ctrl+R"));
         refreshBrowserItem.setOnAction(e -> controller.refreshPgnBrowser());
 
-        savePgnItem = new MenuItem(lang.get(MENU_FILE_SAVE_PGN));
+        MenuItem savePgnItem = new MenuItem(lang.get(MENU_FILE_SAVE_PGN));
         savePgnItem.setAccelerator(KeyCombination.keyCombination("Ctrl+S"));
         savePgnItem.setOnAction(e -> {
             FileChooser fileChooser = new FileChooser();
@@ -369,23 +405,23 @@ public class MenuBarFactory {
             }
         });
 
-        exportCurrentItem = new MenuItem(lang.get(MENU_FILE_EXPORT_CURRENT));
+        MenuItem exportCurrentItem = new MenuItem(lang.get(MENU_FILE_EXPORT_CURRENT));
         exportCurrentItem.setAccelerator(KeyCombination.keyCombination("Ctrl+E"));
         exportCurrentItem.setOnAction(e -> controller.exportCurrentGameToPgn());
 
-        importClipboardItem = new MenuItem(lang.get(MENU_FILE_IMPORT_CLIPBOARD));
+        MenuItem importClipboardItem = new MenuItem(lang.get(MENU_FILE_IMPORT_CLIPBOARD));
         importClipboardItem.setAccelerator(KeyCombination.keyCombination("Ctrl+Shift+V"));
         importClipboardItem.setOnAction(e -> controller.importPgnFromClipboard());
 
         SeparatorMenuItem separator1 = new SeparatorMenuItem();
 
-        setupPositionItem = new MenuItem(lang.get(MENU_FILE_SETUP_POSITION));
+        MenuItem setupPositionItem = new MenuItem(lang.get(MENU_FILE_SETUP_POSITION));
         setupPositionItem.setAccelerator(KeyCombination.keyCombination("Ctrl+P"));
         setupPositionItem.setOnAction(e -> controller.setupPosition());
 
         SeparatorMenuItem separator2 = new SeparatorMenuItem();
 
-        exitItem = new MenuItem(lang.get(MENU_FILE_EXIT));
+        MenuItem exitItem = new MenuItem(lang.get(MENU_FILE_EXIT));
         exitItem.setAccelerator(KeyCombination.keyCombination("Alt+F4"));
         exitItem.setOnAction(e -> {
             if (primaryStage != null) {
@@ -413,29 +449,29 @@ public class MenuBarFactory {
     private Menu createDatabaseMenu() {
         Menu menu = new Menu(lang.get(MENU_DATABASE));
 
-        connectItem = new MenuItem(lang.get(MENU_DATABASE_CONNECT));
+        MenuItem connectItem = new MenuItem(lang.get(MENU_DATABASE_CONNECT));
         connectItem.setAccelerator(KeyCombination.keyCombination("Ctrl+D"));
         connectItem.setOnAction(e -> controller.connectToDatabase());
 
-        openLastItem = new MenuItem(lang.get(MENU_DATABASE_OPEN_LAST));
+        MenuItem openLastItem = new MenuItem(lang.get(MENU_DATABASE_OPEN_LAST));
         openLastItem.setOnAction(e -> controller.openLastDatabase());
 
         SeparatorMenuItem separator1 = new SeparatorMenuItem();
 
-        importItem = new MenuItem(lang.get(MENU_DATABASE_IMPORT));
+        MenuItem importItem = new MenuItem(lang.get(MENU_DATABASE_IMPORT));
         importItem.setAccelerator(KeyCombination.keyCombination("Ctrl+I"));
         importItem.setOnAction(e -> controller.importPgnToDatabase());
 
-        searchItem = new MenuItem(lang.get(MENU_DATABASE_SEARCH));
+        MenuItem searchItem = new MenuItem(lang.get(MENU_DATABASE_SEARCH));
         searchItem.setAccelerator(KeyCombination.keyCombination("Ctrl+Shift+F"));
         searchItem.setOnAction(e -> controller.searchDatabase());
 
         SeparatorMenuItem separator2 = new SeparatorMenuItem();
 
-        statsItem = new MenuItem(lang.get(MENU_DATABASE_STATS));
+        MenuItem statsItem = new MenuItem(lang.get(MENU_DATABASE_STATS));
         statsItem.setOnAction(e -> controller.showOpeningStatistics());
 
-        infoItem = new MenuItem(lang.get(MENU_DATABASE_INFO));
+        MenuItem infoItem = new MenuItem(lang.get(MENU_DATABASE_INFO));
         infoItem.setOnAction(e -> controller.showDatabaseInfo());
 
         menu.getItems().addAll(
@@ -455,15 +491,15 @@ public class MenuBarFactory {
     private Menu createEditMenu() {
         Menu menu = new Menu(lang.get(MENU_EDIT));
 
-        undoItem = new MenuItem(lang.get(MENU_EDIT_UNDO));
+        MenuItem undoItem = new MenuItem(lang.get(MENU_EDIT_UNDO));
         undoItem.setDisable(true);
 
-        redoItem = new MenuItem(lang.get(MENU_EDIT_REDO));
+        MenuItem redoItem = new MenuItem(lang.get(MENU_EDIT_REDO));
         redoItem.setDisable(true);
 
         SeparatorMenuItem separator = new SeparatorMenuItem();
 
-        preferencesItem = new MenuItem(lang.get(MENU_EDIT_PREFERENCES));
+        MenuItem preferencesItem = new MenuItem(lang.get(MENU_EDIT_PREFERENCES));
         preferencesItem.setOnAction(e -> showPreferencesDialog());
 
         menu.getItems().addAll(undoItem, redoItem, separator, preferencesItem);
@@ -473,7 +509,7 @@ public class MenuBarFactory {
     private Menu createViewMenu() {
         Menu menu = new Menu(lang.get(MENU_VIEW));
 
-        flipBoardItem = new MenuItem(lang.get(MENU_VIEW_FLIP_BOARD));
+        MenuItem flipBoardItem = new MenuItem(lang.get(MENU_VIEW_FLIP_BOARD));
         flipBoardItem.setAccelerator(KeyCombination.keyCombination("Ctrl+F"));
         flipBoardItem.setOnAction(e -> controller.flipBoard());
 
@@ -487,27 +523,28 @@ public class MenuBarFactory {
         SeparatorMenuItem separator = new SeparatorMenuItem();
 
         // НОВОЕ: подменю для темы доски
-        boardThemeMenu = createBoardThemeMenu();
+        // ========== ПУНКТЫ МЕНЮ "ТЕМА ДОСКИ" ==========
+        Menu boardThemeMenu = createBoardThemeMenu();
 
         // НОВОЕ: загружаем сохраненную тему
         loadSavedTheme();
 
         Menu zoomMenu = new Menu(lang.get(MENU_VIEW_ZOOM));
-        zoomInItem = new MenuItem(lang.get(MENU_VIEW_ZOOM_IN));
+        MenuItem zoomInItem = new MenuItem(lang.get(MENU_VIEW_ZOOM_IN));
         zoomInItem.setAccelerator(KeyCombination.keyCombination("Ctrl+="));
         zoomInItem.setOnAction(e -> sizeController.increaseSize());
 
-        zoomOutItem = new MenuItem(lang.get(MENU_VIEW_ZOOM_OUT));
+        MenuItem zoomOutItem = new MenuItem(lang.get(MENU_VIEW_ZOOM_OUT));
         zoomOutItem.setAccelerator(KeyCombination.keyCombination("Ctrl+-"));
         zoomOutItem.setOnAction(e -> sizeController.decreaseSize());
 
-        zoomResetItem = new MenuItem(lang.get(MENU_VIEW_ZOOM_RESET));
+        MenuItem zoomResetItem = new MenuItem(lang.get(MENU_VIEW_ZOOM_RESET));
         zoomResetItem.setAccelerator(KeyCombination.keyCombination("Ctrl+0"));
         zoomResetItem.setOnAction(e -> sizeController.resetSize());
 
         zoomMenu.getItems().addAll(zoomInItem, zoomOutItem, zoomResetItem);
 
-        toggleNotationItem = new MenuItem(lang.get(MENU_VIEW_TOGGLE_NOTATION));
+        MenuItem toggleNotationItem = new MenuItem(lang.get(MENU_VIEW_TOGGLE_NOTATION));
         toggleNotationItem.setAccelerator(new KeyCodeCombination(KeyCode.H));
         toggleNotationItem.setOnAction(e -> {
             ChessBoardView boardView = controller.getBoardView();
@@ -617,10 +654,10 @@ public class MenuBarFactory {
     private Menu createEngineMenu() {
         Menu menu = new Menu(lang.get(MENU_ENGINE));
 
-        engineConfigureItem = new MenuItem(lang.get(MENU_ENGINE_CONFIGURE));
+        MenuItem engineConfigureItem = new MenuItem(lang.get(MENU_ENGINE_CONFIGURE));
         engineConfigureItem.setOnAction(e -> controller.configureEngine());
 
-        engineAnalyzeItem = new MenuItem(lang.get(MENU_ENGINE_ANALYZE));
+        MenuItem engineAnalyzeItem = new MenuItem(lang.get(MENU_ENGINE_ANALYZE));
         engineAnalyzeItem.setAccelerator(KeyCombination.keyCombination("Ctrl+A"));
         engineAnalyzeItem.setOnAction(e -> controller.showBestMove());
 
@@ -631,14 +668,14 @@ public class MenuBarFactory {
     private Menu createHelpMenu() {
         Menu menu = new Menu(lang.get(MENU_HELP));
 
-        shortcutsItem = new MenuItem(lang.get(MENU_HELP_SHORTCUTS));
+        MenuItem shortcutsItem = new MenuItem(lang.get(MENU_HELP_SHORTCUTS));
         shortcutsItem.setAccelerator(KeyCombination.keyCombination("Ctrl+H"));
         shortcutsItem.setOnAction(e -> controller.showShortcuts());
 
-        aboutItem = new MenuItem(lang.get(MENU_HELP_ABOUT));
+        MenuItem aboutItem = new MenuItem(lang.get(MENU_HELP_ABOUT));
         aboutItem.setOnAction(e -> controller.showAboutDialog());
 
-        donateItem = new MenuItem(lang.get(MENU_HELP_DONATE));
+        MenuItem donateItem = new MenuItem(lang.get(MENU_HELP_DONATE));
         donateItem.setOnAction(e -> {
             DonateDialog dialog = new DonateDialog(primaryStage);
             dialog.showAndWait();

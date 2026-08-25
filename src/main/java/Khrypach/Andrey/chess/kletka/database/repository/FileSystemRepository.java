@@ -59,13 +59,6 @@ public class FileSystemRepository implements GameRepository {
         initializeDirectory();
     }
 
-    public FileSystemRepository(Path directoryPath) throws PgnException {
-        this.gamesDirectory = directoryPath;
-        this.parser = new PgnParser();
-        this.formatter = new PgnFormatter();
-        initializeDirectory();
-    }
-
     private void initializeDirectory() throws PgnException {
         try {
             if (!Files.exists(gamesDirectory)) {

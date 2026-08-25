@@ -29,7 +29,4 @@ public class PgnNotFoundException extends PgnException {
         super("PGN файл не найден: " + filePath);
     }
 
-    public PgnNotFoundException(String filePath, Throwable cause) {
-        super("PGN файл не найден: " + filePath, cause);
-    }
 }

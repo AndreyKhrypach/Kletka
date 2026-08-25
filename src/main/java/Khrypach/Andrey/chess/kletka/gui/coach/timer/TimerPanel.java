@@ -340,20 +340,4 @@ public class TimerPanel extends VBox {
         alert.setContentText(message);
         alert.showAndWait();
     }
-
-    public void reset() {
-        timer.reset();
-        if (timer.isRunning()) {
-            timer.pause();
-            startPauseButton.setText("▶");
-        }
-        stopBlinking();
-        updateTimeDisplay(timer.getRemainingSeconds());
-    }
-
-    public void stop() {
-        timer.stop();
-        startPauseButton.setText("▶");
-        stopBlinking();
-    }
 }

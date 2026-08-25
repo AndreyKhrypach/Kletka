@@ -886,22 +886,6 @@ public class MainController {
                 text.contains("[Black") || text.contains("[Result");
     }
 
-    /**
-     * Метод для резервного использования если индекс не работает
-     * не удалять
-     * @Deprecated
-     */
-    @Deprecated
-    private void openPgnWithoutIndex(Path pgnPath) {
-        try {
-            PgnBrowserManager manager = PgnBrowserManager.getInstance();
-            manager.openBrowser(pgnPath, this::onGameSelectedFromBrowser);
-        } catch (Exception e) {
-            log.error("Failed to open without index", e);
-            showError(lang.get(LanguageKeys.MAIN_OPEN_ERROR_MSG), e.getMessage());
-        }
-    }
-
     private void onGameSelectedFromBrowser(GameData gameData) {
         if (gameData == null) {
             log.warn("Game selection returned null");

@@ -326,18 +326,6 @@ public class UciEngineManager {
     }
 
     /**
-     * Запускает анализ с ограничением по времени
-     */
-    public void startAnalysisWithTime(int moveTimeMs) {
-        try {
-            sendCommand(GO + " " + GO_MOVE_TIME + " " + moveTimeMs);
-            log.info("Analysis with time {} ms started", moveTimeMs);
-        } catch (IOException e) {
-            log.error("Failed to start analysis with time: {}", e.getMessage());
-        }
-    }
-
-    /**
      * Запускает бесконечный анализ
      */
     public void startInfiniteAnalysis() {

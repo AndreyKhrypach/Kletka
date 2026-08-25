@@ -31,6 +31,8 @@ import Khrypach.Andrey.chess.kletka.pgn.index.PgnRepacker;
 import Khrypach.Andrey.chess.kletka.pgn.index.manager.PgnBrowserManager;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.GameIndexEntry;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.PgnIndex;
+import Khrypach.Andrey.chess.kletka.pgn.index.operation.BatchOperationResult;
+import Khrypach.Andrey.chess.kletka.pgn.index.operation.PgnBatchOperation;
 import Khrypach.Andrey.chess.kletka.pgn.index.operation.PgnGameOperation;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
@@ -1324,33 +1326,21 @@ public class PgnFileBrowser {
 
             new Thread(() -> {
                 try {
-                    PgnGameOperation operation = new PgnGameOperation(pgnPath, currentIndex);
-                    int deletedCount = 0;
-                    int processed = 0;
+                    PgnBatchOperation batchOp = new PgnBatchOperation(pgnPath, currentIndex);
 
-                    for (GameTableRow row : selected) {
-                        try {
-                            operation.deleteGame(row.getIndexEntry().getId());
-                            deletedCount++;
-                            processed++;
+                    BatchOperationResult result = batchOp.deleteGamesBatch(entries,
+                            processed -> Platform.runLater(() -> progressDialog.updateProgress(
+                            (double) processed / total,
+                            String.format(lang.get(PGN_BROWSER_DELETING_PROCEED), processed, total),
+                            String.format(lang.get(PGN_BROWSER_DELETED), processed)
+                    )));
 
-                            if (processed % 10 == 0) {
-                                double progress = (double) processed / total;
-                                progressDialog.updateProgress(progress,
-                                        String.format(lang.get(PGN_BROWSER_DELETING_PROCEED), processed, total),
-                                        String.format(lang.get(PGN_BROWSER_DELETED), deletedCount));
-                            }
-                        } catch (Exception e) {
-                            log.warn("Failed to delete game for big operations {}: {}", row.getId(), e.getMessage());
-                        }
-                    }
-
-                    progressDialog.updateProgress(1.0, String.format(lang.get(PGN_BROWSER_DELETED), deletedCount),
+                    progressDialog.updateProgress(1.0, String.format(lang.get(PGN_BROWSER_DELETED), result.successful()),
                             lang.get(PGN_BROWSER_STATUS_OPERATION_FINISHED));
                     Thread.sleep(500);
                     progressDialog.close();
 
-                    int finalDeletedCount = deletedCount;
+                    int finalDeletedCount = result.successful();
                     Platform.runLater(() -> {
                         progressIndicator.setVisible(false);
                         statusLabel.setText(String.format(lang.get(PGN_BROWSER_DELETED), finalDeletedCount));
@@ -1468,7 +1458,7 @@ public class PgnFileBrowser {
             return;
         }
 
-        if (selected.size() > 1000) {
+        if (selected.size() > 100000) {
             showNotification(String.format(lang.get(PGN_BROWSER_MSG_COPY_LIMIT), selected.size()));
             return;
         }

@@ -24,7 +24,6 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.Group;
-import javafx.scene.Scene;
 import javafx.scene.image.WritableImage;
 import javafx.stage.Stage;
 import net.sf.image4j.codec.ico.ICOEncoder;
@@ -119,7 +118,6 @@ public class IconExporter extends Application {
         try {
             Group logo = LogoGenerator.createLogo(size, size);
 
-            Scene scene = new Scene(logo, size, size);
             WritableImage image = new WritableImage(size, size);
             logo.snapshot(null, image);
 
@@ -135,7 +133,7 @@ public class IconExporter extends Application {
 
             String linuxPath = RESOURCES_PATH + "linux/" + size + "x" + size + "/apps/kletka.png";
             File linuxFile = new File(linuxPath);
-            linuxFile.getParentFile().mkdirs();
+            Files.createDirectories(linuxFile.getParentFile().toPath());
             ImageIO.write(bufferedImage, "png", linuxFile);
 
             log.debug("✅ PNG: {}x{}", size, size);
@@ -183,7 +181,7 @@ public class IconExporter extends Application {
             String iconsetPath = RESOURCES_PATH + "macos/kletka.iconset/";
             File iconsetDir = new File(iconsetPath);
             if (!iconsetDir.exists()) {
-                iconsetDir.mkdirs();
+                Files.createDirectories(iconsetDir.toPath());
             }
 
             String[][] macSizes = {

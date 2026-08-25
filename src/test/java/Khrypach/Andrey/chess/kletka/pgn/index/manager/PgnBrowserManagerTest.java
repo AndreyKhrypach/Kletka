@@ -94,7 +94,7 @@ class PgnBrowserManagerTest {
         @Test
         @DisplayName("Максимальное количество копируемых игр должно быть 1000")
         void shouldHaveMaxCopyGames1000() {
-            assertThat(PgnBrowserManager.MAX_COPY_GAMES).isEqualTo(1000);
+            assertThat(PgnBrowserManager.MAX_COPY_GAMES).isEqualTo(100000);
         }
     }
 

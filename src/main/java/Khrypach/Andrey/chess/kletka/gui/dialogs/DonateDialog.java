@@ -47,7 +47,6 @@ import java.io.IOException;
 
 public class DonateDialog {
 
-    private static final String PAYPAL_EMAIL = "pacik78@gmail.com";
     private static final String BITCOIN_ADDRESS = "15HGcdu67yy3pMb2roANr2GAJZDPefB1HS";
 
     private final LanguageManager lang = LanguageManager.getInstance();
@@ -81,9 +80,6 @@ public class DonateDialog {
 
         Separator separator = new Separator();
 
-        // ===== PayPal =====
-        VBox paypalBox = createPayPalSection();
-
         // ===== Bitcoin =====
         VBox bitcoinBox = createBitcoinSection();
 
@@ -104,7 +100,6 @@ public class DonateDialog {
                 titleLabel,
                 descLabel,
                 separator,
-                paypalBox,
                 bitcoinBox,
                 separator2,
                 hintLabel,
@@ -114,48 +109,6 @@ public class DonateDialog {
         Scene scene = new Scene(root);
         stage.setScene(scene);
         stage.showAndWait();
-    }
-
-    private VBox createPayPalSection() {
-        VBox box = new VBox(8);
-        box.setAlignment(Pos.CENTER_LEFT);
-
-        Label paypalLabel = new Label(lang.get(LanguageKeys.DONATE_PAYPAL));
-        paypalLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
-
-        Label paypalAddress = new Label(PAYPAL_EMAIL);
-        paypalAddress.setStyle("-fx-font-family: 'Consolas', monospace; -fx-font-size: 13px; -fx-text-fill: #0066cc;");
-        paypalAddress.setPadding(new Insets(0, 0, 0, 10));
-
-        HBox paypalRow = new HBox(10);
-        paypalRow.setAlignment(Pos.CENTER_LEFT);
-        paypalRow.getChildren().add(paypalAddress);
-
-        Button copyPaypalBtn = new Button(lang.get(LanguageKeys.DONATE_COPY));
-        copyPaypalBtn.setOnAction(e -> {
-            javafx.scene.input.Clipboard clipboard = javafx.scene.input.Clipboard.getSystemClipboard();
-            javafx.scene.input.ClipboardContent content = new javafx.scene.input.ClipboardContent();
-            content.putString(PAYPAL_EMAIL);
-            clipboard.setContent(content);
-            showToast(lang.get(LanguageKeys.DONATE_TOAST_COPIED_EMAIL));
-        });
-
-        Button openPaypalBtn = new Button(lang.get(LanguageKeys.DONATE_OPEN));
-        openPaypalBtn.setOnAction(e -> {
-            try {
-                java.awt.Desktop.getDesktop().browse(
-                        java.net.URI.create("https://www.paypal.com/paypalme/")
-                );
-            } catch (Exception ex) {
-                showToast(lang.get(LanguageKeys.DONATE_TOAST_OPEN_BROWSER));
-            }
-        });
-
-        HBox paypalButtons = new HBox(8);
-        paypalButtons.getChildren().addAll(copyPaypalBtn, openPaypalBtn);
-
-        box.getChildren().addAll(paypalLabel, paypalRow, paypalButtons);
-        return box;
     }
 
     private VBox createBitcoinSection() {

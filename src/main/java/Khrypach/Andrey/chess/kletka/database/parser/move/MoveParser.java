@@ -210,7 +210,7 @@ public class MoveParser {
             int disambiguationRank = -1;
             boolean hasDisambiguation = false;
 
-            String disambigPart = rest.replaceAll("[x]", "");
+            String disambigPart = rest.replace("x", "");
             if (disambigPart.length() > 2) {
                 String maybeDisambig = disambigPart.substring(0, disambigPart.length() - 2);
                 if (maybeDisambig.length() == 1) {
@@ -233,7 +233,7 @@ public class MoveParser {
                 }
             }
 
-            String targetPart = rest.replaceAll("[x]", "");
+            String targetPart = rest.replace("x", "");
             String target = targetPart.substring(targetPart.length() - 2);
             Square targetSquare = Square.valueOf(target.toUpperCase());
 
