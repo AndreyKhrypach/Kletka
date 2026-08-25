@@ -768,6 +768,10 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.PGN_BROWSER_PASTE_ADDED, "Добавлено %d партий");
         strings.put(LanguageKeys.PGN_BROWSER_PASTE_COMPLETE, "✅ Вставлено %d партий");
         strings.put(LanguageKeys.PGN_BROWSER_PASTE_TARGET, "Целевой файл: %s");
+        strings.put(LanguageKeys.PGN_BROWSER_PASTE_PARTIAL, "Вставлено партий: успешно - %d, всего - %d, неудач - %d");
+        strings.put(LanguageKeys.PGN_BROWSER_PASTE_WRITING, "Вставка партий... ");
+        strings.put(LanguageKeys.PGN_BROWSER_PASTE_READING_PROGRESS, "Чтение партий для вставки: %d, %d");
+        strings.put(LanguageKeys.PGN_BROWSER_PASTE_READING, "Чтение партий из источника...");
 
         // Indexing Progress
         strings.put(LanguageKeys.INDEXING_PROGRESS_MESSAGE, "Обработано %d из %d партий (%.1f%%)");
@@ -866,7 +870,7 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.PGN_BROWSER_MSG_EDIT_UNAVAILABLE, "Редактирование временно недоступно");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_SELECT_GAMES, "Выберите партии для удаления");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_DELETE_UNAVAILABLE, "Удаление недоступно для этого режима");
-        strings.put(LanguageKeys.PGN_BROWSER_MSG_COPY_LIMIT, "Нельзя скопировать более 1000 партий за раз. Выбрано: %d");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_COPY_LIMIT, "Нельзя скопировать более 100000 партий за раз. Выбрано: %d");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_COPY_UNAVAILABLE, "Копирование недоступно для этого режима");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_DUPLICATE_UNAVAILABLE, "Дублирование недоступно");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_UNAVAILABLE, "Вставка недоступна. Буфер пуст или целевой файл совпадает с источником.");
@@ -1093,6 +1097,16 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.FAILED_TOKENIZE_PGN, "Невозможно токенизировать PGN");
         strings.put(LanguageKeys.ERROR_PARSING_MOVE, "Ошибка парсинга хода: %s");
         strings.put(LanguageKeys.ERROR_PARSING_PGN_TO_TREE, "Ошибка парсинга PGN в дерево вариантов: %s");
+
+        // WDL
+        strings.put(LanguageKeys.WDL_WIN, "В");
+        strings.put(LanguageKeys.WDL_DRAW, "Н");
+        strings.put(LanguageKeys.WDL_LOSS, "П");
+        strings.put(LanguageKeys.WDL_FOR, "для");
+
+        //BATCH
+        strings.put(LanguageKeys.PGN_BATCH_EXCEPTION_LIMIT, "Слишком много партий для пакетного удаления: %d");
+        strings.put(LanguageKeys.PGN_BATCH_EXCEPTION_ALREADY_DELETED, "Партия уже удалена:: %d");
     }
 
     private static StringBuilder createShortcutsContent() {

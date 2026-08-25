@@ -858,7 +858,7 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.PGN_BROWSER_MSG_EDIT_UNAVAILABLE, "Editing temporarily unavailable");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_SELECT_GAMES, "Select games to delete");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_DELETE_UNAVAILABLE, "Delete not available in this mode");
-        strings.put(LanguageKeys.PGN_BROWSER_MSG_COPY_LIMIT, "Cannot copy more than 1000 games at once. Selected: %d");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_COPY_LIMIT, "Cannot copy more than 100000 games at once. Selected: %d");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_COPY_UNAVAILABLE, "Copy not available in this mode");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_DUPLICATE_UNAVAILABLE, "Duplicate not available");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_UNAVAILABLE, "Paste not available. Clipboard is empty or target file matches source.");
@@ -878,6 +878,10 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_ERROR, "Paste error: %s");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_GAMES, "📋 Paste games");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_START, "Starting paste...");
+        strings.put(LanguageKeys.PGN_BROWSER_PASTE_PARTIAL, "Games pasted: successful - %d, total - %d, failed - %d");
+        strings.put(LanguageKeys.PGN_BROWSER_PASTE_WRITING, "Pasting games...");
+        strings.put(LanguageKeys.PGN_BROWSER_PASTE_READING_PROGRESS, "Reading games for paste: %d, %d");
+        strings.put(LanguageKeys.PGN_BROWSER_PASTE_READING, "Reading games from source...");
 
         // ========== PGN BROWSER - PROGRESS ==========
         strings.put(LanguageKeys.PGN_BROWSER_DELETING, "Deleting %d games...");
@@ -1083,6 +1087,17 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.FAILED_TOKENIZE_PGN, "Failed to tokenize PGN");
         strings.put(LanguageKeys.ERROR_PARSING_MOVE, "Error parsing move: %s");
         strings.put(LanguageKeys.ERROR_PARSING_PGN_TO_TREE, "Error parsing PGN to tree: %s");
+
+        // WDL
+        strings.put(LanguageKeys.WDL_WIN, "W");
+        strings.put(LanguageKeys.WDL_DRAW, "D");
+        strings.put(LanguageKeys.WDL_LOSS, "L");
+        strings.put(LanguageKeys.WDL_FOR, "for");
+
+        //BATCH
+        strings.put(LanguageKeys.PGN_BATCH_EXCEPTION_LIMIT, "Too many games for batch delete: %d");
+        strings.put(LanguageKeys.PGN_BATCH_EXCEPTION_ALREADY_DELETED, "Game already deleted: %d");
+
     }
 
     private static StringBuilder createShortcutsContent() {

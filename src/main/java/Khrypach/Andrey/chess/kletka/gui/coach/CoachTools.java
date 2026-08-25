@@ -71,6 +71,7 @@ public class CoachTools extends VBox {
     private Button blueColorButton;
     private Button redColorButton;
     private Button greenColorButton;
+    private Button blackColorButton;
     private Button eraseButton;
 
     @Getter
@@ -190,12 +191,15 @@ public class CoachTools extends VBox {
         blueColorButton = createColorButton(MarkerColor.BLUE);
         redColorButton = createColorButton(MarkerColor.RED);
         greenColorButton = createColorButton(MarkerColor.GREEN);
+        blackColorButton = createColorButton(MarkerColor.BLACK);
 
         blueColorButton.setStyle("-fx-background-color: #0066ff; -fx-border-radius: 25; -fx-background-radius: 25;" +
                 "-fx-border-color: #FFD700; -fx-border-width: 0;");
         redColorButton.setStyle("-fx-background-color: #ff3333; -fx-border-radius: 25; -fx-background-radius: 25;" +
                 "-fx-border-color: #FFD700; -fx-border-width: 0;");
         greenColorButton.setStyle("-fx-background-color: #32cd32; -fx-border-radius: 25; -fx-background-radius: 25;" +
+                "-fx-border-color: #FFD700; -fx-border-width: 0;");
+        blackColorButton.setStyle("-fx-background-color: #000000; -fx-border-radius: 25; -fx-background-radius: 25;" +
                 "-fx-border-color: #FFD700; -fx-border-width: 0;");
 
         highlightColorButton(blueColorButton, true);
@@ -205,6 +209,7 @@ public class CoachTools extends VBox {
             highlightColorButton(blueColorButton, true);
             highlightColorButton(redColorButton, false);
             highlightColorButton(greenColorButton, false);
+            highlightColorButton(blackColorButton, false);
         });
 
         redColorButton.setOnAction(e -> {
@@ -212,6 +217,7 @@ public class CoachTools extends VBox {
             highlightColorButton(blueColorButton, false);
             highlightColorButton(redColorButton, true);
             highlightColorButton(greenColorButton, false);
+            highlightColorButton(blackColorButton, false);
         });
 
         greenColorButton.setOnAction(e -> {
@@ -219,6 +225,15 @@ public class CoachTools extends VBox {
             highlightColorButton(blueColorButton, false);
             highlightColorButton(redColorButton, false);
             highlightColorButton(greenColorButton, true);
+            highlightColorButton(blackColorButton, false);
+        });
+
+        blackColorButton.setOnAction(e -> {
+            currentColor = MarkerColor.BLACK;
+            highlightColorButton(blueColorButton, false);
+            highlightColorButton(redColorButton, false);
+            highlightColorButton(greenColorButton, false);
+            highlightColorButton(blackColorButton, true);
         });
 
         eraseButton = new Button();
@@ -275,7 +290,7 @@ public class CoachTools extends VBox {
             sep.setStyle("-fx-background-color: #1a252f;");
             getChildren().add(sep);
 
-            getChildren().addAll(blueColorButton, redColorButton, greenColorButton);
+            getChildren().addAll(blueColorButton, redColorButton, greenColorButton, blackColorButton);
 
             javafx.scene.control.Separator sep2 = new javafx.scene.control.Separator();
             sep2.setStyle("-fx-background-color: #1a252f;");

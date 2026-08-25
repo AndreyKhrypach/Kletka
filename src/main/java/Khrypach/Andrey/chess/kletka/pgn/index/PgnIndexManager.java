@@ -33,7 +33,6 @@ import tools.jackson.databind.json.JsonMapper;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.zip.CRC32;
 
 /**
@@ -44,7 +43,6 @@ public class PgnIndexManager {
     private static final Logger log = LoggerFactory.getLogger(PgnIndexManager.class);
 
     private static final String INDEX_EXTENSION = ".idx";
-    private static final String INDEX_BACKUP_EXTENSION = ".idx.bak";
 
     private final ObjectMapper objectMapper;
 
@@ -62,16 +60,6 @@ public class PgnIndexManager {
         int dotIndex = fileName.lastIndexOf('.');
         String baseName = dotIndex > 0 ? fileName.substring(0, dotIndex) : fileName;
         return pgnPath.getParent().resolve(baseName + INDEX_EXTENSION);
-    }
-
-    /**
-     * Получает путь к бэкап-файлу индекса
-     */
-    public Path getIndexBackupPath(Path pgnPath) {
-        String fileName = pgnPath.getFileName().toString();
-        int dotIndex = fileName.lastIndexOf('.');
-        String baseName = dotIndex > 0 ? fileName.substring(0, dotIndex) : fileName;
-        return pgnPath.getParent().resolve(baseName + INDEX_BACKUP_EXTENSION);
     }
 
     /**
@@ -146,11 +134,9 @@ public class PgnIndexManager {
 
         try (InputStream is = Files.newInputStream(indexPath)) {
             PgnIndex index = objectMapper.readValue(is, PgnIndex.class);
-
             if (index.getEntries() == null) {
                 throw new IOException("Index entries are null");
             }
-
             log.info("Loaded index: {}", index);
             return index;
         } catch (Exception e) {
@@ -160,40 +146,24 @@ public class PgnIndexManager {
     }
 
     /**
-     * Сохраняет индекс в файл
+     * Сохраняет индекс в файл.
+     * БЕЗ БЭКАПОВ - просто перезаписываем файл индекса.
      */
     public void saveIndex(Path pgnPath, PgnIndex index) throws IOException {
         Path indexPath = getIndexPath(pgnPath);
-        Path backupPath = getIndexBackupPath(pgnPath);
-
         log.info("Saving index to: {}", indexPath);
 
+        // Обновляем метаданные
         index.setFileSize(Files.size(pgnPath));
         index.setFileHash(computeFileHash(pgnPath));
 
-        if (Files.exists(indexPath)) {
-            Files.copy(indexPath, backupPath, StandardCopyOption.REPLACE_EXISTING);
-            log.info("Created backup: {}", backupPath);
-        }
-
+        // Сохраняем индекс (просто перезаписываем)
         try (OutputStream os = Files.newOutputStream(indexPath)) {
             objectMapper.writeValue(os, index);
             log.info("Index saved successfully");
         } catch (Exception e) {
             log.error("Failed to save index: {}", e.getMessage(), e);
-
-            if (Files.exists(backupPath)) {
-                Files.copy(backupPath, indexPath, StandardCopyOption.REPLACE_EXISTING);
-                log.info("Restored from backup");
-            }
             throw new IOException("Failed to save index: " + e.getMessage(), e);
-        }
-
-        try {
-            Files.deleteIfExists(backupPath);
-            log.info("Deleted backup");
-        } catch (IOException e) {
-            log.warn("Failed to delete backup: {}", e.getMessage());
         }
     }
 
@@ -258,12 +228,8 @@ public class PgnIndexManager {
      */
     public void deleteIndex(Path pgnPath) throws IOException {
         Path indexPath = getIndexPath(pgnPath);
-        Path backupPath = getIndexBackupPath(pgnPath);
-
         log.info("Deleting index: {}", indexPath);
-
         Files.deleteIfExists(indexPath);
-        Files.deleteIfExists(backupPath);
     }
 
 }

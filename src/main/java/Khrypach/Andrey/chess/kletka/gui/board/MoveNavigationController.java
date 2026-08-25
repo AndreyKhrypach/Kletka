@@ -105,9 +105,6 @@ public class MoveNavigationController {
     private final UciEngineManager engineManager;
     private boolean engineUpdateScheduled = false;
 
-    // Стек для навигации между вариантами
-    private Stack<NavigationPoint> navigationStack = new Stack<>();
-
     @Getter
     private Runnable onPositionChanged;
 
@@ -237,9 +234,6 @@ public class MoveNavigationController {
             boardView.getCoachTools().togglePanel();
         }
 
-        navigationStack.clear();
-        log.trace("Stack cleared - going to first move");
-
         currentVariation = rootVariation;
         currentNode = rootNode;
 
@@ -267,7 +261,6 @@ public class MoveNavigationController {
             return;
         }
 
-        navigationStack.clear();
         currentVariation = mainLine;
         currentNode = mainLine.getLastNode();
 
@@ -357,14 +350,18 @@ public class MoveNavigationController {
             return;
         }
 
+        // Если у узла есть развилка (под-варианты) - ВСЕГДА показываем диалог
+        if (hasForkAtNode(currentNode)) {
+            log.trace("Fork detected at node: {}, showing choice dialog", currentNode.getSan());
+            boolean isWhiteTurn = (currentNode.getAbsolutePly() % 2 == 0);
+            showBranchChoiceDialog(currentNode, isWhiteTurn);
+            return;
+        }
+
+        // Если есть следующий ход - переходим к нему
         if (currentNode.getNext() != null) {
             ParentNode nextNode = currentNode.getNext();
             log.trace("Has next move: {}", nextNode.getSan());
-
-            if (hasForkAtNode(currentNode)) {
-                navigationStack.push(new NavigationPoint(currentVariation, currentNode));
-                log.trace("Saved point to stack");
-            }
 
             currentNode = nextNode;
 
@@ -377,21 +374,9 @@ public class MoveNavigationController {
             updateOpeningDisplay();
             sendCurrentPositionToEngine();
 
-            if (hasForkAtNode(currentNode)) {
-                boolean isWhiteTurn = (currentNode.getAbsolutePly() % 2 == 0);
-                showBranchChoiceDialog(currentNode, isWhiteTurn);
-            }
-
             if (boardView != null) {
                 boardView.notifyPositionChanged();
             }
-            return;
-        }
-
-        if (hasForkAtNode(currentNode)) {
-            log.trace("No next, but has sub-variations");
-            boolean isWhiteTurn = (currentNode.getAbsolutePly() % 2 == 0);
-            showBranchChoiceDialog(currentNode, isWhiteTurn);
             return;
         }
 
@@ -493,7 +478,6 @@ public class MoveNavigationController {
         if (targetVariation == null || targetVariation.isEmpty()) return;
 
         if (!isAtRoot()) {
-            navigationStack.push(new NavigationPoint(currentVariation, currentNode));
             log.trace("Saved to stack: var={}, node={}",
                     currentVariation.getName(),
                     currentNode != null ? currentNode.getSan() : "null");
@@ -654,7 +638,6 @@ public class MoveNavigationController {
             } else {
                 assert node != null;
                 if (node.getNext() != null && !node.getNext().isRoot()) {
-                    navigationStack.push(new NavigationPoint(currentVariation, currentNode));
                     currentNode = node.getNext();
                     restoreBoardFromCurrentNode();
                     updateNotationView();
@@ -691,10 +674,6 @@ public class MoveNavigationController {
      */
     private void switchToVariation(Variation variation) {
         if (variation == null) return;
-
-        if (!isAtRoot()) {
-            navigationStack.push(new NavigationPoint(currentVariation, currentNode));
-        }
 
         currentVariation = variation;
         currentNode = variation.getFirstNode();
@@ -741,19 +720,6 @@ public class MoveNavigationController {
         if (path != null && !path.isEmpty()) {
             log.trace("Path via parents found, size: {}", path.size());
 
-            navigationStack.clear();
-
-            for (int i = 0; i < path.size() - 1; i++) {
-                ParentNode node = path.get(i);
-                if (node.getSubVariations() != null && !node.getSubVariations().isEmpty()) {
-                    ParentNode nextNode = path.get(i + 1);
-                    Variation foundVar = pathBuilder.findVariationContainingNode(node, nextNode);
-                    if (foundVar != null && foundVar != mainLine) {
-                        navigationStack.push(new NavigationPoint(foundVar, node));
-                    }
-                }
-            }
-
             currentVariation = targetVariation;
             currentNode = targetNode;
 
@@ -771,24 +737,6 @@ public class MoveNavigationController {
             return;
         }
 
-        log.trace("Fallback: searching via tree traversal");
-
-        navigationStack.clear();
-
-        List<ParentNode> fallbackPath = buildPathViaTraversal(targetNode);
-        if (fallbackPath != null && !fallbackPath.isEmpty()) {
-            for (int i = 0; i < fallbackPath.size() - 1; i++) {
-                ParentNode node = fallbackPath.get(i);
-                if (node.getSubVariations() != null && !node.getSubVariations().isEmpty()) {
-                    ParentNode nextNode = fallbackPath.get(i + 1);
-                    Variation foundVar = pathBuilder.findVariationContainingNode(node, nextNode);
-                    if (foundVar != null && foundVar != mainLine) {
-                        navigationStack.push(new NavigationPoint(foundVar, node));
-                    }
-                }
-            }
-        }
-
         currentVariation = targetVariation;
         currentNode = targetNode;
 
@@ -803,44 +751,6 @@ public class MoveNavigationController {
         if (boardView != null) {
             boardView.notifyPositionChanged();
         }
-    }
-
-    /**
-     * Вспомогательный метод для поиска пути через обход дерева
-     */
-    private List<ParentNode> buildPathViaTraversal(ParentNode targetNode) {
-        if (targetNode == null || targetNode.isRoot()) {
-            return null;
-        }
-
-        List<ParentNode> path = new ArrayList<>();
-        if (findPathInTree(rootVariation, targetNode, path)) {
-            return path;
-        }
-        return null;
-    }
-
-    /**
-     * Рекурсивный поиск пути в дереве
-     */
-    private boolean findPathInTree(Variation variation, ParentNode target, List<ParentNode> path) {
-        if (variation == null) return false;
-
-        for (ParentNode node : variation.getMoves()) {
-            path.add(node);
-            if (node == target) {
-                return true;
-            }
-            if (!node.getSubVariations().isEmpty()) {
-                for (Variation subVar : node.getSubVariations()) {
-                    if (findPathInTree(subVar, target, path)) {
-                        return true;
-                    }
-                }
-            }
-            path.remove(path.size() - 1);
-        }
-        return false;
     }
 
     /**
@@ -941,7 +851,6 @@ public class MoveNavigationController {
         VariationStateSnapshot snapshot = variationManager.makeCurrentVariationMainLine(currentVariation);
         applySnapshot(snapshot);
 
-        navigationStack.clear();
         restoreBoardFromCurrentNode();
         updateNotationView();
         sendCurrentPositionToEngine();
@@ -983,7 +892,6 @@ public class MoveNavigationController {
             Variation newVar = variationManager.createNewVariation(move, piece, isCapture, promotionPiece,
                     currentVariation, currentNode);
             if (newVar != null) {
-                navigationStack.push(new NavigationPoint(currentVariation, currentNode));
                 currentVariation = newVar;
                 currentNode = newVar.getFirstNode();
             }
@@ -994,7 +902,6 @@ public class MoveNavigationController {
 
             if (newCurrentNode != null) {
                 if (choice.variation() != currentVariation) {
-                    navigationStack.push(new NavigationPoint(currentVariation, currentNode));
                     currentVariation = choice.variation();
                 }
                 currentNode = newCurrentNode;
@@ -1070,7 +977,6 @@ public class MoveNavigationController {
             currentVariation = parentVariation;
         }
         currentNode = parentNode;
-        navigationStack.clear();
 
         restoreBoardFromCurrentNode();
         updateAllVariationNames();
@@ -1229,10 +1135,10 @@ public class MoveNavigationController {
      * Проверяет, находится ли навигация в корневой позиции
      */
     private boolean isAtRoot() {
-        if (currentVariation == rootVariation || currentVariation == null) {
-            return currentNode == null || currentNode.isRoot();
+        if (currentNode == null || currentNode.isRoot()) {
+            return true;
         }
-        return false;
+        return currentVariation == rootVariation && currentNode != null && currentNode.isRoot();
     }
 
     /**
@@ -1370,7 +1276,6 @@ public class MoveNavigationController {
 
     public void loadGameTree(RootNode newRootNode, Variation newMainLine,
                              Variation newRootVariation, Board initialBoard) {
-        navigationStack.clear();
 
         this.rootNode = newRootNode;
         this.rootVariation = newRootVariation;
@@ -1378,19 +1283,10 @@ public class MoveNavigationController {
         this.initialPosition = initialBoard != null ? initialBoard.clone() : null;
 
         this.currentVariation = mainLine;
-        this.currentNode = mainLine.getFirstNode();
+        this.currentNode = rootNode;
 
         this.pathBuilder = new PathBuilder(rootVariation, mainLine);
         this.boardReconstructor = new BoardReconstructor(pathBuilder, initialPosition, startWithBlack);
-
-        if (this.currentNode == null || this.currentNode.isRoot()) {
-            List<ParentNode> moves = mainLine.getMoves();
-            if (!moves.isEmpty()) {
-                this.currentNode = moves.get(0);
-            } else {
-                this.currentNode = rootNode;
-            }
-        }
 
         this.pathBuilder = new PathBuilder(rootVariation, mainLine);
         this.boardReconstructor = new BoardReconstructor(pathBuilder, initialPosition, startWithBlack);
@@ -1458,9 +1354,4 @@ public class MoveNavigationController {
         }
     }
 
-    /**
-     * Класс для точки навигации
-     */
-    private record NavigationPoint(Variation variation, ParentNode node) {
-    }
 }

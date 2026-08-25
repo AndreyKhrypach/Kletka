@@ -71,7 +71,7 @@ public class LanguageManager {
         Language newLang = languages.get(code);
         if (newLang != null && newLang != currentLanguage) {
             currentLanguage = newLang;
-            AppPreferences.saveLanguage(code); // ← сохраняем
+            AppPreferences.saveLanguage(code);
             notifyListeners(); // если есть
         }
     }

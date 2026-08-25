@@ -6,12 +6,25 @@
 
 ## 🚀 Features
 
-- 📁 Open, edit, and save PGN files  
-- 🧩 Full support for variations and annotations  
-- 🔍 Position analysis with **Stockfish** (UCI engine)  
-- 🎨 Customizable board themes  
-- 🌍 Multilingual: English, Russian, Chinese  
-- 🖥️ Cross-platform: Windows, Linux, macOS  
+- 📁 Open, edit, and save PGN files
+- 🧩 Full support for variations and annotations
+- 🔍 Position analysis with **Stockfish** (UCI engine)
+- 🎨 Customizable board themes
+- 🌍 Multilingual: English, Russian, Chinese
+- 🖥️ Cross-platform: Windows, Linux, macOS
+
+---
+
+## 🖥️ Screenshots
+
+### English
+| ![Main Window](screenshots/Main_en.png) | ![PGN file browser](screenshots/Browser_en.png) |
+
+### Русский
+| ![Главное окно](screenshots/Main_ru.png) | ![Пгн файл обозреватель](screenshots/Browser_ru.png) |
+
+### 中文 (Chinese)
+| ![主窗口](screenshots/Main_zh.png) | ![PGN 浏览器](screenshots/Browser_zh.png) |
 
 ---
 
@@ -47,14 +60,12 @@ sudo dpkg -i kletka_1.0-1_amd64.deb
 - **Maven** — install via `brew install maven` (macOS) or `sudo apt install maven` (Linux)
 
 ````bash
-
 git clone https://github.com/AndreyKhrypach/Kletka.git
 cd Kletka
 mvn clean package
 ````
 Platform-specific builds
 ````bash
-
 # Windows
 
 mvn clean package -P windows
@@ -71,9 +82,10 @@ mvn clean package -P mac
 🧠 Setting up Stockfish
 
 Kletka uses the Stockfish UCI engine for analysis. You need to install it separately:
+
 Windows
 
-    Download Stockfish from the official website
+    Download Stockfish from the official website: https://stockfishchess.org/download/
 
     Extract the archive
 
@@ -81,14 +93,13 @@ Windows
 
 Linux (Debian/Ubuntu)
 ````bash
-
 sudo apt install stockfish
 ````
 
 Then in Kletka, go to Engine → Configure Engine and select the stockfish binary.
+
 macOS
 ````bash
-
 brew install stockfish
 ````
 

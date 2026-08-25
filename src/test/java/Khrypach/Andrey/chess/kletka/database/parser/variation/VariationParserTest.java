@@ -42,13 +42,11 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 class VariationParserTest {
 
     private VariationParser parser;
-    private MoveParser moveParser;
-    private GameTreeBuilder treeBuilder;
 
     @BeforeEach
     void setUp() {
-        moveParser = new MoveParser();
-        treeBuilder = new GameTreeBuilder();
+        MoveParser moveParser = new MoveParser();
+        GameTreeBuilder treeBuilder = new GameTreeBuilder();
         treeBuilder.initializeGuiLogic();
         parser = new VariationParser(moveParser, treeBuilder);
     }

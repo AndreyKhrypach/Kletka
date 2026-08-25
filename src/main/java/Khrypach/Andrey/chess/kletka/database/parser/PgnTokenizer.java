@@ -231,7 +231,7 @@ public class PgnTokenizer {
                 if (!isPartOfMove) {
                     position += 2;
                     column += 2;
-                    log.trace("Annotation: '{}'", twoChars);
+                    log.trace("Annotation part of move: '{}'", twoChars);
                     return new PgnToken(PgnTokenType.ANNOTATION, twoChars, startLine, startColumn);
                 }
             }

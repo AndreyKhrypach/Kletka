@@ -24,6 +24,7 @@ import Khrypach.Andrey.chess.kletka.gui.board.ChessSymbols;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageManager;
 import Khrypach.Andrey.chess.kletka.gui.model.AnalysisInfo;
+import Khrypach.Andrey.chess.kletka.gui.model.SanGenerator;
 import com.github.bhlangonijr.chesslib.Board;
 import com.github.bhlangonijr.chesslib.Piece;
 import com.github.bhlangonijr.chesslib.Square;
@@ -155,24 +156,24 @@ public class UciEngineManager {
     private void initializeEngine() throws IOException {
         log.debug("Initializing engine...");
 
-        // Создаем CompletableFuture для uciok
         uciInitFuture = new CompletableFuture<>();
         readyInitFuture = new CompletableFuture<>();
 
-        // Отправляем UCI команду
         sendCommand(UCI);
 
         try {
-            // Ждем uciok с таймаутом
             uciInitFuture.get(ENGINE_INIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             log.info("Engine responded with uciok");
 
-            // Отправляем isready и ждем readyok
+            // ========== ВКЛЮЧАЕМ WDL ==========
+            sendCommand(SET_OPTION + " " + SET_OPTION_NAME + " " + UCI_SHOW_WDL +
+                    " " + SET_OPTION_VALUE + " " + "true");
+            log.info("WDL enabled");
+
             sendCommand(IS_READY);
             readyInitFuture.get(ENGINE_INIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             log.info("Engine responded with readyok");
 
-            // Устанавливаем MultiPV по умолчанию
             setMultiPV(1);
             log.info("Engine initialized and ready");
 
@@ -321,18 +322,6 @@ public class UciEngineManager {
             log.info("Analysis with depth {} started", depth);
         } catch (IOException e) {
             log.error("Failed to start analysis with depth: {}", e.getMessage());
-        }
-    }
-
-    /**
-     * Запускает анализ с ограничением по времени
-     */
-    public void startAnalysisWithTime(int moveTimeMs) {
-        try {
-            sendCommand(GO + " " + GO_MOVE_TIME + " " + moveTimeMs);
-            log.info("Analysis with time {} ms started", moveTimeMs);
-        } catch (IOException e) {
-            log.error("Failed to start analysis with time: {}", e.getMessage());
         }
     }
 
@@ -506,6 +495,11 @@ public class UciEngineManager {
         int tbhits = 0;
         int time = 0;
 
+        // ========== ДОБАВЛЯЕМ WDL ==========
+        int wdlWin = -1;
+        int wdlDraw = -1;
+        int wdlLoss = -1;
+
         for (int i = 0; i < parts.length; i++) {
             switch (parts[i]) {
                 case INFO_MULTIPV:
@@ -667,8 +661,16 @@ public class UciEngineManager {
                     }
                     break;
 
-                case "wdl":
-                    if (i + 1 < parts.length) {
+                case "wdl":  // <-- ДОБАВЛЯЕМ ПАРСИНГ WDL
+                    if (i + 3 < parts.length) {
+                        try {
+                            wdlWin = Integer.parseInt(parts[i + 1]);
+                            wdlDraw = Integer.parseInt(parts[i + 2]);
+                            wdlLoss = Integer.parseInt(parts[i + 3]);
+                        } catch (NumberFormatException e) {
+                            log.warn("Invalid WDL values: {} {} {}",
+                                    parts[i + 1], parts[i + 2], parts[i + 3]);
+                        }
                     }
                     break;
             }
@@ -691,8 +693,8 @@ public class UciEngineManager {
             pv = String.join(" ", limitedPv);
         }
 
-        log.trace("PARSED: multipv={}, depth={}, score={}, pv='{}'",
-                pvIndex, depth, score, pv);
+        log.trace("PARSED: multipv={}, depth={}, score={}, pv='{}', wdl={}/{}/{}",
+                pvIndex, depth, score, pv, wdlWin, wdlDraw, wdlLoss);
 
         AnalysisInfo info = new AnalysisInfo();
         info.setDepth(depth);
@@ -709,6 +711,11 @@ public class UciEngineManager {
         info.setUpperbound(isUpperbound);
         info.setCurrMove(currmove);
         info.setCurrMoveNumber(currmovenumber);
+
+        // ========== СОХРАНЯЕМ WDL ==========
+        info.setWdlWin(wdlWin);
+        info.setWdlDraw(wdlDraw);
+        info.setWdlLoss(wdlLoss);
 
         if (pvIndex == 1) {
             lastDepth = depth;
@@ -761,55 +768,45 @@ public class UciEngineManager {
             Square from = Square.valueOf(fromStr);
             Square to = Square.valueOf(toStr);
 
+            // Проверяем рокировку ДО получения фигуры
+            if (from == Square.E1 && to == Square.G1) return "O-O";
+            if (from == Square.E1 && to == Square.C1) return "O-O-O";
+            if (from == Square.E8 && to == Square.G8) return "O-O";
+            if (from == Square.E8 && to == Square.C8) return "O-O-O";
+
             Piece movingPiece = board.getPiece(from);
-
             if (movingPiece == Piece.NONE) {
-                if (from == Square.E1 && to == Square.G1) return "O-O";
-                if (from == Square.E1 && to == Square.C1) return "O-O-O";
-                if (from == Square.E8 && to == Square.G8) return "O-O";
-                if (from == Square.E8 && to == Square.C8) return "O-O-O";
                 return uciMove;
-            }
-
-            if ((movingPiece == Piece.WHITE_KING || movingPiece == Piece.BLACK_KING)) {
-                int fromFile = from.getFile().ordinal();
-                int toFile = to.getFile().ordinal();
-                if (Math.abs(toFile - fromFile) == 2) {
-                    return toFile - fromFile > 0 ? "O-O" : "O-O-O";
-                }
             }
 
             boolean isCapture = board.getPiece(to) != Piece.NONE;
             boolean isPromotion = uciMove.length() > 4;
-            String promotionPiece = "";
+            Piece promotionPiece = null;
 
             if (isPromotion) {
                 String promo = uciMove.substring(4);
-                Piece promoPiece = getPieceFromChar(promo, movingPiece);
-                promotionPiece = "=" + ChessSymbols.getSymbol(promoPiece);
+                promotionPiece = getPieceFromChar(promo, movingPiece);
             }
 
-            String result;
-            if (movingPiece == Piece.WHITE_PAWN || movingPiece == Piece.BLACK_PAWN) {
-                if (isCapture) {
-                    String fromFile = from.toString().toLowerCase().substring(0, 1);
-                    result = fromFile + "x" + to.toString().toLowerCase();
-                } else {
-                    result = to.toString().toLowerCase();
-                }
-                result += promotionPiece;
-            } else {
-                String pieceSymbol = ChessSymbols.getSymbol(movingPiece);
-                if (isCapture) {
-                    result = pieceSymbol + "x" + to.toString().toLowerCase();
-                } else {
-                    result = pieceSymbol + to.toString().toLowerCase();
-                }
+            // ИСПОЛЬЗУЕМ SanGenerator для правильного хода при неоднозначности
+            String san = SanGenerator.generateSan(
+                    board,
+                    new Move(from, to),
+                    movingPiece,
+                    isCapture,
+                    promotionPiece
+            );
+
+            // Если SanGenerator вернул пустую строку - используем fallback
+            if (san == null || san.isEmpty()) {
+                return ChessSymbols.convertToChessSymbols(uciMove);
             }
-            return result;
+
+            return ChessSymbols.convertToChessSymbols(san);
+
         } catch (Exception e) {
             log.error("Failed to convert UCI to notation: {}", uciMove, e);
-            return uciMove;
+            return ChessSymbols.convertToChessSymbols(uciMove);
         }
     }
 

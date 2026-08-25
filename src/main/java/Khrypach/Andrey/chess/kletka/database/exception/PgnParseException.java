@@ -33,7 +33,4 @@ public class PgnParseException extends PgnException {
         super(message, cause);
     }
 
-    public PgnParseException(String message, int line, int column) {
-        super(String.format("Ошибка парсинга PGN [%d:%d]: %s", line, column, message));
-    }
 }

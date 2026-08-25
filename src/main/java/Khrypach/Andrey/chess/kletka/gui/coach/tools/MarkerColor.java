@@ -27,7 +27,8 @@ import lombok.Getter;
 public enum MarkerColor {
     BLUE(Color.rgb(0, 100, 255, 0.85)),
     RED(Color.rgb(255, 50, 50, 0.85)),
-    GREEN(Color.rgb(50, 200, 50, 0.85));
+    GREEN(Color.rgb(50, 200, 50, 0.85)),
+    BLACK(Color.rgb(0, 0, 0, 0.85));
 
     private final Color color;
 

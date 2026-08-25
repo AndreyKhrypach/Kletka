@@ -21,6 +21,7 @@
 package Khrypach.Andrey.chess.kletka.gui.dialogs;
 
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageManager;
+import Khrypach.Andrey.chess.kletka.gui.settings.AppPreferences;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -38,6 +39,8 @@ import java.io.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static Khrypach.Andrey.chess.kletka.engine.UciConstants.UCI;
 import static Khrypach.Andrey.chess.kletka.engine.UciConstants.UCI_OK;
@@ -50,8 +53,8 @@ public class EngineSetupDialog {
     private final LanguageManager lang = LanguageManager.getInstance();
 
     private final Stage owner;
-    private String selectedEnginePath = null;
-    private boolean confirmed = false;
+    AtomicReference<String> selectedEnginePath = new AtomicReference<>(null);
+    AtomicBoolean confirmed = new AtomicBoolean(false);
 
     public EngineSetupDialog(Stage owner) {
         this.owner = owner;
@@ -162,9 +165,13 @@ public class EngineSetupDialog {
         });
 
         okButton.setOnAction(e -> {
-            selectedEnginePath = pathField.getText();
-            confirmed = true;
-            dialogStage.close();
+            String path = pathField.getText();
+            if (path != null && !path.isEmpty()) {
+                AppPreferences.saveEnginePath(path);
+                selectedEnginePath.set(path);
+                confirmed.set(true);
+                dialogStage.close();
+            }
         });
 
         cancelButton.setOnAction(e -> dialogStage.close());
@@ -175,7 +182,7 @@ public class EngineSetupDialog {
         dialogStage.setScene(scene);
         dialogStage.showAndWait();
 
-        return confirmed ? selectedEnginePath : null;
+        return confirmed.get() ? selectedEnginePath.get() : null;
     }
 
     private boolean testEngine(String enginePath) {

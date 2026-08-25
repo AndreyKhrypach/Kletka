@@ -766,6 +766,10 @@ public class LanguageKeys {
     public static final String PGN_BROWSER_PASTE_ADDED = "pgn.browser.paste.added";
     public static final String PGN_BROWSER_PASTE_COMPLETE = "pgn.browser.paste.complete";
     public static final String PGN_BROWSER_PASTE_TARGET = "pgn.browser.paste.target";
+    public static final String PGN_BROWSER_PASTE_PARTIAL = "pgn.browser.paste.partial";
+    public static final String PGN_BROWSER_PASTE_WRITING =  "pgn.browser.paste.writing";
+    public static final String PGN_BROWSER_PASTE_READING_PROGRESS =  "pgn.browser.paste.reading.progress";
+    public static final String PGN_BROWSER_PASTE_READING =  "pgn.browser.paste.reading";
 
     // Indexing Progress
     public static final String INDEXING_PROGRESS_MESSAGE = "indexing.progress.message";
@@ -1019,4 +1023,14 @@ public class LanguageKeys {
     public static final String FAILED_TOKENIZE_PGN = "pgn.exeption.msg.tokenize";
     public static final String ERROR_PARSING_MOVE = "pgn.exeption.msg.move.parsing";
     public static final String ERROR_PARSING_PGN_TO_TREE = "pgn.exeption.msg.parsing.tree";
+
+    // WDL
+    public static final String WDL_WIN = "wdl.win";
+    public static final String WDL_DRAW = "wdl.draw";
+    public static final String WDL_LOSS = "wdl.loss";
+    public static final String WDL_FOR = "wdl.for";
+
+    //batch
+    public static final String PGN_BATCH_EXCEPTION_LIMIT = "pgn.batch.exception.limit";
+    public static final String PGN_BATCH_EXCEPTION_ALREADY_DELETED = "pgn.batch.exception.already.deleted";
 }

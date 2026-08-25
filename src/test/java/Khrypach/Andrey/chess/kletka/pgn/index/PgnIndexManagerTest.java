@@ -115,43 +115,7 @@ class PgnIndexManagerTest {
     }
 
     // ============================================================
-    // 2. ТЕСТЫ ДЛЯ getIndexBackupPath()
-    // ============================================================
-
-    @Nested
-    @DisplayName("getIndexBackupPath() - Получение пути к бэкапу")
-    class GetIndexBackupPathTests {
-
-        @Test
-        @DisplayName("Должен возвращать путь с расширением .idx.bak")
-        void shouldReturnPathWithIdxBakExtension() {
-            // given
-            Path pgnPath = tempDir.resolve("game.pgn");
-
-            // when
-            Path backupPath = indexManager.getIndexBackupPath(pgnPath);
-
-            // then
-            assertThat(backupPath.toString()).endsWith(".idx.bak");
-            assertThat(backupPath.getParent()).isEqualTo(tempDir);
-        }
-
-        @Test
-        @DisplayName("Должен использовать имя файла без расширения")
-        void shouldUseFileNameWithoutExtensionForBackup() {
-            // given
-            Path pgnPath = tempDir.resolve("tournament.pgn");
-
-            // when
-            Path backupPath = indexManager.getIndexBackupPath(pgnPath);
-
-            // then
-            assertThat(backupPath.getFileName().toString()).isEqualTo("tournament.idx.bak");
-        }
-    }
-
-    // ============================================================
-    // 3. ТЕСТЫ ДЛЯ computeFileHash()
+    // 2. ТЕСТЫ ДЛЯ computeFileHash()
     // ============================================================
 
     @Nested
@@ -211,7 +175,7 @@ class PgnIndexManagerTest {
     }
 
     // ============================================================
-    // 4. ТЕСТЫ ДЛЯ createIndex()
+    // 3. ТЕСТЫ ДЛЯ createIndex()
     // ============================================================
 
     @Nested
@@ -287,7 +251,7 @@ class PgnIndexManagerTest {
     }
 
     // ============================================================
-    // 5. ТЕСТЫ ДЛЯ saveIndex() И loadIndex()
+    // 4. ТЕСТЫ ДЛЯ saveIndex() И loadIndex()
     // ============================================================
 
     @Nested
@@ -333,32 +297,6 @@ class PgnIndexManagerTest {
         }
 
         @Test
-        @DisplayName("Должен создавать бэкап при сохранении")
-        void shouldCreateBackupWhenSaving() throws IOException {
-            // given
-            Path pgnPath = tempDir.resolve("game.pgn");
-            Files.writeString(pgnPath, "1. e4 e5", StandardCharsets.UTF_8);
-
-            GameIndexEntry entry = GameIndexEntry.builder()
-                    .id(1)
-                    .offset(0)
-                    .length(100)
-                    .version(1)
-                    .deleted(false)
-                    .build();
-
-            PgnIndex index = indexManager.createIndex(pgnPath, List.of(entry));
-
-            // when
-            indexManager.saveIndex(pgnPath, index);
-
-            // then
-            Path backupPath = indexManager.getIndexBackupPath(pgnPath);
-            assertThat(Files.exists(backupPath)).isFalse(); // Бэкап удаляется после успешного сохранения
-            assertThat(Files.exists(indexManager.getIndexPath(pgnPath))).isTrue();
-        }
-
-        @Test
         @DisplayName("Должен выбрасывать исключение при загрузке несуществующего индекса")
         void shouldThrowExceptionWhenLoadingNonExistentIndex() {
             // given
@@ -372,7 +310,7 @@ class PgnIndexManagerTest {
     }
 
     // ============================================================
-    // 6. ТЕСТЫ ДЛЯ checkIndex()
+    // 5. ТЕСТЫ ДЛЯ checkIndex()
     // ============================================================
 
     @Nested
@@ -461,7 +399,7 @@ class PgnIndexManagerTest {
     }
 
     // ============================================================
-    // 7. ТЕСТЫ ДЛЯ updateIndex()
+    // 6. ТЕСТЫ ДЛЯ updateIndex()
     // ============================================================
 
     @Nested
@@ -549,7 +487,7 @@ class PgnIndexManagerTest {
     }
 
     // ============================================================
-    // 8. ТЕСТЫ ДЛЯ deleteIndex()
+    // 7. ТЕСТЫ ДЛЯ deleteIndex()
     // ============================================================
 
     @Nested
@@ -582,37 +520,6 @@ class PgnIndexManagerTest {
 
             // then
             assertThat(Files.exists(indexPath)).isFalse();
-        }
-
-        @Test
-        @DisplayName("Должен удалять бэкап индексного файла")
-        void shouldDeleteBackupIndexFile() throws IOException {
-            // given
-            Path pgnPath = tempDir.resolve("game.pgn");
-            Files.writeString(pgnPath, "1. e4 e5", StandardCharsets.UTF_8);
-
-            GameIndexEntry entry = GameIndexEntry.builder()
-                    .id(1)
-                    .offset(0)
-                    .length(100)
-                    .version(1)
-                    .deleted(false)
-                    .build();
-
-            PgnIndex index = indexManager.createIndex(pgnPath, List.of(entry));
-            indexManager.saveIndex(pgnPath, index);
-
-            Path backupPath = indexManager.getIndexBackupPath(pgnPath);
-
-            // Создаем бэкап вручную (обычно он создается при сохранении)
-            Path indexPath = indexManager.getIndexPath(pgnPath);
-            Files.copy(indexPath, backupPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-
-            // when
-            indexManager.deleteIndex(pgnPath);
-
-            // then
-            assertThat(Files.exists(backupPath)).isFalse();
         }
 
         @Test
@@ -659,7 +566,7 @@ class PgnIndexManagerTest {
     }
 
     // ============================================================
-    // 9. ИНТЕГРАЦИОННЫЕ ТЕСТЫ
+    // 8. ИНТЕГРАЦИОННЫЕ ТЕСТЫ
     // ============================================================
 
     @Nested
