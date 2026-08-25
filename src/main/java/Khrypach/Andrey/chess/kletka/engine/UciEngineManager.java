@@ -302,6 +302,12 @@ public class UciEngineManager {
      */
     public void sendPosition(Board board) {
         try {
+            // ========== ПРОВЕРКА ЛЕГАЛЬНОСТИ ==========
+            if (!isPositionLegal(board)) {
+                log.warn("Cannot send illegal position to engine");
+                return;
+            }
+
             String fen = board.getFen();
             log.trace("Sending position: {}", fen);
             sendCommand(POSITION + " " + POSITION_FEN + " " + fen);
@@ -311,6 +317,26 @@ public class UciEngineManager {
                     e.getMessage()
             );
         }
+    }
+
+    /**
+     * Проверяет легальность позиции для движка
+     */
+    private boolean isPositionLegal(Board board) {
+        if (board == null) return false;
+
+        // Проверяем наличие обоих королей
+        boolean hasWhiteKing = false;
+        boolean hasBlackKing = false;
+        for (int rank = 0; rank < 8; rank++) {
+            for (int file = 0; file < 8; file++) {
+                Square square = Square.squareAt(rank * 8 + file);
+                Piece piece = board.getPiece(square);
+                if (piece == Piece.WHITE_KING) hasWhiteKing = true;
+                if (piece == Piece.BLACK_KING) hasBlackKing = true;
+            }
+        }
+        return hasWhiteKing && hasBlackKing;
     }
 
     /**

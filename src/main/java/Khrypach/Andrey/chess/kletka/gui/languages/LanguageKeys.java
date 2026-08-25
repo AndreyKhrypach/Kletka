@@ -189,6 +189,9 @@ public class LanguageKeys {
     public static final String MENU_ENGINE = "menu.engine";
     public static final String MENU_ENGINE_CONFIGURE = "menu.engine.configure";
     public static final String MENU_ENGINE_ANALYZE = "menu.engine.analyze";
+    public static final String ENGINE_ILLEGAL_POSITION_TITLE = "engine.illegal.position.title";
+    public static final String ENGINE_ILLEGAL_POSITION_HEADER = "engine.illegal.position.header";
+    public static final String ENGINE_ILLEGAL_POSITION_CONTENT = "engine.illegal.position.content";
 
     // Пункты меню Help
     public static final String MENU_HELP_SHORTCUTS = "menu.help.shortcuts";

@@ -213,6 +213,9 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.MENU_ENGINE, "Движок");
         strings.put(LanguageKeys.MENU_ENGINE_CONFIGURE, "Настроить движок");
         strings.put(LanguageKeys.MENU_ENGINE_ANALYZE, "Показать лучший ход");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_TITLE, "Нелегальная позиция");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_HEADER, "Движок не может анализировать нелегальную позицию");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_CONTENT, "Пожалуйста, расставьте легальную позицию (должны быть оба короля).");
 
         // Диалоги вариантов
         strings.put(LanguageKeys.DIALOG_VARIATION_TITLE, "Выбор варианта");
@@ -511,8 +514,8 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.ABOUT_TITLE, "О программе Kletka");
         strings.put(LanguageKeys.ABOUT_CONTENT,
                 """
-                    ♔ Kletka Chess ♔
-                    Версия: 1.0
+                    ♔ Клетка шахматный анализатор♔
+                    Версия: %s
                     Платформа: Java 17, OpenJFX
                     Библиотека: chesslib 1.3.6 (GPL v3)
                     

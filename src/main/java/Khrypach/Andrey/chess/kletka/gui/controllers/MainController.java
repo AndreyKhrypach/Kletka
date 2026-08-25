@@ -1627,6 +1627,12 @@ public class MainController {
             return;
         }
 
+        // ========== ПРОВЕРКА ЛЕГАЛЬНОСТИ ==========
+        if (!boardView.isPositionLegal()) {
+            showNotification(lang.get(ENGINE_ILLEGAL_POSITION_CONTENT));
+            return;
+        }
+
         Board currentBoard = boardView.getCurrentBoard();
         engineManager.sendPosition(currentBoard);
 
@@ -1718,7 +1724,10 @@ public class MainController {
         Group logo = LogoGenerator.createLogo(300, 225);
         content.getChildren().add(logo);
 
-        Label infoLabel = new Label(lang.get(ABOUT_CONTENT));
+        String version = getVersion();
+        String aboutText = String.format(lang.get(ABOUT_CONTENT), version);
+
+        Label infoLabel = new Label(aboutText);
         infoLabel.setWrapText(true);
         infoLabel.setStyle("-fx-font-size: 12px;");
         content.getChildren().add(infoLabel);
@@ -1726,6 +1735,25 @@ public class MainController {
         dialog.getDialogPane().setContent(content);
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
         dialog.showAndWait();
+    }
+
+    /**
+     * Получает версию программы из version.properties
+     */
+    private String getVersion() {
+        try {
+            java.util.Properties props = new java.util.Properties();
+            java.io.InputStream is = getClass().getResourceAsStream("/version.properties");
+            if (is != null) {
+                props.load(is);
+                String version = props.getProperty("version", "1.1.0");
+                log.debug("Version loaded: {}", version);
+                return version;
+            }
+        } catch (Exception e) {
+            log.warn("Failed to load version.properties: {}", e.getMessage());
+        }
+        return "1.1.0";
     }
 
     private void showInfo(String title, String content) {

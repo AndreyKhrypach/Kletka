@@ -191,6 +191,9 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.MENU_ENGINE, "Engine");
         strings.put(LanguageKeys.MENU_ENGINE_CONFIGURE, "Configure Engine");
         strings.put(LanguageKeys.MENU_ENGINE_ANALYZE, "Show Best Move");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_TITLE, "Illegal Position");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_HEADER, "Engine cannot analyze illegal position");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_CONTENT, "Please set up a legal position (both kings must be present).");
 
         // Variation dialogs
         strings.put(LanguageKeys.DIALOG_VARIATION_TITLE, "Choose Variation");
@@ -510,8 +513,8 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.ABOUT_TITLE, "About Kletka");
         strings.put(LanguageKeys.ABOUT_CONTENT,
                 """
-                    ♔ Kletka Chess ♔
-                    Version: 1.0
+                    ♔ Kletka Chess Analyzer ♔
+                    Version: %s
                     Platform: Java 17, OpenJFX
                     Library: chesslib 1.3.6 (GPL v3)
                     

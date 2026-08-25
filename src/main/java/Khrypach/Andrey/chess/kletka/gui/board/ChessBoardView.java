@@ -308,7 +308,6 @@ public class ChessBoardView extends Application {
         root.setOnMouseClicked(e -> scene.getRoot().requestFocus());
 
 
-
         log.info("Application started successfully");
     }
 
@@ -798,6 +797,13 @@ public class ChessBoardView extends Application {
             return;
         }
 
+        if (!isPositionLegal()) {
+            log.debug("Illegal position, moves not allowed");
+            showTemporaryMessage(lang.get(ENGINE_ILLEGAL_POSITION_CONTENT));
+            return;
+        }
+
+
         if (selectedSquare == null) {
             Piece piece = chessBoard.getPiece(clickedSquare);
             if (piece != Piece.NONE && piece.getPieceSide() == chessBoard.getSideToMove()) {
@@ -857,6 +863,12 @@ public class ChessBoardView extends Application {
         if (coachTools != null && coachTools.isPanelExpanded()) {
             coachTools.togglePanel();
         }
+
+        if (!isPositionLegal()) {
+            showTemporaryMessage(lang.get(ENGINE_ILLEGAL_POSITION_CONTENT));
+            return;
+        }
+
 
         Board boardBeforeMove = chessBoard.clone();
 
@@ -1125,26 +1137,122 @@ public class ChessBoardView extends Application {
     }
 
     /**
-     * Проверяет, является ли текущая позиция легальной
-     * (есть оба короля, нет пешек на 1/8 ряду и т.д.)
+     * Проверяет, является ли позиция легальной
      */
     public boolean isPositionLegal() {
         if (chessBoard == null) return false;
 
+        // 1. Проверяем наличие обоих королей
         boolean hasWhiteKing = false;
         boolean hasBlackKing = false;
+        Square whiteKingSquare = null;
+        Square blackKingSquare = null;
 
         for (int rank = 0; rank < 8; rank++) {
             for (int file = 0; file < 8; file++) {
                 Square square = Square.squareAt(rank * 8 + file);
                 Piece piece = chessBoard.getPiece(square);
-
-                if (piece == Piece.WHITE_KING) hasWhiteKing = true;
-                if (piece == Piece.BLACK_KING) hasBlackKing = true;
+                if (piece == Piece.WHITE_KING) {
+                    hasWhiteKing = true;
+                    whiteKingSquare = square;
+                }
+                if (piece == Piece.BLACK_KING) {
+                    hasBlackKing = true;
+                    blackKingSquare = square;
+                }
             }
         }
 
-        return hasWhiteKing && hasBlackKing;
+        if (!hasWhiteKing || !hasBlackKing) {
+            log.debug("Position illegal: missing a king");
+            return false;
+        }
+
+        // 2. Проверяем, что короли не рядом
+        if (whiteKingSquare != null && blackKingSquare != null) {
+            int fileDiff = Math.abs(whiteKingSquare.getFile().ordinal() - blackKingSquare.getFile().ordinal());
+            int rankDiff = Math.abs(whiteKingSquare.getRank().ordinal() - blackKingSquare.getRank().ordinal());
+            if (fileDiff <= 1 && rankDiff <= 1) {
+                log.debug("Position illegal: kings are adjacent");
+                return false;
+            }
+        }
+
+        // 3. Проверяем, что НИ ОДИН король не находится под шахом
+        try {
+            boolean whiteAttacked = false;
+
+            if (whiteKingSquare != null) {
+                whiteAttacked = isSquareAttackedBySide(whiteKingSquare, Side.BLACK);
+            }
+
+            boolean blackAttacked = false;
+
+            if (blackKingSquare != null) {
+                blackAttacked = isSquareAttackedBySide(blackKingSquare, Side.WHITE);
+            }
+            if (blackAttacked && whiteAttacked) {
+                log.debug("Position illegal: both king is in check");
+                return false;
+            }
+
+        } catch (Exception e) {
+            log.debug("Error checking king attack: {}", e.getMessage());
+            // Если не удалось проверить - считаем позицию легальной (fallback)
+        }
+
+        return true;
+    }
+
+    /**
+     * Проверяет, атакована ли клетка фигурами противника
+     * Использует рефлексию для доступа к protected методу squareAttackedBy
+     */
+    private boolean isSquareAttackedBySide(Square square, Side attackerSide) {
+        try {
+            // Пытаемся вызвать protected метод squareAttackedBy
+            java.lang.reflect.Method method = Board.class.getDeclaredMethod(
+                    "squareAttackedBy", Square.class, Side.class
+            );
+            method.setAccessible(true);
+            long attackersMask = (long) method.invoke(chessBoard, square, attackerSide);
+            return Long.bitCount(attackersMask) > 0;
+        } catch (NoSuchMethodException e) {
+            // Если метода нет - используем fallback через legalMoves
+            return isSquareAttackedBySideFallback(square, attackerSide);
+        } catch (Exception e) {
+            log.debug("Reflection error: {}", e.getMessage());
+            return isSquareAttackedBySideFallback(square, attackerSide);
+        }
+    }
+
+    /**
+     * Fallback метод проверки атаки через перебор легальных ходов
+     */
+    private boolean isSquareAttackedBySideFallback(Square square, Side attackerSide) {
+        try {
+            // Сохраняем текущую сторону
+            Side originalSide = chessBoard.getSideToMove();
+
+            // Устанавливаем сторону атакующего
+            chessBoard.setSideToMove(attackerSide);
+
+            // Получаем все легальные ходы атакующей стороны
+            List<Move> legalMoves = chessBoard.legalMoves();
+
+            // Восстанавливаем сторону
+            chessBoard.setSideToMove(originalSide);
+
+            // Проверяем, есть ли ход на указанную клетку
+            for (Move move : legalMoves) {
+                if (move.getTo() == square) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Fallback attack check error: {}", e.getMessage());
+        }
+        return false;
     }
 
     public void forceResetGame() {

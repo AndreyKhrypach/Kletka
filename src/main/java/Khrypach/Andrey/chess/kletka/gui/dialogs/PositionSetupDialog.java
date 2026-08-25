@@ -1164,10 +1164,19 @@ public class PositionSetupDialog {
                 "-fx-font-size: 12px; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 3, 0.5, 0, 0);");
         notification.setOpacity(0);
 
-        StackPane rootPane = (StackPane) dialogStage.getScene().getRoot();
+        // ========== ИСПРАВЛЕНИЕ: используем BorderPane, а не StackPane ==========
+        BorderPane rootPane = (BorderPane) dialogStage.getScene().getRoot();
+
+        // Создаем контейнер для уведомления (чтобы не нарушать структуру BorderPane)
+        StackPane overlayPane = new StackPane();
+        overlayPane.setMouseTransparent(true);
+        overlayPane.setAlignment(Pos.BOTTOM_CENTER);
+        overlayPane.getChildren().add(notification);
         StackPane.setAlignment(notification, Pos.BOTTOM_CENTER);
         StackPane.setMargin(notification, new Insets(0, 0, 20, 0));
-        rootPane.getChildren().add(notification);
+
+        // Добавляем overlay поверх всего
+        rootPane.getChildren().add(overlayPane);
 
         javafx.animation.FadeTransition fadeIn = new javafx.animation.FadeTransition(javafx.util.Duration.millis(300), notification);
         fadeIn.setFromValue(0);
@@ -1178,7 +1187,9 @@ public class PositionSetupDialog {
         javafx.animation.FadeTransition fadeOut = new javafx.animation.FadeTransition(javafx.util.Duration.millis(300), notification);
         fadeOut.setFromValue(1);
         fadeOut.setToValue(0);
-        fadeOut.setOnFinished(e -> rootPane.getChildren().remove(notification));
+        fadeOut.setOnFinished(e -> {
+            rootPane.getChildren().remove(overlayPane);
+        });
 
         fadeIn.setOnFinished(e -> pause.play());
         pause.setOnFinished(e -> fadeOut.play());

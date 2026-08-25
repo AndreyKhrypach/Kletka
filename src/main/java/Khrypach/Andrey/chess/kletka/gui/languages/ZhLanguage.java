@@ -210,6 +210,9 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.MENU_ENGINE, "引擎");
         strings.put(LanguageKeys.MENU_ENGINE_CONFIGURE, "配置引擎");
         strings.put(LanguageKeys.MENU_ENGINE_ANALYZE, "显示最佳着法");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_TITLE, "非法局面");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_HEADER, "引擎无法分析非法局面");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_CONTENT, "请设置合法局面（必须有两个王）。");
 
         // ========== VARIATION DIALOGS ==========
         strings.put(LanguageKeys.DIALOG_VARIATION_TITLE, "选择变着");
@@ -502,8 +505,8 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.ABOUT_TITLE, "关于 Kletka");
         strings.put(LanguageKeys.ABOUT_CONTENT,
                 """
-                    ♔ Kletka Chess ♔
-                    版本: 1.0
+                    ♔ Kletka 国际象棋分析器 ♔
+                    版本: %s
                     平台: Java 17, OpenJFX
                     库: chesslib 1.3.6 (GPL v3)
                     

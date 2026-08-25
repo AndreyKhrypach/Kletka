@@ -691,13 +691,13 @@ public class MenuBarFactory {
 
         menu.getItems().addAll(
                 shortcutsItem,
-                aboutItem,
                 new SeparatorMenuItem(),
                 githubItem,
                 checkUpdatesItem,
                 new SeparatorMenuItem(),
-                donateItem
-        );
+                donateItem,
+                aboutItem
+                );
         return menu;
     }
 
