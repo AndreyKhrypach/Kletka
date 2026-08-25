@@ -646,6 +646,8 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.SAVE_DIALOG_TITLE_SAVE, "💾 Save Game");
         strings.put(LanguageKeys.SAVE_DIALOG_HEADER_EDIT, "Edit game information");
         strings.put(LanguageKeys.SAVE_DIALOG_HEADER_SAVE, "Enter game information");
+        strings.put(LanguageKeys.SAVE_GAME_LOAD_HEADER, "Current game is not saved");
+        strings.put(LanguageKeys.SAVE_GAME_LOAD_CONTENT, "Do you want to save the current game before loading a new one?");
 
         // Tabs
         strings.put(LanguageKeys.SAVE_TAB_PLAYERS, "Players & Result");

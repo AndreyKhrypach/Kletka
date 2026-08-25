@@ -60,6 +60,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import lombok.Getter;
 import lombok.Setter;
 import org.slf4j.Logger;
@@ -124,11 +125,10 @@ public class MainController {
             initEngine();
         }
 
-        primaryStage.setOnCloseRequest(event -> {
+        primaryStage.addEventFilter(WindowEvent.WINDOW_CLOSE_REQUEST, event -> {
             if (hasBodyChanges()) {
                 event.consume();
                 showSaveDialogBeforeNewGameWithCallback(() -> {
-                    log.info("Primary stage closing...");
                     closePgnBrowser();
                     if (engineManager != null) {
                         engineManager.stopEngine();
@@ -138,7 +138,6 @@ public class MainController {
                 return;
             }
 
-            log.info("Primary stage closing...");
             closePgnBrowser();
             if (engineManager != null) {
                 engineManager.stopEngine();
@@ -892,6 +891,14 @@ public class MainController {
             return;
         }
 
+        if (hasBodyChanges()) {
+            // Показываем диалог сохранения
+            boolean shouldContinue = showSaveDialogBeforeLoading();
+            if (!shouldContinue) {
+                return; // Пользователь отменил загрузку
+            }
+        }
+
         try {
             if (gameData.isPosition()) {
                 String fen = gameData.fen();
@@ -988,6 +995,53 @@ public class MainController {
         }
 
         updateLoadedGameHash(gameData);
+    }
+
+    /**
+     * Показывает диалог сохранения перед загрузкой новой партии
+     * @return true - продолжить загрузку, false - отменить
+     */
+    private boolean showSaveDialogBeforeLoading() {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle(lang.get(SAVE_GAME_TITLE));
+        alert.setHeaderText(lang.get(SAVE_GAME_LOAD_HEADER));
+        alert.setContentText(lang.get(SAVE_GAME_LOAD_CONTENT));
+
+        ButtonType saveButton = new ButtonType(lang.get(SAVE_GAME_SAVE));
+        ButtonType noSaveButton = new ButtonType(lang.get(SAVE_GAME_DONT_SAVE));
+        ButtonType cancelButton = new ButtonType(lang.get(SAVE_GAME_CANCEL), ButtonBar.ButtonData.CANCEL_CLOSE);
+
+        alert.getButtonTypes().setAll(saveButton, noSaveButton, cancelButton);
+
+        ButtonType result = alert.showAndWait().orElse(cancelButton);
+
+        if (result == cancelButton) {
+            return false; // Отмена загрузки
+        }
+
+        if (result == saveButton) {
+            // Сохраняем текущую партию
+            SaveGameDialog dialog = new SaveGameDialog(primaryStage, boardView, notationView);
+            GameData gameData = dialog.showAndWait();
+            if (gameData != null && pgnService != null) {
+                try {
+                    pgnService.saveGame(gameData);
+                    if (notationView != null) {
+                        notationView.updateGameData(gameData);
+                    }
+                    updateGameHashes(gameData);
+                    showNotification(lang.get(LanguageKeys.PGN_SAVE_SUCCESS));
+                } catch (PgnException e) {
+                    showError(lang.get(PGN_SAVE_ERROR), e.getMessage());
+                    return false; // Ошибка сохранения - отменяем загрузку
+                }
+            } else {
+                return false; // Пользователь отменил сохранение
+            }
+        }
+
+        // Если noSaveButton - просто продолжаем
+        return true;
     }
 
     private String buildFullPgnForPosition(GameData gameData) {
@@ -1200,23 +1254,16 @@ public class MainController {
 
         alert.showAndWait().ifPresent(response -> {
             if (response == saveButton) {
+                // ========== ИСПОЛЬЗУЕМ saveGameDataWithChoice() ==========
                 SaveGameDialog dialog = new SaveGameDialog(primaryStage, boardView, notationView);
                 GameData gameData = dialog.showAndWait();
-                if (gameData != null && pgnService != null) {
-                    try {
-                        pgnService.saveGame(gameData);
-                        if (notationView != null) {
-                            notationView.updateGameData(gameData);
-                        }
-                        updateGameHashes(gameData);
-                        showNotification(lang.get(LanguageKeys.PGN_SAVE_SUCCESS));
-                    } catch (PgnException e) {
-                        showError(lang.get(PGN_SAVE_ERROR), e.getMessage());
+                if (gameData != null) {
+                    saveGameDataWithChoice(gameData);
+                    if (onComplete != null) {
+                        onComplete.run();
                     }
                 }
-                if (onComplete != null) {
-                    onComplete.run();
-                }
+                // Если пользователь отменил сохранение - onComplete не вызывается
             } else if (response == noSaveButton) {
                 startBodyHash = 0;
                 loadedFullHash = 0;
@@ -1224,6 +1271,7 @@ public class MainController {
                     onComplete.run();
                 }
             }
+            // Если cancel - ничего не делаем
         });
     }
 
@@ -1251,20 +1299,19 @@ public class MainController {
 
         alert.showAndWait().ifPresent(response -> {
             if (response == saveButton) {
+                // ========== ИСПОЛЬЗУЕМ saveGameDataWithChoice() ==========
                 SaveGameDialog dialog = new SaveGameDialog(primaryStage, boardView, notationView);
-                GameData editedGameData = dialog.showAndWait();
-
-                if (editedGameData != null) {
-                    saveGameDataWithChoice(editedGameData);
+                GameData gameData = dialog.showAndWait();
+                if (gameData != null) {
+                    saveGameDataWithChoice(gameData);
                 }
-
+                // После сохранения - сбрасываем игру
                 boardView.resetGame();
                 if (notationView != null) {
                     notationView.clearGameData();
                 }
                 startBodyHash = 0;
                 loadedFullHash = 0;
-
             } else if (response == noSaveButton) {
                 boardView.resetGame();
                 if (notationView != null) {
@@ -1273,6 +1320,7 @@ public class MainController {
                 startBodyHash = 0;
                 loadedFullHash = 0;
             }
+            // Если cancel - ничего не делаем
         });
     }
 
@@ -1445,15 +1493,21 @@ public class MainController {
     }
 
     private boolean hasBodyChanges() {
-        if (notationView == null) return false;
+        if (notationView == null) {
+            log.debug("hasBodyChanges: notationView is null");
+            return false;
+        }
 
         GameData currentData = notationView.getCurrentGameData();
-        if (currentData == null) return false;
+        if (currentData == null) {
+            log.debug("hasBodyChanges: currentData is null");
+            return false;
+        }
 
         int currentBodyHash = HashUtils.calculateBodyHash(currentData);
         boolean hasChanges = currentBodyHash != startBodyHash;
 
-        log.trace("hasBodyChanges: startBodyHash={}, currentBodyHash={}, hasChanges={}",
+        log.debug("hasBodyChanges: startBodyHash={}, currentBodyHash={}, hasChanges={}",
                 startBodyHash, currentBodyHash, hasChanges);
 
         return hasChanges;

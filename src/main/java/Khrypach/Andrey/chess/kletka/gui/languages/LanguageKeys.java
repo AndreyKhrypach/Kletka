@@ -690,6 +690,9 @@ public class LanguageKeys {
     public static final String SAVE_DIALOG_TITLE_SAVE = "save.dialog.title.save";
     public static final String SAVE_DIALOG_HEADER_EDIT = "save.dialog.header.edit";
     public static final String SAVE_DIALOG_HEADER_SAVE = "save.dialog.header.save";
+    // ========== SAVE GAME ==========
+    public static final String SAVE_GAME_LOAD_HEADER = "save.game.load.header";
+    public static final String SAVE_GAME_LOAD_CONTENT = "save.game.load.content";
 
     // Tabs
     public static final String SAVE_TAB_PLAYERS = "save.tab.players";

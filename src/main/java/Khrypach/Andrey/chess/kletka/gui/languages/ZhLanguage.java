@@ -640,6 +640,8 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.SAVE_DIALOG_TITLE_SAVE, "💾 保存对局");
         strings.put(LanguageKeys.SAVE_DIALOG_HEADER_EDIT, "编辑对局信息");
         strings.put(LanguageKeys.SAVE_DIALOG_HEADER_SAVE, "输入对局信息");
+        strings.put(LanguageKeys.SAVE_GAME_LOAD_HEADER, "当前对局未保存");
+        strings.put(LanguageKeys.SAVE_GAME_LOAD_CONTENT, "加载新对局前是否保存当前对局？");
 
         strings.put(LanguageKeys.SAVE_TAB_PLAYERS, "棋手与结果");
         strings.put(LanguageKeys.SAVE_TAB_TOURNAMENT, "赛事");

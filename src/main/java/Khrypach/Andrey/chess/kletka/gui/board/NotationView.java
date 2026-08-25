@@ -712,7 +712,7 @@ public class NotationView extends VBox {
         return pgn.toString();
     }
 
-    private GameData createDefaultGameData() {
+    public GameData createDefaultGameData() {
         return new GameData(
                 lang.get(LanguageKeys.DEFAULT_PLAYER_NAME), lang.get(LanguageKeys.DEFAULT_PLAYER_NAME), "*",
                 "?", "?",
