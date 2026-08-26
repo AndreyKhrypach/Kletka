@@ -307,6 +307,7 @@ public class ChessBoardView extends Application {
         scene.getRoot().requestFocus();
         root.setOnMouseClicked(e -> scene.getRoot().requestFocus());
 
+        setupGlobalMouseHandlers(scene);
 
         log.info("Application started successfully");
     }
@@ -480,6 +481,121 @@ public class ChessBoardView extends Application {
         });
     }
 
+    private void setupGlobalMouseHandlers(Scene scene) {
+        // Глобальный обработчик для drag
+        scene.setOnMouseDragged(event -> {
+            if (coachTools != null && coachTools.getCurrentTool() == ToolType.ARROW) {
+                if (event.isPrimaryButtonDown()) {
+                    String squareName = getSquareAt(event.getSceneX(), event.getSceneY());
+                    if (squareName != null && coachTools.getPendingArrowStart() != null &&
+                            !coachTools.getPendingArrowStart().equals(squareName)) {
+                        coachTools.updateArrowDrag(squareName);
+                        if (markerOverlay != null) {
+                            markerOverlay.redraw();
+                        }
+                        event.consume();
+                    }
+                }
+            }
+        });
+
+        // ========== ИСПРАВЛЯЕМ onMouseReleased ==========
+        scene.setOnMouseReleased(event -> {
+            if (coachTools != null && coachTools.getCurrentTool() == ToolType.ARROW) {
+                // НЕ ПРОВЕРЯЕМ isPrimaryButtonDown() - при отпускании оно false
+                String startSquare = coachTools.getPendingArrowStart();
+                String endSquare = getSquareAt(event.getSceneX(), event.getSceneY());
+
+                log.debug("Mouse released: start={}, end={}", startSquare, endSquare);
+
+                if (startSquare != null && endSquare != null && !startSquare.equals(endSquare)) {
+                    coachTools.createArrow(startSquare, endSquare);
+                    log.debug("Arrow created: {} -> {}", startSquare, endSquare);
+                    if (markerOverlay != null) {
+                        markerOverlay.redraw();
+                    }
+                } else if (startSquare != null && startSquare.equals(endSquare)) {
+                    // Клик по одной клетке - ничего не делаем или показываем точку
+                    log.debug("Same square clicked, no arrow created");
+                }
+
+                // Очищаем состояние
+                coachTools.cancelPendingArrow();
+                coachTools.cancelArrowDrag();
+                clearHighlight();
+                if (markerOverlay != null) {
+                    markerOverlay.redraw();
+                }
+                event.consume();
+            }
+        });
+
+        // В setupGlobalMouseHandlers() добавим:
+        scene.setOnMouseExited(event -> {
+            if (coachTools != null && coachTools.getCurrentTool() == ToolType.ARROW) {
+                if (coachTools.isDraggingArrow()) {
+                    // Отменяем рисование если мышь вышла за пределы
+                    coachTools.cancelPendingArrow();
+                    coachTools.cancelArrowDrag();
+                    clearHighlight();
+                    if (markerOverlay != null) {
+                        markerOverlay.redraw();
+                    }
+                    event.consume();
+                }
+            }
+        });
+
+        // Добавим обработчик клавиши Escape
+        scene.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ESCAPE) {
+                if (coachTools != null && coachTools.getCurrentTool() == ToolType.ARROW) {
+                    if (coachTools.isDraggingArrow()) {
+                        coachTools.cancelPendingArrow();
+                        coachTools.cancelArrowDrag();
+                        clearHighlight();
+                        if (markerOverlay != null) {
+                            markerOverlay.redraw();
+                        }
+                        event.consume();
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * Получает клетку по координатам мыши
+     */
+    private String getSquareAt(double sceneX, double sceneY) {
+        if (boardAndNav == null) return null;
+
+        // Получаем координаты относительно boardAndNav
+        javafx.geometry.Bounds bounds = boardAndNav.localToScene(boardAndNav.getBoundsInLocal());
+        double localX = sceneX - bounds.getMinX();
+        double localY = sceneY - bounds.getMinY();
+
+        // Определяем размеры доски
+        double boardWidth = bounds.getWidth();
+
+        // Учитываем паддинг и координаты
+        int padding = 12; // из createBoardWithCoordinates()
+        double cellSize = (boardWidth - 2 * padding) / 8;
+
+        int col = (int) ((localX - padding) / cellSize);
+        int row = (int) ((localY - padding) / cellSize);
+
+        if (col < 0 || col > 7 || row < 0 || row > 7) {
+            return null;
+        }
+
+        // Учитываем переворот доски
+        int chessRow = boardFlipped ? row : 7 - row;
+        int chessCol = boardFlipped ? 7 - col : col;
+
+        return convertToSquare(chessRow, chessCol).name();
+    }
+
     private void initPieceImageMap() {
         pieceImageMap.put(Piece.WHITE_KING, "wK.png");
         pieceImageMap.put(Piece.WHITE_QUEEN, "wQ.png");
@@ -643,21 +759,77 @@ public class ChessBoardView extends Application {
         }
 
         squareMap.put(square.name(), tile);
-        final boolean[] isArrowDrag = {false};
+
+        // ========== ОБРАБОТЧИКИ ДЛЯ СТРЕЛОК ЧЕРЕЗ MOUSE EVENTS ==========
+
+        // MousePressed - старт рисования стрелки
+        tile.setOnMousePressed(e -> {
+            if (coachTools != null && coachTools.getCurrentTool() == ToolType.ARROW) {
+                // Если это левая кнопка мыши
+                if (e.isPrimaryButtonDown()) {
+                    String squareName = square.name();
+                    coachTools.startArrowDrag(squareName);
+                    // Сохраняем начальную клетку
+                    coachTools.setPendingArrowStart(squareName);
+                    // Подсвечиваем начальную клетку
+                    highlightSquare(squareName, Color.YELLOW);
+                    e.consume();
+                }
+            }
+        });
+
+        // MouseDragged - рисуем временную стрелку
+        tile.setOnMousePressed(e -> {
+            if (coachTools != null && coachTools.getCurrentTool() == ToolType.ARROW) {
+                if (e.isPrimaryButtonDown()) {
+                    String squareName = square.name();
+                    log.debug("Arrow: mouse pressed on {}", squareName);
+                    coachTools.startArrowDrag(squareName);
+                    coachTools.setPendingArrowStart(squareName);
+                    highlightSquare(squareName, Color.YELLOW);
+
+                    // ========== ПРИНУДИТЕЛЬНО ОБНОВЛЯЕМ ==========
+                    if (markerOverlay != null) {
+                        markerOverlay.redraw();
+                    }
+                    e.consume();
+                }
+            }
+        });
+
+        // MouseReleased - фиксируем стрелку
+        tile.setOnMouseReleased(e -> {
+            if (coachTools != null && coachTools.getCurrentTool() == ToolType.ARROW) {
+                if (e.isPrimaryButtonDown()) {
+                    String startSquare = coachTools.getPendingArrowStart();
+                    String endSquare = square.name();
+
+                    if (startSquare != null && !startSquare.equals(endSquare)) {
+                        // Создаем стрелку
+                        coachTools.createArrow(startSquare, endSquare);
+                        log.debug("Arrow created via mouse release: {} -> {}", startSquare, endSquare);
+                    }
+
+                    // Очищаем состояние
+                    coachTools.cancelPendingArrow();
+                    coachTools.cancelArrowDrag();
+                    clearHighlight();
+                    if (markerOverlay != null) {
+                        markerOverlay.redraw();
+                    }
+                    e.consume();
+                }
+            }
+        });
+
+        // ========== СУЩЕСТВУЮЩИЕ ОБРАБОТЧИКИ DRAG-AND-DROP ДЛЯ ФИГУР ==========
+        // (оставляем без изменений, они не конфликтуют с Mouse Events)
 
         tile.setOnMouseClicked(e -> handleTileClick(square));
 
         tile.setOnDragDetected(e -> {
+            // Если активен инструмент ARROW - не даем перетаскивать фигуры
             if (coachTools != null && coachTools.getCurrentTool() == ToolType.ARROW) {
-                isArrowDrag[0] = true;
-                Dragboard db = tile.startDragAndDrop(TransferMode.MOVE);
-                ClipboardContent content = new ClipboardContent();
-                content.putString(square.name());
-                db.setContent(content);
-                WritableImage transparent = new WritableImage(1, 1);
-                db.setDragView(transparent);
-                coachTools.startArrowDrag(square.name());
-                e.consume();
                 return;
             }
 
@@ -690,24 +862,25 @@ public class ChessBoardView extends Application {
         });
 
         tile.setOnDragOver(e -> {
-            if (isArrowDrag[0] && e.getDragboard().hasString()) {
-                e.acceptTransferModes(TransferMode.MOVE);
-                coachTools.updateArrowDrag(square.name());
-                e.consume();
-            } else if (e.getDragboard().hasString() && !isArrowDrag[0]) {
+            // Если активен инструмент ARROW - игнорируем
+            if (coachTools != null && coachTools.getCurrentTool() == ToolType.ARROW) {
+                return;
+            }
+
+            if (e.getDragboard().hasString()) {
                 e.acceptTransferModes(TransferMode.MOVE);
                 e.consume();
             }
         });
 
         tile.setOnDragDropped(e -> {
+            // Если активен инструмент ARROW - игнорируем
+            if (coachTools != null && coachTools.getCurrentTool() == ToolType.ARROW) {
+                return;
+            }
+
             Dragboard db = e.getDragboard();
-            if (isArrowDrag[0] && db.hasString()) {
-                String fromSquare = db.getString();
-                coachTools.finishArrowDrag(fromSquare, square.name());
-                if (markerOverlay != null) markerOverlay.redraw();
-                e.setDropCompleted(true);
-            } else if (db.hasString() && !isArrowDrag[0]) {
+            if (db.hasString()) {
                 Square fromSquare = Square.valueOf(db.getString());
                 List<Move> legalMoves = chessBoard.legalMoves().stream()
                         .filter(m -> m.getFrom() == fromSquare && m.getTo() == square)
@@ -718,7 +891,6 @@ public class ChessBoardView extends Application {
                     Piece movingPiece = chessBoard.getPiece(move.getFrom());
                     boolean isCapture = chessBoard.getPiece(move.getTo()) != Piece.NONE;
 
-                    // Проверяем превращение
                     Piece promotionPiece = null;
                     if (movingPiece == Piece.WHITE_PAWN && move.getTo().getRank().ordinal() == 7) {
                         log.debug("Drag&Drop - PROMOTION for white pawn");
@@ -738,15 +910,10 @@ public class ChessBoardView extends Application {
                     e.setDropCompleted(false);
                 }
             }
-            isArrowDrag[0] = false;
             e.consume();
         });
 
         tile.setOnDragDone(e -> {
-            if (isArrowDrag[0]) {
-                coachTools.cancelArrowDrag();
-                isArrowDrag[0] = false;
-            }
             tile.setCursor(Cursor.OPEN_HAND);
             e.consume();
         });
@@ -786,10 +953,6 @@ public class ChessBoardView extends Application {
                 coachTools.addCross(clickedSquare.name());
                 return;
             }
-            if (tool == ToolType.ARROW) {
-                coachTools.handleArrowClick(clickedSquare.name());
-                return;
-            }
         }
 
         if (isTerminalPosition()) {
@@ -797,7 +960,7 @@ public class ChessBoardView extends Application {
             return;
         }
 
-        if (!isPositionLegal()) {
+        if (isPositionIlLegal()) {
             log.debug("Illegal position, moves not allowed");
             showTemporaryMessage(lang.get(ENGINE_ILLEGAL_POSITION_CONTENT));
             return;
@@ -864,7 +1027,7 @@ public class ChessBoardView extends Application {
             coachTools.togglePanel();
         }
 
-        if (!isPositionLegal()) {
+        if (isPositionIlLegal()) {
             showTemporaryMessage(lang.get(ENGINE_ILLEGAL_POSITION_CONTENT));
             return;
         }
@@ -1139,8 +1302,8 @@ public class ChessBoardView extends Application {
     /**
      * Проверяет, является ли позиция легальной
      */
-    public boolean isPositionLegal() {
-        if (chessBoard == null) return false;
+    public boolean isPositionIlLegal() {
+        if (chessBoard == null) return true;
 
         // 1. Проверяем наличие обоих королей
         boolean hasWhiteKing = false;
@@ -1165,7 +1328,7 @@ public class ChessBoardView extends Application {
 
         if (!hasWhiteKing || !hasBlackKing) {
             log.debug("Position illegal: missing a king");
-            return false;
+            return true;
         }
 
         // 2. Проверяем, что короли не рядом
@@ -1174,7 +1337,7 @@ public class ChessBoardView extends Application {
             int rankDiff = Math.abs(whiteKingSquare.getRank().ordinal() - blackKingSquare.getRank().ordinal());
             if (fileDiff <= 1 && rankDiff <= 1) {
                 log.debug("Position illegal: kings are adjacent");
-                return false;
+                return true;
             }
         }
 
@@ -1193,7 +1356,7 @@ public class ChessBoardView extends Application {
             }
             if (blackAttacked && whiteAttacked) {
                 log.debug("Position illegal: both king is in check");
-                return false;
+                return true;
             }
 
         } catch (Exception e) {
@@ -1201,7 +1364,7 @@ public class ChessBoardView extends Application {
             // Если не удалось проверить - считаем позицию легальной (fallback)
         }
 
-        return true;
+        return false;
     }
 
     /**

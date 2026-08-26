@@ -212,7 +212,8 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.MENU_ENGINE_ANALYZE, "显示最佳着法");
         strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_TITLE, "非法局面");
         strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_HEADER, "引擎无法分析非法局面");
-        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_CONTENT, "请设置合法局面（必须有两个王）。");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_CONTENT, "位置不合法：一个或两个王缺失，\n" +
+                "或者它们被将军，或者王相邻。");
 
         // ========== VARIATION DIALOGS ==========
         strings.put(LanguageKeys.DIALOG_VARIATION_TITLE, "选择变着");

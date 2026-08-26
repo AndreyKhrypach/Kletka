@@ -276,7 +276,7 @@ public class EngineAnalysisPanel extends VBox {
         }
 
         // ========== ПРОВЕРКА ЛЕГАЛЬНОСТИ ПОЗИЦИИ ==========
-        if (boardView != null && !boardView.isPositionLegal()) {
+        if (boardView != null && boardView.isPositionIlLegal()) {
             Alert alert = new Alert(Alert.AlertType.WARNING);
             alert.setTitle(lang.get(ENGINE_ILLEGAL_POSITION_TITLE));
             alert.setHeaderText(lang.get(ENGINE_ILLEGAL_POSITION_HEADER));
@@ -296,6 +296,7 @@ public class EngineAnalysisPanel extends VBox {
 
         engineManager.setMultiPV(currentLinesCount);
 
+        assert boardView != null;
         Board currentBoard = boardView.getCurrentBoard();
         engineManager.sendPosition(currentBoard);
 

@@ -52,11 +52,14 @@ public class MarkerOverlay extends Pane {
     }
 
     public void redraw() {
-        log.trace("redraw called - Arrows count: {}, boardContainer: {}",
-                coachTools.getArrows().size(),
-                boardContainer != null ? "ok" : "null");
+        boolean hasArrows = !coachTools.getArrows().isEmpty();
+        boolean hasTempArrow = coachTools.getTempArrow() != null;
+        boolean isDragging = coachTools.isDraggingArrow();
 
-        if (boardContainer == null || coachTools.getArrows().isEmpty()) {
+        log.debug("redraw: hasArrows={}, hasTempArrow={}, isDragging={}, boardContainer={}",
+                hasArrows, hasTempArrow, isDragging, boardContainer != null);
+
+        if (boardContainer == null || (!hasArrows && !hasTempArrow)) {
             canvas.setVisible(false);
             return;
         }
@@ -66,9 +69,10 @@ public class MarkerOverlay extends Pane {
         double width = boardContainer.getWidth();
         double height = boardContainer.getHeight();
 
-        log.trace("boardContainer size: {} x {}", width, height);
-
-        if (width <= 0 || height <= 0) return;
+        if (width <= 0 || height <= 0) {
+            log.debug("redraw: boardContainer size invalid: {} x {}", width, height);
+            return;
+        }
 
         canvas.setWidth(width);
         canvas.setHeight(height);
@@ -78,26 +82,33 @@ public class MarkerOverlay extends Pane {
         GraphicsContext gc = canvas.getGraphicsContext2D();
         gc.clearRect(0, 0, width, height);
 
+        // Рисуем все сохраненные стрелки
         for (ArrowData arrow : coachTools.getArrows().values()) {
-            log.trace("Drawing arrow: {} -> {}", arrow.getFromSquare(), arrow.getToSquare());
             drawArrow(gc, arrow.getFromSquare(), arrow.getToSquare(), arrow.getColor().getColor());
         }
 
+        // Рисуем временную стрелку (если есть)
         ArrowData tempArrow = coachTools.getTempArrow();
-        if (tempArrow != null && coachTools.isDraggingArrow()) {
-            log.trace("Drawing temp arrow: {} -> {}", tempArrow.getFromSquare(), tempArrow.getToSquare());
+        if (tempArrow != null) {
+            log.debug("Drawing temp arrow: {} -> {}", tempArrow.getFromSquare(), tempArrow.getToSquare());
             drawArrow(gc, tempArrow.getFromSquare(), tempArrow.getToSquare(),
                     tempArrow.getColor().getColor().brighter());
         }
     }
 
     private void drawArrow(GraphicsContext gc, String fromSquareName, String toSquareName, Color color) {
-        if (coachTools.getBoardView() == null) return;
+        if (coachTools.getBoardView() == null) {
+            log.debug("drawArrow: boardView is null");
+            return;
+        }
 
         StackPane fromCell = coachTools.getBoardView().getSquarePane(fromSquareName);
         StackPane toCell = coachTools.getBoardView().getSquarePane(toSquareName);
 
-        if (fromCell == null || toCell == null) return;
+        if (fromCell == null || toCell == null) {
+            log.debug("drawArrow: cells not found - from={}, to={}", fromSquareName, toSquareName);
+            return;
+        }
 
         javafx.geometry.Bounds fromBounds = fromCell.localToScene(fromCell.getBoundsInLocal());
         javafx.geometry.Bounds toBounds = toCell.localToScene(toCell.getBoundsInLocal());

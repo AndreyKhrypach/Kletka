@@ -199,7 +199,7 @@ public class MainController {
         }
 
         // Если позиция нелегальная - просто сбрасываем без вопросов
-        if (!boardView.isPositionLegal()) {
+        if (boardView.isPositionIlLegal()) {
             log.debug("Illegal position detected, resetting to initial position");
             if (boardView.getNavController() != null) {
                 boardView.getNavController().resetInitialPosition();
@@ -1531,6 +1531,16 @@ public class MainController {
     }
 
     public void setupPosition() {
+
+        // ========== ОСТАНАВЛИВАЕМ АНАЛИЗ ПЕРЕД РАССТАНОВКОЙ ==========
+        if (boardView.getAnalysisPanel() != null) {
+            if (boardView.getAnalysisPanel().isAnalyzingActive()) {
+                boardView.getAnalysisPanel().stopAnalysis();
+            }
+            // Очищаем оценку
+            boardView.getAnalysisPanel().clearAnalysis();
+        }
+
         PositionSetupDialog dialog = new PositionSetupDialog(primaryStage, boardView.getCurrentBoard());
         Board newBoard = dialog.showAndWait();
 
@@ -1581,6 +1591,11 @@ public class MainController {
             alert.setContentText(lang.get(POSITION_SET_SUCCESS,
                     startWithBlack ? lang.get(GAME_BLACK).toLowerCase() : lang.get(GAME_WHITE).toLowerCase()));
             alert.showAndWait();
+
+            // ========== ОБНОВЛЯЕМ ПОЗИЦИЮ В ПАНЕЛИ АНАЛИЗА ==========
+            if (boardView.getAnalysisPanel() != null) {
+                boardView.getAnalysisPanel().onPositionChanged();
+            }
         }
     }
 
@@ -1682,7 +1697,7 @@ public class MainController {
         }
 
         // ========== ПРОВЕРКА ЛЕГАЛЬНОСТИ ==========
-        if (!boardView.isPositionLegal()) {
+        if (boardView.isPositionIlLegal()) {
             showNotification(lang.get(ENGINE_ILLEGAL_POSITION_CONTENT));
             return;
         }

@@ -215,7 +215,8 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.MENU_ENGINE_ANALYZE, "Показать лучший ход");
         strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_TITLE, "Нелегальная позиция");
         strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_HEADER, "Движок не может анализировать нелегальную позицию");
-        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_CONTENT, "Пожалуйста, расставьте легальную позицию (должны быть оба короля).");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_CONTENT, "Позиция нелегальна: один или оба короля отсутствуют, \n" +
+                "или они находятся под шахом, или короли рядом.");
 
         // Диалоги вариантов
         strings.put(LanguageKeys.DIALOG_VARIATION_TITLE, "Выбор варианта");

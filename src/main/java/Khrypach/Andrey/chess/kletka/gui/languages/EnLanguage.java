@@ -193,7 +193,8 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.MENU_ENGINE_ANALYZE, "Show Best Move");
         strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_TITLE, "Illegal Position");
         strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_HEADER, "Engine cannot analyze illegal position");
-        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_CONTENT, "Please set up a legal position (both kings must be present).");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_CONTENT, "Position is illegal: one or both kings are missing, \n" +
+                "or they are in check, or kings are adjacent.");
 
         // Variation dialogs
         strings.put(LanguageKeys.DIALOG_VARIATION_TITLE, "Choose Variation");
