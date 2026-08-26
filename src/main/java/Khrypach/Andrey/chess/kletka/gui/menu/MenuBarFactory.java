@@ -26,6 +26,7 @@ import Khrypach.Andrey.chess.kletka.gui.board.NotationView;
 import Khrypach.Andrey.chess.kletka.gui.controllers.MainController;
 import Khrypach.Andrey.chess.kletka.gui.board.BoardSizeController;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.DonateDialog;
+import Khrypach.Andrey.chess.kletka.gui.dialogs.PreferencesDialog;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageManager;
 import Khrypach.Andrey.chess.kletka.gui.settings.AppPreferences;
 import Khrypach.Andrey.chess.kletka.pgn.index.manager.PgnBrowserManager;
@@ -74,6 +75,9 @@ public class MenuBarFactory {
     private MenuItem windowsClipboardStatusItem;
     private MenuItem windowsClearClipboardItem;
     private MenuItem windowsCloseAllItem;
+
+    private MenuItem undoMarkerItem;
+    private MenuItem redoMarkerItem;
 
     // ========== ПУНКТЫ МЕНЮ ЯЗЫКА ==========
     private CheckMenuItem russianItem;
@@ -493,19 +497,71 @@ public class MenuBarFactory {
     private Menu createEditMenu() {
         Menu menu = new Menu(lang.get(MENU_EDIT));
 
-        MenuItem undoItem = new MenuItem(lang.get(MENU_EDIT_UNDO));
-        undoItem.setDisable(true);
+        // ========== UNDO/REDO ДЛЯ МАРКЕРОВ ==========
+        undoMarkerItem = new MenuItem(lang.get(MENU_EDIT_UNDO_MARKER));
+        undoMarkerItem.setId("undoMarkerMenuItem");
+        undoMarkerItem.setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCombination.CONTROL_DOWN));
+        // Tooltip НЕЛЬЗЯ добавить к MenuItem — убираем!
+        undoMarkerItem.setOnAction(e -> {
+            ChessBoardView boardView = controller.getBoardView();
+            if (boardView != null && boardView.getCoachTools() != null) {
+                boardView.getCoachTools().undoLastAction();
+            }
+        });
 
-        MenuItem redoItem = new MenuItem(lang.get(MENU_EDIT_REDO));
-        redoItem.setDisable(true);
+        redoMarkerItem = new MenuItem(lang.get(MENU_EDIT_REDO_MARKER));
+        redoMarkerItem.setId("redoMarkerMenuItem");
+        redoMarkerItem.setAccelerator(new KeyCodeCombination(KeyCode.Y, KeyCombination.CONTROL_DOWN));
+        // Tooltip НЕЛЬЗЯ добавить к MenuItem — убираем!
+        redoMarkerItem.setOnAction(e -> {
+            ChessBoardView boardView = controller.getBoardView();
+            if (boardView != null && boardView.getCoachTools() != null) {
+                boardView.getCoachTools().redo();
+            }
+        });
 
+        // ========== НАСТРОЙКИ (Ctrl+Shift+O) ==========
         SeparatorMenuItem separator = new SeparatorMenuItem();
 
         MenuItem preferencesItem = new MenuItem(lang.get(MENU_EDIT_PREFERENCES));
+        preferencesItem.setId("preferencesMenuItem");
+        preferencesItem.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN));
         preferencesItem.setOnAction(e -> showPreferencesDialog());
 
-        menu.getItems().addAll(undoItem, redoItem, separator, preferencesItem);
+        menu.getItems().addAll(undoMarkerItem, redoMarkerItem, separator, preferencesItem);
+
+        // ========== ПЕРВОНАЧАЛЬНОЕ СОСТОЯНИЕ ==========
+        updateUndoRedoState(false, false);
+
         return menu;
+    }
+
+    public void updateUndoRedoState(boolean canUndo, boolean canRedo) {
+        if (undoMarkerItem != null) {
+            undoMarkerItem.setDisable(!canUndo);
+            // Обновляем текст с подсказкой о количестве действий
+            if (canUndo) {
+                ChessBoardView boardView = controller.getBoardView();
+                if (boardView != null && boardView.getCoachTools() != null) {
+                    int size = boardView.getCoachTools().getActionHistorySize();
+                    undoMarkerItem.setText(lang.get(MENU_EDIT_UNDO_MARKER) + " (" + size + ")");
+                }
+            } else {
+                undoMarkerItem.setText(lang.get(MENU_EDIT_UNDO_MARKER));
+            }
+        }
+        if (redoMarkerItem != null) {
+            redoMarkerItem.setDisable(!canRedo);
+            if (canRedo) {
+                ChessBoardView boardView = controller.getBoardView();
+                if (boardView != null && boardView.getCoachTools() != null) {
+                    int size = boardView.getCoachTools().getRedoHistorySize();
+                    redoMarkerItem.setText(lang.get(MENU_EDIT_REDO_MARKER) + " (" + size + ")");
+                }
+            } else {
+                redoMarkerItem.setText(lang.get(MENU_EDIT_REDO_MARKER));
+            }
+        }
     }
 
     private Menu createViewMenu() {
@@ -812,12 +868,70 @@ public class MenuBarFactory {
         });
     }
 
+    /**
+     * Показывает диалог настроек
+     */
     private void showPreferencesDialog() {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(lang.get(PREFERENCES_TITLE));
-        alert.setHeaderText(null);
-        alert.setContentText(lang.get(FEATURE_NOT_IMPLEMENTED));
-        alert.showAndWait();
+        PreferencesDialog dialog = new PreferencesDialog(primaryStage);
+        dialog.showAndWait();
+
+        // После закрытия диалога - обновляем UI
+
+        // Обновляем размер доски
+        int newSize = AppPreferences.getTileSize();
+        if (sizeController != null) {
+            sizeController.setTileSize(newSize);
+        }
+
+        // Обновляем координаты
+        boolean showCoords = AppPreferences.isShowCoordinates();
+        if (controller != null) {
+            controller.toggleCoordinates(showCoords);
+            // Обновляем чекбокс в меню
+            updateCoordinatesCheckbox(showCoords);
+        }
+
+        // Обновляем переворот доски
+        boolean flipped = AppPreferences.isBoardFlipped();
+        if (controller != null) {
+            ChessBoardView boardView = controller.getBoardView();
+            if (boardView != null) {
+                // Проверяем текущее состояние переворота
+                if (boardView.isBoardFlipped() != flipped) {
+                    controller.flipBoard();
+                }
+            }
+        }
+
+        // Обновляем тему доски
+        int themeIndex = AppPreferences.getBoardThemeIndex();
+        if (controller != null) {
+            ChessBoardView boardView = controller.getBoardView();
+            if (boardView != null && themeIndex >= 0 && themeIndex < BoardTheme.THEMES.length) {
+                boardView.setBoardTheme(BoardTheme.THEMES[themeIndex]);
+            }
+            // Обновляем радиокнопки в меню темы
+            updateThemeMenuCheckmarks(themeIndex);
+        }
+
+        // Обновляем язык в меню
+        updateLanguageMenuCheckmarks();
+    }
+
+    /**
+     * Обновляет состояние радиокнопок темы доски в меню
+     */
+    private void updateThemeMenuCheckmarks(int themeIndex) {
+        RadioMenuItem selectedItem = null;
+        switch (themeIndex) {
+            case 0 -> selectedItem = woodThemeItem;
+            case 1 -> selectedItem = classicThemeItem;
+            case 2 -> selectedItem = greenThemeItem;
+            case 3 -> selectedItem = blueThemeItem;
+        }
+        if (selectedItem != null) {
+            selectedItem.setSelected(true);
+        }
     }
 
     /**

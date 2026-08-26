@@ -195,10 +195,33 @@ public class RuLanguage implements Language {
 
         // === Меню Правка ===
         strings.put(LanguageKeys.MENU_EDIT, "Правка");
-        strings.put(LanguageKeys.MENU_EDIT_UNDO, "Отменить");
-        strings.put(LanguageKeys.MENU_EDIT_REDO, "Повторить");
+        strings.put(LanguageKeys.MENU_EDIT_UNDO_MARKER, "Отменить маркер");
+        strings.put(LanguageKeys.MENU_EDIT_REDO_MARKER, "Повторить маркер");
         strings.put(LanguageKeys.MENU_EDIT_PREFERENCES, "Настройки");
-        strings.put(LanguageKeys.PREFERENCES_TITLE, "Настройки");
+
+        // ========== НАСТРОЙКИ ==========
+        strings.put(LanguageKeys.PREFERENCES_HEADER, "Настройки программы");
+        strings.put(LanguageKeys.PREFERENCES_SAVE, "Сохранить");
+        strings.put(LanguageKeys.PREFERENCES_CANCEL, "Отмена");
+        strings.put(LanguageKeys.PREFERENCES_RESET, "Сбросить");
+        strings.put(LanguageKeys.PREFERENCES_RESET_TITLE, "Сброс настроек");
+        strings.put(LanguageKeys.PREFERENCES_RESET_HEADER, "Сбросить все настройки?");
+        strings.put(LanguageKeys.PREFERENCES_RESET_CONTENT, "Все настройки будут возвращены к значениям по умолчанию. Продолжить?");
+        strings.put(LanguageKeys.PREFERENCES_RESET_SUCCESS, "Настройки сброшены к значениям по умолчанию");
+        strings.put(LanguageKeys.PREFERENCES_SAVED, "Настройки сохранены");
+        strings.put(LanguageKeys.PREFERENCES_LANGUAGE, "Язык");
+        strings.put(LanguageKeys.PREFERENCES_BOARD_THEME, "Тема доски");
+        strings.put(LanguageKeys.PREFERENCES_BOARD_SIZE, "Размер доски");
+        strings.put(LanguageKeys.PREFERENCES_COORDINATES, "Показывать координаты");
+        strings.put(LanguageKeys.PREFERENCES_FLIP_BOARD, "Перевернуть доску");
+        strings.put(LanguageKeys.PREFERENCES_SAVE_DIRECTORY, "Папка для сохранения");
+        strings.put(LanguageKeys.PREFERENCES_ENGINE, "Путь к шахматному движку");
+        strings.put(LanguageKeys.PREFERENCES_BROWSE, "Обзор...");
+        strings.put(LanguageKeys.PREFERENCES_SELECT_SAVE_DIR, "Выберите папку для сохранения");
+        strings.put(LanguageKeys.PREFERENCES_SELECT_ENGINE, "Выберите файл шахматного движка");
+        strings.put(LanguageKeys.PREFERENCES_CONFIG_PATH, "Путь к файлу настроек");
+        strings.put(LanguageKeys.PREFERENCES_OPEN_FOLDER, "Открыть папку");
+        strings.put(LanguageKeys.PREFERENCES_OPEN_FOLDER_ERROR, "Не удалось открыть папку с настройками");
 
         // === Меню Вид ===
         strings.put(LanguageKeys.MENU_VIEW, "Вид");

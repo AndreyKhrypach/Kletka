@@ -170,10 +170,34 @@ public class LanguageKeys {
 
     // === Меню Правка ===
     public static final String MENU_EDIT = "menu.edit";
-    public static final String MENU_EDIT_UNDO = "menu.edit.undo";
-    public static final String MENU_EDIT_REDO = "menu.edit.redo";
+    public static final String MENU_EDIT_UNDO_MARKER = "menu.edit.undoю.marker";
+    public static final String MENU_EDIT_REDO_MARKER = "menu.edit.redo.marker";
     public static final String MENU_EDIT_PREFERENCES = "menu.edit.preferences";
     public static final String PREFERENCES_TITLE = "preferences.title";
+
+    // ========== НАСТРОЙКИ ==========
+    public static final String PREFERENCES_HEADER = "preferences.header";
+    public static final String PREFERENCES_SAVE = "preferences.save";
+    public static final String PREFERENCES_CANCEL = "preferences.cancel";
+    public static final String PREFERENCES_RESET = "preferences.reset";
+    public static final String PREFERENCES_RESET_TITLE = "preferences.reset.title";
+    public static final String PREFERENCES_RESET_HEADER = "preferences.reset.header";
+    public static final String PREFERENCES_RESET_CONTENT = "preferences.reset.content";
+    public static final String PREFERENCES_RESET_SUCCESS = "preferences.reset.success";
+    public static final String PREFERENCES_SAVED = "preferences.saved";
+    public static final String PREFERENCES_LANGUAGE = "preferences.language";
+    public static final String PREFERENCES_BOARD_THEME = "preferences.board.theme";
+    public static final String PREFERENCES_BOARD_SIZE = "preferences.board.size";
+    public static final String PREFERENCES_COORDINATES = "preferences.coordinates";
+    public static final String PREFERENCES_FLIP_BOARD = "preferences.flip.board";
+    public static final String PREFERENCES_SAVE_DIRECTORY = "preferences.save.directory";
+    public static final String PREFERENCES_ENGINE = "preferences.engine";
+    public static final String PREFERENCES_BROWSE = "preferences.browse";
+    public static final String PREFERENCES_SELECT_SAVE_DIR = "preferences.select.save.dir";
+    public static final String PREFERENCES_SELECT_ENGINE = "preferences.select.engine";
+    public static final String PREFERENCES_CONFIG_PATH = "preferences.config.path";
+    public static final String PREFERENCES_OPEN_FOLDER = "preferences.open.folder";
+    public static final String PREFERENCES_OPEN_FOLDER_ERROR = "preferences.open.folder.error";
 
     // === Меню Вид ===
     public static final String MENU_VIEW = "menu.view";

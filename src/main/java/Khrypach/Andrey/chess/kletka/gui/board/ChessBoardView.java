@@ -104,6 +104,7 @@ public class ChessBoardView extends Application {
     private int tileSize = BoardSizeController.DEFAULT_TILE_SIZE;
     private BorderPane root;
     private boolean showCoordinates = true;
+    @Getter
     private boolean boardFlipped = false;
 
     @Getter

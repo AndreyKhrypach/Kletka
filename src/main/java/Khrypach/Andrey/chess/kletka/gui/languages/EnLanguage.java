@@ -173,10 +173,34 @@ public class EnLanguage implements Language {
 
         // === Edit Menu ===
         strings.put(LanguageKeys.MENU_EDIT, "Edit");
-        strings.put(LanguageKeys.MENU_EDIT_UNDO, "Undo");
-        strings.put(LanguageKeys.MENU_EDIT_REDO, "Redo");
+        strings.put(LanguageKeys.MENU_EDIT_UNDO_MARKER, "Undo Marker");
+        strings.put(LanguageKeys.MENU_EDIT_REDO_MARKER, "Redo Marker");
         strings.put(LanguageKeys.MENU_EDIT_PREFERENCES, "Preferences");
         strings.put(LanguageKeys.PREFERENCES_TITLE, "Preferences");
+
+        // ========== PREFERENCES ==========
+        strings.put(LanguageKeys.PREFERENCES_HEADER, "Program Settings");
+        strings.put(LanguageKeys.PREFERENCES_SAVE, "Save");
+        strings.put(LanguageKeys.PREFERENCES_CANCEL, "Cancel");
+        strings.put(LanguageKeys.PREFERENCES_RESET, "Reset");
+        strings.put(LanguageKeys.PREFERENCES_RESET_TITLE, "Reset Settings");
+        strings.put(LanguageKeys.PREFERENCES_RESET_HEADER, "Reset all settings?");
+        strings.put(LanguageKeys.PREFERENCES_RESET_CONTENT, "All settings will be restored to default values. Continue?");
+        strings.put(LanguageKeys.PREFERENCES_RESET_SUCCESS, "Settings reset to default values");
+        strings.put(LanguageKeys.PREFERENCES_SAVED, "Settings saved");
+        strings.put(LanguageKeys.PREFERENCES_LANGUAGE, "Language");
+        strings.put(LanguageKeys.PREFERENCES_BOARD_THEME, "Board Theme");
+        strings.put(LanguageKeys.PREFERENCES_BOARD_SIZE, "Board Size");
+        strings.put(LanguageKeys.PREFERENCES_COORDINATES, "Show Coordinates");
+        strings.put(LanguageKeys.PREFERENCES_FLIP_BOARD, "Flip Board");
+        strings.put(LanguageKeys.PREFERENCES_SAVE_DIRECTORY, "Save Directory");
+        strings.put(LanguageKeys.PREFERENCES_ENGINE, "Engine Path");
+        strings.put(LanguageKeys.PREFERENCES_BROWSE, "Browse...");
+        strings.put(LanguageKeys.PREFERENCES_SELECT_SAVE_DIR, "Select Save Directory");
+        strings.put(LanguageKeys.PREFERENCES_SELECT_ENGINE, "Select Chess Engine File");
+        strings.put(LanguageKeys.PREFERENCES_CONFIG_PATH, "Config File Path");
+        strings.put(LanguageKeys.PREFERENCES_OPEN_FOLDER, "Open Folder");
+        strings.put(LanguageKeys.PREFERENCES_OPEN_FOLDER_ERROR, "Failed to open settings folder");
 
         // === View Menu ===
         strings.put(LanguageKeys.MENU_VIEW, "View");

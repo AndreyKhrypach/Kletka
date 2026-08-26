@@ -1,14 +1,38 @@
+/*
+ *
+ *  * Copyright (c) 2025-2026 Andrey Khrypach
+ *  *
+ *  * This program is free software: you can redistribute it and/or modify
+ *  * it under the terms of the GNU General Public License as published by
+ *  * the Free Software Foundation, either version 3 of the License, or
+ *  * (at your option) any later version.
+ *  *
+ *  * This program is distributed in the hope that it will be useful,
+ *  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  * GNU General Public License for more details.
+ *  *
+ *  * You should have received a copy of the GNU General Public License
+ *  * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ *
+ */
+
 package Khrypach.Andrey.chess.kletka.gui.settings;
 
 import Khrypach.Andrey.chess.kletka.gui.board.BoardSizeController;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.io.TempDir;
 
-import java.util.prefs.BackingStoreException;
+import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("AppPreferences - Настройки приложения")
 class AppPreferencesTest {
+
+    @TempDir
+    static Path tempDir;
 
     // Сохраняем настройки перед тестами
     private String savedEnginePath;
@@ -18,11 +42,9 @@ class AppPreferencesTest {
     private boolean savedShowCoordinates;
     private int savedBoardTheme;
     private String savedSaveDirectory;
-    private String savedDatabasePath;
-    private String savedLastOpened;
 
     @BeforeEach
-    void setUp() throws BackingStoreException {
+    void setUp() {
         // ========== СОХРАНЯЕМ ТЕКУЩИЕ НАСТРОЙКИ ==========
         savedEnginePath = AppPreferences.getEnginePath();
         savedLanguage = AppPreferences.getLanguage();
@@ -31,12 +53,9 @@ class AppPreferencesTest {
         savedShowCoordinates = AppPreferences.isShowCoordinates();
         savedBoardTheme = AppPreferences.getBoardThemeIndex();
         savedSaveDirectory = AppPreferences.getSaveDirectory();
-        savedDatabasePath = AppPreferences.getDatabasePath();
-        savedLastOpened = AppPreferences.getLastOpened();
 
-        // ========== ОЧИЩАЕМ НАСТРОЙКИ ДЛЯ ТЕСТОВ ==========
-        AppPreferences.resetAllPreferences();
-        AppPreferences.resetEngineSettings();
+        // ========== УСТАНАВЛИВАЕМ ЯЗЫК ДЛЯ ТЕСТОВ ==========
+        AppPreferences.saveLanguage("ru");
     }
 
     @AfterEach
@@ -55,12 +74,6 @@ class AppPreferencesTest {
         if (savedSaveDirectory != null) {
             AppPreferences.saveSaveDirectory(savedSaveDirectory);
         }
-        if (savedDatabasePath != null) {
-            AppPreferences.saveDatabasePath(savedDatabasePath);
-        }
-        if (savedLastOpened != null) {
-            AppPreferences.saveLastOpened(savedLastOpened);
-        }
     }
 
     // ============================================================
@@ -74,8 +87,8 @@ class AppPreferencesTest {
         @Test
         @DisplayName("Должен сохранять и получать директорию сохранения")
         void shouldSaveAndGetSaveDirectory() {
-            // given
-            String testPath = "/test/save/dir";
+            // given - создаем временную директорию
+            String testPath = tempDir.resolve("test-save-dir").toString();
 
             // when
             AppPreferences.saveSaveDirectory(testPath);
@@ -86,13 +99,32 @@ class AppPreferencesTest {
         }
 
         @Test
-        @DisplayName("Должен возвращать домашнюю директорию по умолчанию")
-        void shouldReturnHomeDirectoryByDefault() {
+        @DisplayName("Должен возвращать папку bases по умолчанию")
+        void shouldReturnBasesDirectoryByDefault() {
             // when
             String result = AppPreferences.getSaveDirectory();
 
             // then
-            assertThat(result).isEqualTo(System.getProperty("user.home"));
+            assertThat(result).isNotNull();
+            assertThat(result).contains("bases");
+        }
+
+        @Test
+        @DisplayName("Должен создавать директорию если её нет")
+        void shouldCreateDirectoryIfNotExists() {
+            // given
+            String testPath = tempDir.resolve("new-bases-dir").toString();
+
+            // when
+            AppPreferences.saveSaveDirectory(testPath);
+            String result = AppPreferences.getSaveDirectory();
+
+            // then
+            assertThat(result).isEqualTo(testPath);
+            // Проверяем что директория создалась
+            java.io.File dir = new java.io.File(testPath);
+            assertThat(dir.exists()).isTrue();
+            assertThat(dir.isDirectory()).isTrue();
         }
     }
 
@@ -184,6 +216,17 @@ class AppPreferencesTest {
             // then
             assertThat(result).isEqualTo("ru");
         }
+
+        @Test
+        @DisplayName("Должен определять язык из системной локали")
+        void shouldDetectLanguageFromSystem() {
+            // when
+            String result = AppPreferences.getLanguage();
+
+            // then
+            // Язык должен быть одним из поддерживаемых: ru, en, zh
+            assertThat(result).isIn("ru", "en", "zh");
+        }
     }
 
     // ============================================================
@@ -198,7 +241,7 @@ class AppPreferencesTest {
         @DisplayName("Должен сохранять размер клетки в допустимом диапазоне")
         void shouldSaveTileSizeInValidRange() {
             // given
-            int size = 110;
+            int size = 90;
 
             // when
             AppPreferences.saveTileSize(size);
@@ -238,13 +281,13 @@ class AppPreferencesTest {
         }
 
         @Test
-        @DisplayName("Должен возвращать значение по умолчанию")
+        @DisplayName("Должен возвращать значение по умолчанию (80)")
         void shouldReturnDefaultTileSize() {
             // when
             int result = AppPreferences.getTileSize();
 
             // then
-            assertThat(result).isEqualTo(BoardSizeController.MIN_TILE_SIZE + BoardSizeController.STEP_SIZE * 2);
+            assertThat(result).isEqualTo(BoardSizeController.DEFAULT_TILE_SIZE);
         }
     }
 
@@ -342,16 +385,36 @@ class AppPreferencesTest {
     }
 
     // ============================================================
-    // 8. ТЕСТЫ ДЛЯ @Deprecated МЕТОДОВ
+    // 8. ТЕСТЫ ДЛЯ BASES DIRECTORY
     // ============================================================
 
     @Nested
-    @DisplayName("@Deprecated методы (для будущей версии 2.0)")
+    @DisplayName("Директория баз данных (bases)")
+    class BasesDirectoryTests {
+
+        @Test
+        @DisplayName("Должен возвращать путь к папке bases")
+        void shouldGetBasesDirectory() {
+            // when
+            Path result = AppPreferences.getBasesDirectory();
+
+            // then
+            assertThat(result).isNotNull();
+            assertThat(result.toString()).contains("bases");
+        }
+    }
+
+    // ============================================================
+    // 9. ТЕСТЫ ДЛЯ @Deprecated МЕТОДОВ
+    // ============================================================
+
+    @Nested
+    @DisplayName("@Deprecated методы (заглушки для версии 2.0)")
     class DeprecatedMethodsTests {
 
         @Test
-        @DisplayName("saveDatabasePath/getDatabasePath - должны работать")
-        void shouldSaveAndGetDatabasePath() {
+        @DisplayName("saveDatabasePath - заглушка, возвращает null")
+        void saveDatabasePathShouldDoNothing() {
             // given
             String testPath = "/test/db/path";
 
@@ -360,12 +423,12 @@ class AppPreferencesTest {
             String result = AppPreferences.getDatabasePath();
 
             // then
-            assertThat(result).isEqualTo(testPath);
+            assertThat(result).isNull();
         }
 
         @Test
-        @DisplayName("saveLastOpened/getLastOpened - должны работать")
-        void shouldSaveAndGetLastOpened() {
+        @DisplayName("saveLastOpened - заглушка, возвращает null")
+        void saveLastOpenedShouldDoNothing() {
             // given
             String testPath = "/test/last/opened";
 
@@ -374,17 +437,15 @@ class AppPreferencesTest {
             String result = AppPreferences.getLastOpened();
 
             // then
-            assertThat(result).isEqualTo(testPath);
+            assertThat(result).isNull();
         }
 
         @Test
-        @DisplayName("resetDatabaseSettings - должен сбрасывать настройки БД")
-        void shouldResetDatabaseSettings() {
+        @DisplayName("resetDatabaseSettings - заглушка, ничего не делает")
+        void resetDatabaseSettingsShouldDoNothing() {
             // given
             AppPreferences.saveDatabasePath("/test/path");
             AppPreferences.saveLastOpened("/test/last");
-            assertThat(AppPreferences.getDatabasePath()).isNotNull();
-            assertThat(AppPreferences.getLastOpened()).isNotNull();
 
             // when
             AppPreferences.resetDatabaseSettings();

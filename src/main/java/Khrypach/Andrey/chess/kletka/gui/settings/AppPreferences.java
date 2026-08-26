@@ -24,167 +24,161 @@ import Khrypach.Andrey.chess.kletka.gui.board.BoardSizeController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.prefs.BackingStoreException;
-import java.util.prefs.Preferences;
+import java.nio.file.Path;
 
+/**
+ * Основной класс для работы с настройками программы.
+ * Делегирует все операции ConfigFilePreferences.
+ */
 public class AppPreferences {
 
-    private static final Preferences PREFS = Preferences.userNodeForPackage(AppPreferences.class);
     private static final Logger log = LoggerFactory.getLogger(AppPreferences.class);
+    private static final ConfigFilePreferences config = ConfigFilePreferences.getInstance();
 
-    private static final String PREF_ENGINE_PATH = "engine.path";
-    private static final String PREF_ENGINE_ENABLED = "engine.enabled";
-    private static final String KEY_DATABASE_PATH = "database.path";
-    private static final String KEY_LAST_OPENED = "last.opened";
-    private static final String KEY_SAVE_DIRECTORY = "save.directory";
-    private static final String PREF_LANGUAGE = "language.code";
-    private static final String PREF_TILE_SIZE = "board.tile.size";
-    private static final String PREF_BOARD_FLIPPED = "board.flipped";
-    private static final String PREF_SHOW_COORDINATES = "board.show.coordinates";
-
-    // НОВОЕ: ключ для сохранения темы доски
-    private static final String PREF_BOARD_THEME = "board.theme";
-
-    public static void saveSaveDirectory(String path) {
-        PREFS.put(KEY_SAVE_DIRECTORY, path);
-    }
-
-    public static String getSaveDirectory() {
-        return PREFS.get(KEY_SAVE_DIRECTORY, System.getProperty("user.home"));
-    }
-
-    public static void saveEnginePath(String path) {
-        if (path != null && !path.isEmpty()) {
-            log.debug("Saving engine path: {}", path);
-            PREFS.put(PREF_ENGINE_PATH, path);
-            PREFS.putBoolean(PREF_ENGINE_ENABLED, true);
-            try {
-                PREFS.flush();
-                log.debug("Engine path saved successfully");
-            } catch (BackingStoreException e) {
-                log.error("Failed to flush preferences: {}", e.getMessage());
-            }
-        }
-    }
-
-    public static String getEnginePath() {
-        String path = PREFS.get(PREF_ENGINE_PATH, null);
-        log.debug("Retrieved engine path: {}", path);
-        return path;
-    }
-
-    public static void resetEngineSettings() {
-        PREFS.remove(PREF_ENGINE_PATH);
-        PREFS.putBoolean(PREF_ENGINE_ENABLED, false);
-    }
-
-    /**
-     *
-     * @deprecated Будет использоваться в версии 2.0 (SQLite).
-     * Тесты будут добавлены при реализации SQLite.
-     */
-    @Deprecated
-    public static void saveDatabasePath(String path) {
-        if (path != null && !path.isEmpty()) {
-            PREFS.put(KEY_DATABASE_PATH, path);
-        }
-    }
-
-    /**
-     *
-     * @deprecated Будет использоваться в версии 2.0 (SQLite).
-     * Тесты будут добавлены при реализации SQLite.
-     */
-    @Deprecated
-    public static String getDatabasePath() {
-        return PREFS.get(KEY_DATABASE_PATH, null);
-    }
-
-    /**
-     *
-     * @deprecated Будет использоваться в версии 2.0 (SQLite).
-     * Тесты будут добавлены при реализации SQLite.
-     */
-    @Deprecated
-    public static void saveLastOpened(String path) {
-        if (path != null && !path.isEmpty()) {
-            PREFS.put(KEY_LAST_OPENED, path);
-        }
-    }
-
-    /**
-     *
-     * @deprecated Будет использоваться в версии 2.0 (SQLite).
-     * Тесты будут добавлены при реализации SQLite.
-     */
-    @Deprecated
-    public static String getLastOpened() {
-        return PREFS.get(KEY_LAST_OPENED, null);
-    }
-
+    // ========== ЯЗЫК ==========
     public static void saveLanguage(String languageCode) {
-        PREFS.put(PREF_LANGUAGE, languageCode);
+        log.debug("save language {}", languageCode);
+        config.setLanguage(languageCode);
     }
 
     public static String getLanguage() {
-        return PREFS.get(PREF_LANGUAGE, "ru");
+        return config.getLanguage();
     }
 
+    // ========== РАЗМЕР ДОСКИ ==========
     public static void saveTileSize(int size) {
         if (size >= BoardSizeController.MIN_TILE_SIZE && size <= BoardSizeController.MAX_TILE_SIZE) {
-            PREFS.putInt(PREF_TILE_SIZE, size);
+            log.debug("save tile size {}", size);
+            config.setTileSize(size);
         }
     }
 
     public static int getTileSize() {
-        return PREFS.getInt(PREF_TILE_SIZE, BoardSizeController.MIN_TILE_SIZE + BoardSizeController.STEP_SIZE * 2);
+        return config.getTileSize();
     }
 
+    // ========== ПЕРЕВОРОТ ДОСКИ ==========
     public static void saveBoardFlipped(boolean flipped) {
-        PREFS.putBoolean(PREF_BOARD_FLIPPED, flipped);
+        log.debug("save board flipped {}", flipped);
+        config.setBoardFlipped(flipped);
     }
 
     public static boolean isBoardFlipped() {
-        return PREFS.getBoolean(PREF_BOARD_FLIPPED, false);
+        return config.isBoardFlipped();
     }
 
+    // ========== КООРДИНАТЫ ==========
     public static void saveShowCoordinates(boolean show) {
-        PREFS.putBoolean(PREF_SHOW_COORDINATES, show);
+        config.setShowCoordinates(show);
     }
 
     public static boolean isShowCoordinates() {
-        return PREFS.getBoolean(PREF_SHOW_COORDINATES, true);
+        return config.isShowCoordinates();
     }
 
-    // НОВЫЕ МЕТОДЫ ДЛЯ ТЕМЫ ДОСКИ
-
-    /**
-     * Сохраняет тему доски (индекс в массиве THEMES)
-     */
+    // ========== ТЕМА ДОСКИ ==========
     public static void saveBoardTheme(int themeIndex) {
-        PREFS.putInt(PREF_BOARD_THEME, themeIndex);
+        log.debug("save board theme {}", themeIndex);
+        config.setBoardTheme(themeIndex);
     }
 
-    /**
-     * Возвращает сохраненный индекс темы доски
-     * По умолчанию - WOOD (индекс 0)
-     */
     public static int getBoardThemeIndex() {
-        return PREFS.getInt(PREF_BOARD_THEME, 0);
+        return config.getBoardTheme();
+    }
+
+    // ========== ДИРЕКТОРИЯ СОХРАНЕНИЯ ==========
+    public static void saveSaveDirectory(String path) {
+        log.debug("save save directory {}", path);
+        config.setSaveDirectory(path);
+    }
+
+    public static String getSaveDirectory() {
+        return config.getSaveDirectory();
+    }
+
+    // ========== ПУТЬ К ДВИЖКУ ==========
+    public static void saveEnginePath(String path) {
+        log.debug("save engine path {}", path);
+        config.setEnginePath(path);
+    }
+
+    public static String getEnginePath() {
+        return config.getEnginePath();
+    }
+
+    // ========== ПОСЛЕДНИЙ ОТКРЫТЫЙ PGN ==========
+    public static void saveLastOpenedPgn(String path) {
+        config.setLastOpenedPgn(path);
+    }
+
+    public static String getLastOpenedPgn() {
+        return config.getLastOpenedPgn();
+    }
+
+    // ========== ДИРЕКТОРИЯ БАЗ ==========
+    public static Path getBasesDirectory() {
+        return config.getBasesDirectory();
+    }
+
+    // ========== СБРОС НАСТРОЕК ==========
+    public static void resetAllPreferences() {
+        config.resetToDefaults();
+    }
+
+    // ========== ИНФОРМАЦИЯ ==========
+    public static String getConfigFilePath() {
+        return config.getConfigFilePath();
+    }
+
+    public static boolean configFileExists() {
+        return config.configFileExists();
     }
 
     /**
-     *
-     * @deprecated Будет использоваться в версии 2.0 (SQLite).
-     * Тесты будут добавлены при реализации SQLite.
+     * @deprecated Будет использоваться в версии 2.0 (SQLite)
+     */
+    @Deprecated
+    public static void saveDatabasePath(String path) {
+        // Пока ничего не делаем
+    }
+
+    /**
+     * @deprecated Будет использоваться в версии 2.0 (SQLite)
+     */
+    @Deprecated
+    public static String getDatabasePath() {
+        return null;
+    }
+
+    /**
+     * @deprecated Будет использоваться в версии 2.0 (SQLite)
+     */
+    @Deprecated
+    public static void saveLastOpened(String path) {
+        // Пока ничего не делаем
+    }
+
+    /**
+     * @deprecated Будет использоваться в версии 2.0 (SQLite)
+     */
+    @Deprecated
+    public static String getLastOpened() {
+        return null;
+    }
+
+    /**
+     * @deprecated Будет использоваться в версии 2.0 (SQLite)
      */
     @Deprecated
     public static void resetDatabaseSettings() {
-        PREFS.remove(KEY_DATABASE_PATH);
-        PREFS.remove(KEY_LAST_OPENED);
+        // Пока ничего не делаем
     }
 
-    public static void resetAllPreferences() throws BackingStoreException {
-        PREFS.clear();
+    /**
+     * @deprecated Используйте resetAllPreferences()
+     */
+    @Deprecated
+    public static void resetEngineSettings() {
+        config.setEnginePath(null);
     }
 }

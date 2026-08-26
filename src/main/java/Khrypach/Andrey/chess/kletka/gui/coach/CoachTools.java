@@ -25,6 +25,7 @@ import Khrypach.Andrey.chess.kletka.gui.coach.tools.ArrowData;
 import Khrypach.Andrey.chess.kletka.gui.coach.tools.CrossData;
 import Khrypach.Andrey.chess.kletka.gui.coach.tools.MarkerColor;
 import Khrypach.Andrey.chess.kletka.gui.coach.tools.ToolType;
+import Khrypach.Andrey.chess.kletka.gui.menu.MenuBarFactory;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -94,6 +95,8 @@ public class CoachTools extends VBox {
 
     // ========== ИСТОРИЯ ДЕЙСТВИЙ ДЛЯ ОТМЕНЫ ==========
     private final java.util.Stack<MarkerAction> actionHistory = new java.util.Stack<>();
+    // Стек для Redo (восстановление удаленных маркеров)
+    private final java.util.Stack<MarkerAction> redoHistory = new java.util.Stack<>();
 
     // Callback для уведомления о необходимости перерисовки
     @Setter
@@ -443,6 +446,8 @@ public class CoachTools extends VBox {
         crosses.clear();
         arrows.clear();
         actionHistory.clear();
+        // ========== ОЧИЩАЕМ REDO СТЕК ==========
+        redoHistory.clear();
         tempArrow = null;
         isDraggingArrow = false;
         dragStartSquare = null;
@@ -453,6 +458,7 @@ public class CoachTools extends VBox {
         }
         notifyMarkersChanged();
         updateEraseButtonState();
+        updateMenuState();
     }
 
     public Map<String, ArrowData> getArrows() {
@@ -510,23 +516,38 @@ public class CoachTools extends VBox {
      */
     private void pushAction(MarkerAction action) {
         actionHistory.push(action);
+        redoHistory.clear();
         log.trace("Action pushed: {}, history size: {}", action.getType(), actionHistory.size());
+        updateMenuState();
     }
 
     /**
      * Отменяет последнее действие (ластик)
      */
-    private void undoLastAction() {
+    public void undoLastAction() {
         if (actionHistory.isEmpty()) {
             log.trace("No actions to undo");
-            // Визуальная обратная связь - мигание кнопки
             flashEraseButton();
             return;
         }
 
         MarkerAction action = actionHistory.pop();
-        log.trace("Undo action: {}", action.getType());
+        // ========== СОХРАНЯЕМ В REDO СТЕК ДЛЯ ВОССТАНОВЛЕНИЯ ==========
+        redoHistory.push(action);
+        log.trace("Undo action: {}, moved to redo stack", action.getType());
 
+        // Отменяем действие
+        undoAction(action);
+
+        notifyMarkersChanged();
+        updateEraseButtonState();
+        updateMenuState();
+    }
+
+    /**
+     * Отменяет действие
+     */
+    private void undoAction(MarkerAction action) {
         switch (action.getType()) {
             case CREATE_CROSS -> {
                 CrossData cross = action.getCrossData();
@@ -537,7 +558,6 @@ public class CoachTools extends VBox {
                 log.trace("Undo: removed cross at {}", cross.getSquare());
             }
             case UPDATE_CROSS -> {
-                // Восстанавливаем старый цвет
                 CrossData cross = crosses.get(action.getSquare());
                 if (cross != null) {
                     cross.setColor(action.getOldColor());
@@ -554,7 +574,6 @@ public class CoachTools extends VBox {
                 log.trace("Undo: removed arrow from {} to {}", arrow.getFromSquare(), arrow.getToSquare());
             }
             case UPDATE_ARROW -> {
-                // Восстанавливаем старый цвет стрелки
                 String key = action.getFromSquare() + "->" + action.getToSquare();
                 ArrowData arrow = arrows.get(key);
                 if (arrow != null) {
@@ -563,9 +582,27 @@ public class CoachTools extends VBox {
                 }
             }
         }
+    }
 
-        notifyMarkersChanged();
-        updateEraseButtonState();
+    /**
+     * Обновляет состояние кнопок Undo/Redo в меню
+     */
+    private void updateMenuState() {
+        if (boardView != null && boardView.getMainController() != null) {
+            MenuBarFactory menuFactory = boardView.getMainController().getMenuFactory();
+            if (menuFactory != null) {
+                menuFactory.updateUndoRedoState(canUndo(), canRedo());
+            }
+        }
+    }
+
+    // ========== МЕТОДЫ ДЛЯ СОСТОЯНИЯ КНОПОК ==========
+    public boolean canUndo() {
+        return !actionHistory.isEmpty();
+    }
+
+    public boolean canRedo() {
+        return !redoHistory.isEmpty();
     }
 
     /**
@@ -599,6 +636,80 @@ public class CoachTools extends VBox {
             updateEraseButtonState();
         });
         pause.play();
+    }
+
+    public void redo() {
+        if (redoHistory.isEmpty()) {
+            log.trace("No actions to redo");
+            return;
+        }
+
+        MarkerAction action = redoHistory.pop();
+        log.trace("Redo action: {}", action.getType());
+
+        // ========== ВАЖНО: возвращаем действие в actionHistory ==========
+        actionHistory.push(action);
+        log.trace("Action returned to undo stack, history size: {}", actionHistory.size());
+
+        // Восстанавливаем действие на доске
+        redoAction(action);
+
+        // Обновляем состояние
+        updateEraseButtonState();
+        updateMenuState();
+        notifyMarkersChanged();
+    }
+
+    public int getActionHistorySize() {
+        return actionHistory.size();
+    }
+
+    public int getRedoHistorySize() {
+        return redoHistory.size();
+    }
+
+    /**
+     * Восстанавливает действие из Redo стека
+     */
+    private void redoAction(MarkerAction action) {
+        switch (action.getType()) {
+            case CREATE_CROSS -> {
+                CrossData cross = action.getCrossData();
+                if (cross != null) {
+                    crosses.put(cross.getSquare(), cross);
+                    if (boardView != null) {
+                        boardView.addCrossToSquare(cross.getSquare(), cross.getColor().getColor());
+                    }
+                    log.trace("Redo: restored cross at {}", cross.getSquare());
+                }
+            }
+            case UPDATE_CROSS -> {
+                CrossData cross = crosses.get(action.getSquare());
+                if (cross != null) {
+                    cross.setColor(action.getNewColor());
+                    if (boardView != null) {
+                        boardView.updateCrossColor(action.getSquare(), action.getNewColor().getColor());
+                    }
+                    log.trace("Redo: restored cross color at {}", action.getSquare());
+                }
+            }
+            case CREATE_ARROW -> {
+                ArrowData arrow = action.getArrowData();
+                if (arrow != null) {
+                    String key = arrow.getFromSquare() + "->" + arrow.getToSquare();
+                    arrows.put(key, arrow);
+                    log.trace("Redo: restored arrow from {} to {}", arrow.getFromSquare(), arrow.getToSquare());
+                }
+            }
+            case UPDATE_ARROW -> {
+                String key = action.getFromSquare() + "->" + action.getToSquare();
+                ArrowData arrow = arrows.get(key);
+                if (arrow != null) {
+                    arrow.setColor(action.getNewColor());
+                    log.trace("Redo: restored arrow color from {} to {}", action.getFromSquare(), action.getToSquare());
+                }
+            }
+        }
     }
 
     // ========== ВНУТРЕННИЙ КЛАСС ДЛЯ ИСТОРИИ ==========

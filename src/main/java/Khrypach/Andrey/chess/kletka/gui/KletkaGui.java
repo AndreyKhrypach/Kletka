@@ -23,6 +23,7 @@ package Khrypach.Andrey.chess.kletka.gui;
 import Khrypach.Andrey.chess.kletka.gui.board.ChessBoardView;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageManager;
+import Khrypach.Andrey.chess.kletka.gui.settings.AppPreferences;
 import Khrypach.Andrey.chess.kletka.gui.splash.SplashScreen;
 import javafx.animation.PauseTransition;
 import javafx.application.Application;
@@ -62,6 +63,12 @@ public class KletkaGui extends Application {
 
     public static void main(String[] args) {
         log.info("=== STARTING APPLICATION ===");
+
+        // ========== ПРИ ЗАПУСКЕ ЯЗЫК УЖЕ ОПРЕДЕЛЕН ЧЕРЕЗ ОС ==========
+        String detectedLanguage = AppPreferences.getLanguage();
+        log.info("Using language: {}", detectedLanguage);
+        LanguageManager.getInstance().setLanguage(detectedLanguage);
+
         launch(args);
     }
 
@@ -147,5 +154,4 @@ public class KletkaGui extends Application {
         Platform.exit();
         System.exit(0);
     }
-
 }

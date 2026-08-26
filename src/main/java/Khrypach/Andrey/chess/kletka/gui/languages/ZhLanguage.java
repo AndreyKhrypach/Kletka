@@ -192,10 +192,34 @@ public class ZhLanguage implements Language {
 
         // ========== EDIT MENU ==========
         strings.put(LanguageKeys.MENU_EDIT, "编辑");
-        strings.put(LanguageKeys.MENU_EDIT_UNDO, "撤销");
-        strings.put(LanguageKeys.MENU_EDIT_REDO, "重做");
+        strings.put(LanguageKeys.MENU_EDIT_UNDO_MARKER, "撤消标记");
+        strings.put(LanguageKeys.MENU_EDIT_REDO_MARKER, "恢复标记");
         strings.put(LanguageKeys.MENU_EDIT_PREFERENCES, "偏好设置");
         strings.put(LanguageKeys.PREFERENCES_TITLE, "偏好设置");
+
+        // ========== SETTINGS ==========
+        strings.put(LanguageKeys.PREFERENCES_HEADER, "程序设置");
+        strings.put(LanguageKeys.PREFERENCES_SAVE, "保存");
+        strings.put(LanguageKeys.PREFERENCES_CANCEL, "取消");
+        strings.put(LanguageKeys.PREFERENCES_RESET, "重置");
+        strings.put(LanguageKeys.PREFERENCES_RESET_TITLE, "重置设置");
+        strings.put(LanguageKeys.PREFERENCES_RESET_HEADER, "重置所有设置？");
+        strings.put(LanguageKeys.PREFERENCES_RESET_CONTENT, "所有设置将恢复为默认值。继续？");
+        strings.put(LanguageKeys.PREFERENCES_RESET_SUCCESS, "设置已重置为默认值");
+        strings.put(LanguageKeys.PREFERENCES_SAVED, "设置已保存");
+        strings.put(LanguageKeys.PREFERENCES_LANGUAGE, "语言");
+        strings.put(LanguageKeys.PREFERENCES_BOARD_THEME, "棋盘主题");
+        strings.put(LanguageKeys.PREFERENCES_BOARD_SIZE, "棋盘大小");
+        strings.put(LanguageKeys.PREFERENCES_COORDINATES, "显示坐标");
+        strings.put(LanguageKeys.PREFERENCES_FLIP_BOARD, "翻转棋盘");
+        strings.put(LanguageKeys.PREFERENCES_SAVE_DIRECTORY, "保存目录");
+        strings.put(LanguageKeys.PREFERENCES_ENGINE, "引擎路径");
+        strings.put(LanguageKeys.PREFERENCES_BROWSE, "浏览...");
+        strings.put(LanguageKeys.PREFERENCES_SELECT_SAVE_DIR, "选择保存目录");
+        strings.put(LanguageKeys.PREFERENCES_SELECT_ENGINE, "选择国际象棋引擎文件");
+        strings.put(LanguageKeys.PREFERENCES_CONFIG_PATH, "配置文件路径");
+        strings.put(LanguageKeys.PREFERENCES_OPEN_FOLDER, "打开文件夹");
+        strings.put(LanguageKeys.PREFERENCES_OPEN_FOLDER_ERROR, "无法打开设置文件夹");
 
         // ========== VIEW MENU ==========
         strings.put(LanguageKeys.MENU_VIEW, "视图");
