@@ -386,6 +386,12 @@ public class LanguageKeys {
     public static final String SHORTCUT_CONNECT_DB = "shortcut.connect.db";
     public static final String SHORTCUT_IMPORT_DB = "shortcut.import.db";
 
+    // ========== ГОРЯЧИЕ КЛАВИШИ - ПРАВКА ==========
+    public static final String SHORTCUT_EDIT = "shortcut.edit";
+    public static final String SHORTCUT_UNDO_MARKER = "shortcut.undo.marker";
+    public static final String SHORTCUT_REDO_MARKER = "shortcut.redo.marker";
+    public static final String SHORTCUT_PREFERENCES = "shortcut.preferences";
+
     // ========== ENGINE MESSAGES ==========
     public static final String ENGINE_SEND_POSITION_ERROR = "engine.sendPositionError";
     public static final String ENGINE_TIMEOUT_ERROR = "engine.timeoutError";

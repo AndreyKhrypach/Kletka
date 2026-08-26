@@ -395,18 +395,6 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.ROOT, "根");
         strings.put(LanguageKeys.VARIATION_DEFAULT_NAME, "变着");
 
-        // ========== SHORTCUTS ==========
-        strings.put(LanguageKeys.SHORTCUTS_CONTENT,
-                """
-                        快捷键:
-                        Ctrl+N - 新对局
-                        Ctrl+O - 打开PGN
-                        Ctrl+S - 保存PGN
-                        Ctrl+F - 翻转棋盘
-                        Ctrl+D - 搜索数据库
-                        F1 - 帮助
-                        Ctrl+Q - 退出""");
-
         // ========== ENGINE MESSAGES ==========
         strings.put(LanguageKeys.ENGINE_SEND_POSITION_ERROR, "发送局面失败");
         strings.put(LanguageKeys.ENGINE_TIMEOUT_ERROR, "引擎在限定时间内未响应");
@@ -1108,6 +1096,12 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.SHORTCUT_IMPORT_DB, "Ctrl+I - 导入数据库");
         strings.put(LanguageKeys.SHORTCUT_SEARCH_DB, "Ctrl+Shift+F - 搜索数据库");
 
+        // ========== 快捷键 - 编辑 ==========
+        strings.put(LanguageKeys.SHORTCUT_EDIT, "编辑");
+        strings.put(LanguageKeys.SHORTCUT_UNDO_MARKER, "Ctrl+Z - 撤消标记");
+        strings.put(LanguageKeys.SHORTCUT_REDO_MARKER, "Ctrl+Y - 恢复标记");
+        strings.put(LanguageKeys.SHORTCUT_PREFERENCES, "Ctrl+Shift+O - 设置");
+
         strings.put(LanguageKeys.SHORTCUT_CLOSE_ALL_BROWSERS, "Ctrl+Shift+W - 关闭所有浏览器");
         strings.put(LanguageKeys.SHORTCUT_MINIMIZE_BROWSER, "最小化浏览器");
         strings.put(LanguageKeys.SHORTCUT_MAXIMIZE_BROWSER, "最大化浏览器");
@@ -1138,6 +1132,11 @@ public class ZhLanguage implements Language {
         shortcutsContent.append("  Ctrl+Shift+V - 从剪贴板导入\n");
         shortcutsContent.append("  Ctrl+P - 设置局面\n");
         shortcutsContent.append("  Alt+F4 - 退出\n");
+
+        shortcutsContent.append("\n📝 编辑:\n");
+        shortcutsContent.append("  Ctrl+Z - 撤消标记\n");
+        shortcutsContent.append("  Ctrl+Y - 恢复标记\n");
+        shortcutsContent.append("  Ctrl+Shift+O - 设置\n");
 
         shortcutsContent.append("\n👁️ 视图:\n");
         shortcutsContent.append("  Ctrl+F - 翻转棋盘\n");

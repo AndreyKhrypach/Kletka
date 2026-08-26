@@ -1723,62 +1723,8 @@ public class MainController {
     }
 
     public void showShortcuts() {
-        // Формируем список горячих клавиш с группировкой
-
-                // Файл
-        String shortcuts = "═══════════════════════════════════════\n" +
-                lang.get(SHORTCUT_FILE) + ":\n" +
-                "  " + lang.get(SHORTCUT_NEW_GAME) + "\n" +
-                "  " + lang.get(SHORTCUT_OPEN_PGN) + "\n" +
-                "  " + lang.get(SHORTCUT_SAVE_PGN) + "\n" +
-                "  " + lang.get(SHORTCUT_EXPORT_CURRENT) + "\n" +
-                "  " + lang.get(SHORTCUT_IMPORT_CLIPBOARD) + "\n" +
-                "  " + lang.get(SHORTCUT_SETUP_POSITION) + "\n" +
-                "  " + lang.get(SHORTCUT_EXIT) + "\n" +
-
-                // Вид
-                "\n" + lang.get(SHORTCUT_VIEW) + ":\n" +
-                "  " + lang.get(SHORTCUT_FLIP_BOARD) + "\n" +
-                "  " + lang.get(SHORTCUT_ZOOM_IN) + "\n" +
-                "  " + lang.get(SHORTCUT_ZOOM_OUT) + "\n" +
-                "  " + lang.get(SHORTCUT_ZOOM_RESET) + "\n" +
-                "  " + lang.get(SHORTCUT_TOGGLE_NOTATION) + "\n" +
-
-                // Навигация
-                "\n" + lang.get(SHORTCUT_NAVIGATION) + ":\n" +
-                "  " + lang.get(SHORTCUT_NAV_PREV) + "\n" +
-                "  " + lang.get(SHORTCUT_NAV_NEXT) + "\n" +
-                "  " + lang.get(SHORTCUT_NAV_FIRST) + "\n" +
-                "  " + lang.get(SHORTCUT_NAV_LAST) + "\n" +
-
-                // Движок
-                "\n" + lang.get(SHORTCUT_ENGINE) + ":\n" +
-                "  " + lang.get(SHORTCUT_ENGINE_MOVE) + "\n" +
-                "  " + lang.get(SHORTCUT_ENGINE_ANALYZE) + "\n" +
-                "  " + lang.get(SHORTCUT_ENGINE_CONFIGURE) + "\n" +
-
-                // PGN/Браузер
-                "\n" + lang.get(SHORTCUT_PGN) + ":\n" +
-                "  " + lang.get(SHORTCUT_OPEN_BROWSER) + "\n" +
-                "  " + lang.get(SHORTCUT_REFRESH_BROWSER) + "\n" +
-                "  " + lang.get(SHORTCUT_NEXT_GAME) + "\n" +
-                "  " + lang.get(SHORTCUT_PREV_GAME) + "\n" +
-                "  " + lang.get(SHORTCUT_NEXT_BROWSER) + "\n" +
-                "  " + lang.get(SHORTCUT_PREV_BROWSER) + "\n" +
-                "  " + lang.get(SHORTCUT_CLOSE_BROWSER) + "\n" +
-
-                // База данных
-                "\n" + lang.get(SHORTCUT_DATABASE) + ":\n" +
-                "  " + lang.get(SHORTCUT_CONNECT_DB) + "\n" +
-                "  " + lang.get(SHORTCUT_IMPORT_DB) + "\n" +
-                "  " + lang.get(SHORTCUT_SEARCH_DB) + "\n" +
-
-                // Окна
-                "\n" + lang.get(SHORTCUT_WINDOWS) + ":\n" +
-                "  " + lang.get(SHORTCUT_CLOSE_ALL_BROWSERS) + "\n" +
-                "\n═══════════════════════════════════════";
-
-        // Показываем диалог с информацией
+        // Берем готовую строку из языковых файлов (уже содержит все разделы)
+        String shortcuts = lang.get(SHORTCUTS_CONTENT);
         showInfo(lang.get(SHORTCUTS_TITLE), shortcuts);
     }
 

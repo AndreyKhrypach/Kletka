@@ -311,18 +311,6 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.NOTIFICATION_ANALYSIS, "Position analysis will be implemented");
         strings.put(LanguageKeys.NOTIFICATION_WARNING, "Warning");
 
-        // Shortcuts
-        strings.put(LanguageKeys.SHORTCUTS_CONTENT,
-                """
-                        Keyboard Shortcuts:
-                        Ctrl+N - New Game
-                        Ctrl+O - Open PGN
-                        Ctrl+S - Save PGN
-                        Ctrl+F - Flip Board
-                        Ctrl+D - Database Search
-                        F1 - Help
-                        Ctrl+Q - Exit""");
-
         // ========== MOVE ANNOTATIONS (Chess Informant) ==========
 
         // Move evaluation
@@ -1125,6 +1113,12 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.SHORTCUT_IMPORT_DB, "Ctrl+I - Import to Database");
         strings.put(LanguageKeys.SHORTCUT_SEARCH_DB, "Ctrl+Shift+F - Search Database");
 
+        // ========== HOTKEYS - EDIT ==========
+        strings.put(LanguageKeys.SHORTCUT_EDIT, "Edit");
+        strings.put(LanguageKeys.SHORTCUT_UNDO_MARKER, "Ctrl+Z - Undo Marker");
+        strings.put(LanguageKeys.SHORTCUT_REDO_MARKER, "Ctrl+Y - Redo Marker");
+        strings.put(LanguageKeys.SHORTCUT_PREFERENCES, "Ctrl+Shift+O - Preferences");
+
         strings.put(LanguageKeys.SHORTCUT_CLOSE_ALL_BROWSERS, "Ctrl+Shift+W - Close All Browsers");
 
         strings.put(LanguageKeys.FAILED_TOKENIZE_PGN, "Failed to tokenize PGN");
@@ -1154,6 +1148,11 @@ public class EnLanguage implements Language {
         shortcutsContent.append("  Ctrl+Shift+V - Import from Clipboard\n");
         shortcutsContent.append("  Ctrl+P - Setup Position\n");
         shortcutsContent.append("  Alt+F4 - Exit\n");
+
+        shortcutsContent.append("\n📝 Edit:\n");
+        shortcutsContent.append("  Ctrl+Z - Undo Marker\n");
+        shortcutsContent.append("  Ctrl+Y - Redo Marker\n");
+        shortcutsContent.append("  Ctrl+Shift+O - Preferences\n");
 
         shortcutsContent.append("\n👁️ View:\n");
         shortcutsContent.append("  Ctrl+F - Flip Board\n");

@@ -404,18 +404,6 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.ROOT, "КОРЕНЬ");
         strings.put(LanguageKeys.VARIATION_DEFAULT_NAME, "Вариант");
 
-        // Короткие клавиши
-        strings.put(LanguageKeys.SHORTCUTS_CONTENT,
-                """
-                        Горячие клавиши:
-                        Ctrl+N - Новая партия
-                        Ctrl+O - Открыть PGN
-                        Ctrl+S - Сохранить PGN
-                        Ctrl+F - Перевернуть доску
-                        Ctrl+D - Поиск по базе
-                        F1 - Справка
-                        Ctrl+Q - Выход""");
-
         // ========== ENGINE MESSAGES ==========
         strings.put(LanguageKeys.ENGINE_SEND_POSITION_ERROR, "Не удалось отправить позицию");
         strings.put(LanguageKeys.ENGINE_TIMEOUT_ERROR, "Движок не ответил в течение отведённого времени");
@@ -1134,6 +1122,12 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.SHORTCUT_IMPORT_DB, "Ctrl+I - Импорт в БД");
         strings.put(LanguageKeys.SHORTCUT_SEARCH_DB, "Ctrl+Shift+F - Поиск в БД");
 
+        // ========== ГОРЯЧИЕ КЛАВИШИ - ПРАВКА ==========
+        strings.put(LanguageKeys.SHORTCUT_EDIT, "Правка");
+        strings.put(LanguageKeys.SHORTCUT_UNDO_MARKER, "Ctrl+Z - Отменить маркер");
+        strings.put(LanguageKeys.SHORTCUT_REDO_MARKER, "Ctrl+Y - Вернуть маркер");
+        strings.put(LanguageKeys.SHORTCUT_PREFERENCES, "Ctrl+Shift+O - Настройки");
+
         strings.put(LanguageKeys.SHORTCUT_CLOSE_ALL_BROWSERS, "Ctrl+Shift+W - Закрыть все браузеры");
 
         strings.put(LanguageKeys.FAILED_TOKENIZE_PGN, "Невозможно токенизировать PGN");
@@ -1164,6 +1158,12 @@ public class RuLanguage implements Language {
         shortcutsContent.append("  Ctrl+Shift+V - Импорт из буфера обмена\n");
         shortcutsContent.append("  Ctrl+P - Расстановка позиции\n");
         shortcutsContent.append("  Alt+F4 - Выход\n");
+
+        // 📝 Правка
+        shortcutsContent.append("\n📝 Правка:\n");
+        shortcutsContent.append("  Ctrl+Z - Отменить маркер\n");
+        shortcutsContent.append("  Ctrl+Y - Вернуть маркер\n");
+        shortcutsContent.append("  Ctrl+Shift+O - Настройки\n");
 
         // 👁️ Вид
         shortcutsContent.append("\n👁️ Вид:\n");
