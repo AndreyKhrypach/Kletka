@@ -1,21 +1,18 @@
 /*
+ * Copyright (c) 2025-2026 Andrey Khrypach
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
- *  *
- *  * This program is free software: you can redistribute it and/or modify
- *  * it under the terms of the GNU General Public License as published by
- *  * the Free Software Foundation, either version 3 of the License, or
- *  * (at your option) any later version.
- *  *
- *  * This program is distributed in the hope that it will be useful,
- *  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  * GNU General Public License for more details.
- *  *
- *  * You should have received a copy of the GNU General Public License
- *  * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
 package Khrypach.Andrey.chess.kletka.gui.visitor;
@@ -37,8 +34,133 @@ public class VariationTreeTraverser {
 
     private Set<ParentNode> alreadyVisitedInVariation = null;
 
-    public <T> T traverse(RootNode rootNode, Variation mainLine, VariationTreeVisitor<T> visitor) {
+    // ========== ТЕКУЩАЯ ПОЗИЦИЯ ДЛЯ BOOK РЕЖИМА ==========
+    private Variation currentVariation;
+    private ParentNode currentNode;
 
+    /**
+     * Устанавливает текущую позицию для BOOK режима
+     */
+    public void setCurrentPosition(Variation variation, ParentNode node) {
+        this.currentVariation = variation;
+        this.currentNode = node;
+    }
+
+    /**
+     * Обход дерева в режиме книги (BOOK)
+     * Отображает все варианты как плоский список на каждом уровне
+     */
+    public <T> T traverseBook(RootNode rootNode, VariationTreeVisitor<T> visitor) {
+        log.trace("traverseBook - rootNode: {}, visitor: {}",
+                rootNode != null ? rootNode.getNodeUuid() : "null",
+                visitor != null ? visitor.getClass().getSimpleName() : "null");
+
+        if (rootNode == null || visitor == null) {
+            log.warn("traverseBook: rootNode or visitor is null");
+            return visitor != null ? visitor.getResult() : null;
+        }
+
+        if (!(visitor instanceof LevelAwareVisitor<T> levelVisitor)) {
+            log.warn("Visitor does not support LevelAwareVisitor interface");
+            return visitor.getResult();
+        }
+
+        visitor.visitRootStart(rootNode);
+
+        // ===== ВЫБИРАЕМ УРОВЕНЬ ДЛЯ ПОКАЗА =====
+        // Если есть текущий узел — показываем его уровень
+        // Иначе показываем корень
+        ParentNode targetNode = (this.currentNode != null) ? this.currentNode : rootNode;
+        Variation targetVariation = this.currentVariation;
+        int level = getCurrentLevel();
+
+        // Показываем только текущий уровень
+        processLevel(targetNode, level, targetVariation, levelVisitor);
+
+        visitor.visitRootEnd(rootNode);
+        log.trace("traverseBook completed");
+        return visitor.getResult();
+    }
+
+    /**
+     * Определяет текущий уровень
+     */
+    private int getCurrentLevel() {
+        if (this.currentNode == null || this.currentNode.isRoot()) {
+            return 0;
+        }
+        // Считаем глубину от корня
+        int depth = 0;
+        ParentNode node = this.currentNode;
+        while (node != null && !node.isRoot()) {
+            depth++;
+            node = node.getParent();
+        }
+        return depth;
+    }
+
+    /**
+     * Рекурсивно обрабатывает уровень
+     * @param node текущий узел
+     * @param level номер уровня
+     * @param parentVariation родительский вариант
+     * @param visitor визитер с поддержкой уровней
+     */
+    private <T> void processLevel(ParentNode node, int level,
+                                  Variation parentVariation,
+                                  LevelAwareVisitor<T> visitor) {
+        if (node == null) {
+            return;
+        }
+
+        log.trace("processLevel - level: {}, node: {}", level,
+                node.isRoot() ? "ROOT" : node.getSan());
+
+        // Получаем все варианты для этого узла
+        List<Variation> variations = node.getSubVariations();
+        if (variations == null || variations.isEmpty()) {
+            log.trace("No variations at level {}", level);
+            return;
+        }
+
+        // Фильтруем пустые варианты
+        List<Variation> validVariations = new ArrayList<>();
+        for (Variation var : variations) {
+            if (var != null && !var.isEmpty()) {
+                validVariations.add(var);
+            }
+        }
+
+        if (validVariations.isEmpty()) {
+            log.trace("No valid variations at level {}", level);
+            return;
+        }
+
+        // Начинаем уровень
+        visitor.visitLevelStart(level, node, parentVariation);
+
+        // Обрабатываем КАЖДЫЙ вариант на этом уровне
+        // (показываем только первый ход каждого варианта)
+        for (int i = 0; i < validVariations.size(); i++) {
+            Variation variation = validVariations.get(i);
+
+            boolean isActive = this.currentVariation != null && variation == this.currentVariation;
+
+            boolean isMainLine = variation.isMainLine();
+
+            // Посещаем вариант (только первый ход)
+            visitor.visitLevelVariation(variation, level, i, isActive, isMainLine);
+        }
+
+        // Заканчиваем уровень
+        visitor.visitLevelEnd(level);
+    }
+
+    // ========== СУЩЕСТВУЮЩИЙ МЕТОД ДЛЯ PGN ==========
+
+    public <T> T traverse(RootNode rootNode, Variation mainLine, VariationTreeVisitor<T> visitor) {
+        // Существующий код для PGN режима
+        // (оставляем без изменений)
         alreadyVisitedInVariation = new HashSet<>();
 
         log.trace("rootNode.subVariations size = {}",
@@ -161,9 +283,8 @@ public class VariationTreeTraverser {
         return visitor.getResult();
     }
 
-    /**
-     * Обходит корневой вариант (альтернатива первому ходу)
-     */
+    // ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ДЛЯ PGN ==========
+
     private void traverseRootVariation(Variation variation, VariationTreeVisitor<?> visitor) {
         if (variation == null || variation.isEmpty()) {
             return;
@@ -174,9 +295,6 @@ public class VariationTreeTraverser {
         visitor.visitRootVariationEnd(variation);
     }
 
-    /**
-     * Обходит обычный вариант (не корневой)
-     */
     private void traverseVariation(Variation variation, int depth, ParentNode forkNode,
                                    VariationTreeVisitor<?> visitor) {
         if (variation == null || variation.isEmpty() || variation.isMainLine()) {
@@ -188,9 +306,6 @@ public class VariationTreeTraverser {
         visitor.visitVariationEnd(variation);
     }
 
-    /**
-     * Обходит линию с подвариантами (для вариантов)
-     */
     private void traverseLineWithSubVariations(List<ParentNode> nodes,
                                                Variation variation,
                                                int depth,

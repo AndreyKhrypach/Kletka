@@ -134,6 +134,46 @@ public class AppPreferences {
         return config.configFileExists();
     }
 
+    // ========== ПОСЛЕДНЯЯ ОТКРЫТАЯ КНИГА ==========
+    public static void saveRecentBook(String path) {
+        log.debug("save recent book {}", path);
+        config.setRecentBook(path);
+    }
+
+    public static String getRecentBook() {
+        return config.getRecentBook();
+    }
+
+    // ========== ДИРЕКТОРИЯ КНИГ ==========
+    public static void saveBookDirectory(String path) {
+        log.debug("save book directory {}", path);
+        config.setBookDirectory(path);
+    }
+
+    public static String getBookDirectory() {
+        return config.getBookDirectory();
+    }
+
+    // ========== ПОСЛЕДНИЙ РЕЖИМ НАВИГАЦИИ ==========
+    public static void saveNavigationMode(String mode) {
+        log.debug("save navigation mode {}", mode);
+        config.setNavigationMode(mode);
+    }
+
+    public static String getNavigationMode() {
+        return config.getNavigationMode();
+    }
+
+    // ========== ПОСЛЕДНЯЯ ПАПКА СОХРАНЕНИЯ ==========
+    public static void saveLastSaveDirectory(String path) {
+        log.debug("save last save directory {}", path);
+        config.setLastSaveDirectory(path);
+    }
+
+    public static String getLastSaveDirectory() {
+        return config.getLastSaveDirectory();
+    }
+
     /**
      * @deprecated Будет использоваться в версии 2.0 (SQLite)
      */

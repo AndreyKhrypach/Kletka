@@ -45,6 +45,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.*;
 import javafx.stage.*;
 import lombok.Getter;
@@ -93,6 +94,7 @@ public class PgnFileBrowser {
     private int currentGameIndex = -1;
 
     // ========== КОМПОНЕНТЫ UI ==========
+    @Getter
     private Stage stage;
     private final Stage ownerStage;
     private TableView<GameTableRow> tableView;
@@ -138,6 +140,9 @@ public class PgnFileBrowser {
     @Getter
     @Setter
     private Runnable onDataLoaded;
+    @Getter
+    @Setter
+    private Runnable onRefreshComplete;
 
     // ========== DEPENDENCIES ==========
     @Getter
@@ -253,6 +258,8 @@ public class PgnFileBrowser {
         setupEventHandlers();
 
         Scene scene = new Scene(root);
+        setupBrowserHotkeys(scene);
+
         stage.setScene(scene);
     }
 
@@ -496,6 +503,132 @@ public class PgnFileBrowser {
         }
     }
 
+    /**
+     * Добавляет горячие клавиши для браузера
+     */
+    private void setupBrowserHotkeys(Scene scene) {
+        scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            // Игнорируем, если это поле ввода
+            if (event.getTarget() instanceof TextInputControl) return;
+
+            // Ctrl+Tab — следующий браузер
+            if (event.isControlDown() && !event.isShiftDown() && event.getCode() == KeyCode.TAB) {
+                event.consume();
+                switchToNextBrowser();
+                return;
+            }
+
+            // Ctrl+Shift+Tab — предыдущий браузер
+            if (event.isControlDown() && event.isShiftDown() && event.getCode() == KeyCode.TAB) {
+                event.consume();
+                switchToPreviousBrowser();
+                return;
+            }
+
+            // Ctrl+W — закрыть браузер
+            if (event.isControlDown() && event.getCode() == KeyCode.W) {
+                event.consume();
+                PgnBrowserManager.getInstance().closeBrowser(this);
+                return;
+            }
+
+            // Ctrl+R — обновить браузер
+            if (event.isControlDown() && event.getCode() == KeyCode.R) {
+                event.consume();
+                if (isShowing()) {
+                    setOnRefreshComplete(() -> Platform.runLater(() -> showNotification(lang.get(PGN_BROWSER_REFRESH_COMPLETE))));
+                    refresh();
+                }
+            }
+        });
+    }
+
+    /**
+     * Переключает на следующий браузер
+     */
+    private void switchToNextBrowser() {
+        PgnBrowserManager manager = PgnBrowserManager.getInstance();
+        Collection<PgnFileBrowser> browsers = manager.getAllBrowsers();
+        if (browsers.isEmpty()) return;
+
+        // Получаем текущий активный браузер
+        PgnFileBrowser active = manager.getActiveBrowser();
+
+        // Если активного нет - берём первый
+        if (active == null) {
+            PgnFileBrowser first = browsers.iterator().next();
+            first.showWindow();
+            manager.setActiveBrowser(first);
+            return;
+        }
+
+        // Находим следующий браузер
+        boolean found = false;
+        PgnFileBrowser next = null;
+        for (PgnFileBrowser b : browsers) {
+            if (found) {
+                next = b;
+                break;
+            }
+            if (b == active) {
+                found = true;
+            }
+        }
+        if (next == null) {
+            next = browsers.iterator().next();
+        }
+
+        // Активируем следующий браузер
+        next.showWindow();
+        manager.setActiveBrowser(next);  // <-- Та же логика, что в меню
+    }
+
+    /**
+     * Переключает на предыдущий браузер
+     */
+    private void switchToPreviousBrowser() {
+        PgnBrowserManager manager = PgnBrowserManager.getInstance();
+        Collection<PgnFileBrowser> browsers = manager.getAllBrowsers();
+        if (browsers.isEmpty()) return;
+
+        PgnFileBrowser active = manager.getActiveBrowser();
+
+        if (active == null) {
+            PgnFileBrowser last = null;
+            for (PgnFileBrowser b : browsers) {
+                last = b;
+            }
+            if (last != null) {
+                last.showWindow();
+                manager.setActiveBrowser(last);
+            }
+            return;
+        }
+
+        // Находим предыдущий браузер
+        PgnFileBrowser prev = null;
+        PgnFileBrowser lastSeen = null;
+        for (PgnFileBrowser b : browsers) {
+            if (b == active) {
+                prev = lastSeen;
+                break;
+            }
+            lastSeen = b;
+        }
+
+        if (prev == null) {
+            // Если не нашли предыдущий - берём последний
+            for (PgnFileBrowser b : browsers) {
+                prev = b;
+            }
+        }
+
+        if (prev != null) {
+            prev.showWindow();
+            manager.setActiveBrowser(prev);
+        }
+    }
+
     // ========== ОБНОВЛЕНИЕ СОСТОЯНИЯ КНОПОК ==========
     public void updateButtonsState() {
         int selectedCount = tableView.getSelectionModel().getSelectedItems().size();
@@ -564,7 +697,9 @@ public class PgnFileBrowser {
         Button minimizeButton = new Button("—");
         minimizeButton.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-background-color: transparent; -fx-cursor: hand; -fx-padding: 2 10 2 10;");
         minimizeButton.setTooltip(new Tooltip(lang.get(SHORTCUT_MINIMIZE_BROWSER)));
-        minimizeButton.setOnAction(e -> { if (stage != null) stage.setIconified(true); });
+        minimizeButton.setOnAction(e -> {
+            if (stage != null) stage.setIconified(true);
+        });
 
         // Кнопка Развернуть
         Button maximizeButton = new Button("⛶");
@@ -744,6 +879,8 @@ public class PgnFileBrowser {
 
     // ========== ЗАГРУЗКА ДАННЫХ ==========
     private void loadGames() {
+        log.debug("🔧 [{}] loadGames() started", pgnPath.getFileName());
+
         progressIndicator.setVisible(true);
         statusLabel.setText(lang.get(PGN_BROWSER_STATUS_CHECKING_INDEX));
         currentPage = 0;
@@ -752,24 +889,26 @@ public class PgnFileBrowser {
         Platform.runLater(() -> {
             tableView.getItems().clear();
             allRows.clear();
+            log.debug("🔧 [{}] Table cleared", pgnPath.getFileName());
         });
 
         new Thread(() -> {
             try {
                 PgnIndexManager indexManager = new PgnIndexManager();
                 Path indexPath = indexManager.getIndexPath(pgnPath);
+                log.debug("🔧 [{}] Index path: {}", pgnPath.getFileName(), indexPath);
 
                 if (Files.exists(indexPath)) {
-                    log.debug("Index found, using index mode");
+                    log.debug("🔧 [{}] Index found, using index mode", pgnPath.getFileName());
                     useIndexMode = true;
                     loadFromIndex(indexManager);
                 } else {
-                    log.debug("No index found, using direct parse mode");
+                    log.debug("🔧 [{}] No index found, using direct parse mode", pgnPath.getFileName());
                     useIndexMode = false;
                     loadByParsing();
                 }
             } catch (Exception e) {
-                log.error("Failed to load games", e);
+                log.error("🔧 [{}] Failed to load games: {}", pgnPath.getFileName(), e.getMessage());
                 Platform.runLater(() -> {
                     statusLabel.setText(String.format(lang.get(PGN_BROWSER_STATUS_ERROR), e.getMessage()));
                     progressIndicator.setVisible(false);
@@ -826,6 +965,10 @@ public class PgnFileBrowser {
             if (onDataLoaded != null) {
                 onDataLoaded.run();
             }
+
+            if (onRefreshComplete != null) {
+                Platform.runLater(onRefreshComplete);
+            }
         });
     }
 
@@ -880,6 +1023,10 @@ public class PgnFileBrowser {
 
             if (onDataLoaded != null) {
                 onDataLoaded.run();
+            }
+
+            if (onRefreshComplete != null) {
+                Platform.runLater(onRefreshComplete);
             }
         });
     }
@@ -1330,10 +1477,10 @@ public class PgnFileBrowser {
 
                     BatchOperationResult result = batchOp.deleteGamesBatch(entries,
                             processed -> Platform.runLater(() -> progressDialog.updateProgress(
-                            (double) processed / total,
-                            String.format(lang.get(PGN_BROWSER_DELETING_PROCEED), processed, total),
-                            String.format(lang.get(PGN_BROWSER_DELETED), processed)
-                    )));
+                                    (double) processed / total,
+                                    String.format(lang.get(PGN_BROWSER_DELETING_PROCEED), processed, total),
+                                    String.format(lang.get(PGN_BROWSER_DELETED), processed)
+                            )));
 
                     progressDialog.updateProgress(1.0, String.format(lang.get(PGN_BROWSER_DELETED), result.successful()),
                             lang.get(PGN_BROWSER_STATUS_OPERATION_FINISHED));
@@ -1765,7 +1912,7 @@ public class PgnFileBrowser {
                 Platform.runLater(() -> {
                     if (repackDialog != null) {
                         repackDialog.showError(
-                                String.format(lang.get(PGN_BROWSER_REPACK_ERROR), e.getMessage()),e.getMessage()
+                                String.format(lang.get(PGN_BROWSER_REPACK_ERROR), e.getMessage()), e.getMessage()
                         );
                     }
                     isRepacking = false;
@@ -1893,6 +2040,17 @@ public class PgnFileBrowser {
             if (stage.isIconified()) stage.setIconified(false);
             stage.show();
             stage.toFront();
+
+            // ========== ПРИНУДИТЕЛЬНЫЙ ЗАХВАТ ФОКУСА ==========
+            Platform.runLater(() -> {
+                Scene scene = stage.getScene();
+                if (scene != null) {
+                    // Захватываем фокус на корневом узле
+                    scene.getRoot().requestFocus();
+                    scene.getRoot().setFocusTraversable(true);
+                    log.debug("🔧 [{}] Focus forced to browser window", pgnPath.getFileName());
+                }
+            });
         }
     }
 
@@ -1916,10 +2074,13 @@ public class PgnFileBrowser {
     }
 
     public void refresh() {
-        // Проверяем, что мы на FX потоке
+        log.debug("🔧 [{}] refresh() called", pgnPath.getFileName());
+
         if (Platform.isFxApplicationThread()) {
+            log.debug("🔧 [{}] refresh() on FX thread, calling loadGames()", pgnPath.getFileName());
             loadGames();
         } else {
+            log.debug("🔧 [{}] refresh() on non-FX thread, scheduling", pgnPath.getFileName());
             Platform.runLater(this::loadGames);
         }
     }

@@ -23,6 +23,9 @@ package Khrypach.Andrey.chess.kletka.gui.board;
 import Khrypach.Andrey.chess.kletka.database.eco.EcoEntry;
 import Khrypach.Andrey.chess.kletka.database.eco.EcoService;
 import Khrypach.Andrey.chess.kletka.engine.UciEngineManager;
+import Khrypach.Andrey.chess.kletka.gui.book.PolyglotBookParser;
+import Khrypach.Andrey.chess.kletka.gui.book.PolyglotEntry;
+import Khrypach.Andrey.chess.kletka.gui.book.ZobristHasher;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.DialogCoordinator;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.VariationChoiceDialog;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
@@ -124,6 +127,21 @@ public class MoveNavigationController {
     private String currentEco = "";
     private String currentOpeningName = "";
     private boolean openingFound = false;
+
+    // Для BOOK режима
+    @Getter
+    private int selectedVariationIndex = 0;
+    private List<Variation> currentVariations = new ArrayList<>();
+
+    @Getter
+    @Setter
+    private PolyglotBookParser bookParser;
+
+    /**
+     * Текущий режим навигации
+     */
+    @Getter
+    private NavigationMode navigationMode = NavigationMode.PGN;
 
     // ← Callback при изменении дерева
     @Getter
@@ -700,6 +718,10 @@ public class MoveNavigationController {
             boolean isWhiteTurn = (currentNode.getAbsolutePly() % 2 == 0);
             showBranchChoiceDialog(currentNode, isWhiteTurn);
         }
+        loadVariationsForNode(currentNode);
+        updateCurrentVariations();
+        selectedVariationIndex = 0;
+        updateNotationView();
     }
 
     /**
@@ -796,7 +818,7 @@ public class MoveNavigationController {
     /**
      * Применяет снимок состояния к контроллеру
      */
-    private void applySnapshot(VariationStateSnapshot snapshot) {
+    void applySnapshot(VariationStateSnapshot snapshot) {
         log.trace("applySnapshot - BEFORE currentNode: {}, snapshot.currentNode: {}",
                 currentNode != null ? currentNode.getSan() : "null",
                 snapshot.currentNode() != null ? snapshot.currentNode().getSan() : "null");
@@ -1223,28 +1245,198 @@ public class MoveNavigationController {
         }
     }
 
+    /**
+     * Обрабатывает нажатия клавиш для навигации
+     * Разделяет логику в зависимости от режима
+     */
     public void handleKeyPress(KeyEvent event) {
-        log.trace("handleKeyPress: code={}", event.getCode());
+        log.trace("handleKeyPress: code={}, mode={}", event.getCode(), navigationMode);
+
+        if (navigationMode == NavigationMode.BOOK) {
+            handleBookKeyPress(event);
+        } else {
+            handlePgnKeyPress(event);
+        }
+    }
+
+    /**
+     * Обработка клавиш в режиме PGN
+     * Текущее поведение
+     */
+    private void handlePgnKeyPress(KeyEvent event) {
         switch (event.getCode()) {
             case LEFT -> {
-                log.trace("LEFT pressed");
+                log.trace("LEFT pressed (PGN mode)");
                 goToPreviousMove();
             }
             case RIGHT -> {
-                log.trace("RIGHT pressed");
+                log.trace("RIGHT pressed (PGN mode)");
                 goToNextMove();
             }
             case UP -> {
-                log.trace("UP pressed");
+                log.trace("UP pressed (PGN mode)");
                 goToFirstMove();
             }
             case DOWN -> {
-                log.trace("DOWN pressed");
+                log.trace("DOWN pressed (PGN mode)");
                 goToLastMove();
             }
+            case HOME -> {
+                log.trace("HOME pressed (PGN mode)");
+                goToFirstMove();
+            }
+            case END -> {
+                log.trace("END pressed (PGN mode)");
+                goToLastMove();
+            }
+            // В PGN режиме Enter не используется
+            case ENTER -> log.trace("ENTER pressed (PGN mode) - ignored");
             default -> {
+                // Игнорируем
             }
         }
+    }
+
+    /**
+     * Обработка клавиш в режиме BOOK
+     * Новая логика для навигации по уровням
+     */
+    private void handleBookKeyPress(KeyEvent event) {
+        log.trace("handleBookKeyPress: code={}", event.getCode());
+
+        switch (event.getCode()) {
+            case UP -> {
+                log.trace("UP pressed (BOOK mode)");
+                moveSelectionUp();
+            }
+            case DOWN -> {
+                log.trace("DOWN pressed (BOOK mode)");
+                moveSelectionDown();
+            }
+            case LEFT -> {
+                log.trace("LEFT pressed (BOOK mode)");
+                // ← ВОЗВРАТ НА ПРЕДЫДУЩИЙ УРОВЕНЬ
+                goToParentLevel();
+            }
+            case RIGHT, ENTER -> {
+                log.trace("RIGHT/ENTER pressed (BOOK mode)");
+                // → ВЫБОР ВАРИАНТА И ПЕРЕХОД НА СЛЕДУЮЩИЙ УРОВЕНЬ
+                selectCurrentVariation();
+            }
+            case HOME -> {
+                log.trace("HOME pressed (BOOK mode)");
+                goToRootLevel();
+            }
+            case END -> {
+                log.trace("END pressed (BOOK mode)");
+                goToDeepestLevel();
+            }
+            default -> {
+                // Игнорируем
+            }
+        }
+    }
+
+    /**
+     * Переход в корневую позицию (в BOOK режиме)
+     */
+    private void goToRootLevel() {
+        log.trace("goToRootLevel");
+        currentNode = rootNode;
+        currentVariation = rootVariation;
+        updateCurrentVariations();
+        selectedVariationIndex = 0;
+        restoreBoardFromRoot();
+        updateNotationView();
+        sendCurrentPositionToEngine();
+    }
+
+    /**
+     * Переход в конец главной линии (в BOOK режиме)
+     */
+    private void goToDeepestLevel() {
+        log.trace("goToDeepestLevel");
+        // Идём вниз по главной линии, пока есть next
+        ParentNode node = currentNode;
+        while (node != null && node.getNext() != null && !node.getNext().isRoot()) {
+            node = node.getNext();
+        }
+        if (node != currentNode) {
+            currentNode = node;
+            loadVariationsForNode(currentNode);
+            updateCurrentVariations();
+            selectedVariationIndex = 0;
+            restoreBoardFromCurrentNode();
+            updateNotationView();
+            sendCurrentPositionToEngine();
+        }
+    }
+
+    /**
+     * Выбор текущего варианта (в BOOK режиме)
+     * Переход на следующий уровень с показом всех подвариантов
+     */
+    public void selectCurrentVariation() {
+        if (currentVariations.isEmpty()) return;
+        Variation selected = currentVariations.get(selectedVariationIndex);
+        if (selected == null || selected.isEmpty()) return;
+
+        ParentNode firstNode = selected.getFirstNode();
+        if (firstNode != null && !firstNode.isRoot()) {
+            currentNode = firstNode;
+            currentVariation = selected;
+
+            // ===== ЗАГРУЖАЕМ ПОДВАРИАНТЫ ДЛЯ НОВОГО УЗЛА =====
+            loadVariationsForNode(currentNode);  // ← ЭТО ДОЛЖНО БЫТЬ!
+            updateCurrentVariations();
+            selectedVariationIndex = 0;
+
+            restoreBoardFromCurrentNode();
+            updateNotationView();
+            sendCurrentPositionToEngine();
+        }
+    }
+
+    /**
+     * Поиск варианта для узла
+     */
+    private Variation findVariationForNode(ParentNode node) {
+        if (node == null) return null;
+
+        // Проверяем, не принадлежит ли узел текущему варианту
+        if (currentVariation != null && currentVariation.getMoves().contains(node)) {
+            return currentVariation;
+        }
+
+        // Ищем в корневых вариантах
+        for (Variation var : rootNode.getSubVariations()) {
+            if (var.getMoves().contains(node)) {
+                return var;
+            }
+            // Проверяем вложенные варианты
+            Variation found = findVariationRecursive(var, node);
+            if (found != null) return found;
+        }
+
+        return null;
+    }
+
+    /**
+     * Рекурсивный поиск варианта для узла
+     */
+    private Variation findVariationRecursive(Variation variation, ParentNode targetNode) {
+        if (variation == null) return null;
+
+        for (ParentNode node : variation.getMoves()) {
+            if (node == targetNode) {
+                return variation;
+            }
+            for (Variation subVar : node.getSubVariations()) {
+                Variation found = findVariationRecursive(subVar, targetNode);
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 
     /**
@@ -1299,8 +1491,29 @@ public class MoveNavigationController {
         notifyPositionChanged();
         resetOpening();
         updateOpeningAfterNewMove();
+        updateCurrentVariations();
+        selectedVariationIndex = 0;
 
         log.debug("Game tree loaded successfully, main line moves: {}", mainLine.getMoveCount());
+    }
+
+    /**
+     * Устанавливает режим навигации и обновляет отображение
+     */
+    public void setNavigationMode(NavigationMode mode) {
+        this.navigationMode = mode;
+        log.debug("Navigation mode set to: {}", mode);
+
+        // Обновляем отображение нотации
+        if (notationView != null) {
+            notationView.refreshFromMainLine();
+            notationView.updateNotationDisplayWithVisitor();
+        }
+
+        // Обновляем индикатор в UI
+        if (boardView != null) {
+            boardView.updateNavigationModeIndicator(mode);
+        }
     }
 
     /**
@@ -1351,6 +1564,159 @@ public class MoveNavigationController {
         openingFound = false;
         if (notationView != null) {
             notationView.updateOpeningDisplay("", "");
+        }
+    }
+
+    /**
+     * Обновляет список вариантов для текущего уровня
+     */
+    private void updateCurrentVariations() {
+        if (currentNode == null) {
+            currentVariations = new ArrayList<>();
+            return;
+        }
+
+        List<Variation> variations = new ArrayList<>();
+        for (Variation var : currentNode.getSubVariations()) {
+            if (var != null && !var.isEmpty()) {
+                variations.add(var);
+            }
+        }
+        currentVariations = variations;
+        if (selectedVariationIndex >= currentVariations.size()) {
+            selectedVariationIndex = Math.max(0, currentVariations.size() - 1);
+        }
+    }
+
+    /**
+     * Перемещение выделения вверх
+     */
+    public void moveSelectionUp() {
+        if (currentVariations.isEmpty()) return;
+        selectedVariationIndex = Math.max(0, selectedVariationIndex - 1);
+
+        showSelectedPosition();
+        updateNotationView();
+    }
+
+    /**
+     * Перемещение выделения вниз
+     */
+    public void moveSelectionDown() {
+        if (currentVariations.isEmpty()) return;
+        selectedVariationIndex = Math.min(currentVariations.size() - 1, selectedVariationIndex + 1);
+
+        showSelectedPosition();
+        updateNotationView();
+    }
+
+    private void showSelectedPosition() {
+        if (currentVariations.isEmpty() || selectedVariationIndex >= currentVariations.size()) return;
+        Variation selected = currentVariations.get(selectedVariationIndex);
+        if (selected == null || selected.isEmpty()) return;
+
+        ParentNode firstNode = selected.getFirstNode();
+        if (firstNode != null && !firstNode.isRoot()) {
+            Board board = boardReconstructor.reconstruct(currentVariation, firstNode);
+            boardView.setBoard(board);
+            boardView.refreshBoard();
+        }
+    }
+
+    /**
+     * Возврат на предыдущий уровень
+     */
+    private void goToParentLevel() {
+        log.trace("goToParentLevel - current node: {}",
+                currentNode != null ? currentNode.getSan() : "null");
+
+        if (currentNode == null || currentNode.isRoot()) {
+            log.trace("Already at root - cannot go up");
+            return;
+        }
+
+        // Получаем родительский узел
+        ParentNode parent = currentNode.getParent();
+        if (parent == null || parent.isRoot()) {
+            log.trace("Parent is root - moving to root");
+            currentNode = rootNode;
+            currentVariation = rootVariation;
+        } else {
+            currentNode = parent;
+            // Находим вариант для родителя
+            Variation parentVariation = findVariationForNode(parent);
+            if (parentVariation != null) {
+                currentVariation = parentVariation;
+            }
+        }
+
+        // Обновляем список вариантов
+        updateCurrentVariations();
+        selectedVariationIndex = 0;
+
+        restoreBoardFromCurrentNode();
+        updateNotationView();
+        sendCurrentPositionToEngine();
+
+        if (boardView != null) {
+            boardView.notifyPositionChanged();
+        }
+    }
+
+    private void loadVariationsForNode(ParentNode node) {
+
+        if (node == null) {
+            log.warn("  Node is null, returning");
+            return;
+        }
+
+        // Если у узла уже есть подварианты — ничего не делаем
+        if (!node.getSubVariations().isEmpty()) {
+            return;
+        }
+
+        if (bookParser == null) {
+            log.warn("  bookParser is NULL! Book not loaded?");
+            return;
+        }
+
+        // Вычисляем хеш позиции для этого узла
+        Board board = boardReconstructor.reconstruct(currentVariation, node);
+        long key = ZobristHasher.calculate(board);
+
+        // Находим записи в книге для этой позиции
+        List<PolyglotEntry> entries = bookParser.findAllEntries(key);
+
+        if (entries.isEmpty()) {
+            log.warn("  No entries found for key 0x{}", Long.toHexString(key));
+            return;
+        }
+
+        int variationId = 0;
+        // Создаём подварианты из записей
+        for (PolyglotEntry entry : entries) {
+            if (entry.weight() < 1) {
+                log.trace("    Skipping entry with weight < 1: {}", entry.weight());
+                continue;
+            }
+
+            Move chesslibMove = bookParser.createChesslibMove(entry);
+            if (!board.isMoveLegal(chesslibMove, true)) {
+                log.trace("    Move {} is not legal, skipping", entry.getUciMove());
+                continue;
+            }
+
+            MoveNode moveNode = bookParser.createMoveNode(entry, board, node.getAbsolutePly() + 1);
+            // Добавляем под вариант к узлу
+            Variation subVar = new Variation(bookParser.generateVariationName(moveNode, variationId++));
+            subVar.addMove(moveNode);
+            subVar.setMainLine(false);
+            subVar.setParentVariation(currentVariation);
+            subVar.setParentNodeRef(node);
+
+            moveNode.setParent(node);
+            moveNode.setOwningVariation(subVar);
+            node.getSubVariations().add(subVar);
         }
     }
 

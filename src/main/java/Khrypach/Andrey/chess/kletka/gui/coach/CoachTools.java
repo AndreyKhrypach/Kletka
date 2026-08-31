@@ -25,7 +25,7 @@ import Khrypach.Andrey.chess.kletka.gui.coach.tools.ArrowData;
 import Khrypach.Andrey.chess.kletka.gui.coach.tools.CrossData;
 import Khrypach.Andrey.chess.kletka.gui.coach.tools.MarkerColor;
 import Khrypach.Andrey.chess.kletka.gui.coach.tools.ToolType;
-import Khrypach.Andrey.chess.kletka.gui.menu.MenuBarFactory;
+import Khrypach.Andrey.chess.kletka.gui.menu.CustomMenuBarFactory;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -589,7 +589,7 @@ public class CoachTools extends VBox {
      */
     private void updateMenuState() {
         if (boardView != null && boardView.getMainController() != null) {
-            MenuBarFactory menuFactory = boardView.getMainController().getMenuFactory();
+            CustomMenuBarFactory menuFactory = boardView.getMainController().getMenuFactory();
             if (menuFactory != null) {
                 menuFactory.updateUndoRedoState(canUndo(), canRedo());
             }

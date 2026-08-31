@@ -29,13 +29,16 @@ import Khrypach.Andrey.chess.kletka.database.repository.GameRepository;
 import Khrypach.Andrey.chess.kletka.database.service.PgnService;
 import Khrypach.Andrey.chess.kletka.engine.UciEngineManager;
 import Khrypach.Andrey.chess.kletka.gui.board.*;
+import Khrypach.Andrey.chess.kletka.gui.book.BookManager;
+import Khrypach.Andrey.chess.kletka.gui.book.PolyglotBookParser;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.EngineSetupDialog;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.PositionSetupDialog;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageManager;
 import Khrypach.Andrey.chess.kletka.gui.logo.LogoGenerator;
-import Khrypach.Andrey.chess.kletka.gui.menu.MenuBarFactory;
+import Khrypach.Andrey.chess.kletka.gui.menu.CustomMenuBarFactory;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.SaveGameDialog;
+import Khrypach.Andrey.chess.kletka.gui.model.NavigationMode;
 import Khrypach.Andrey.chess.kletka.gui.settings.AppPreferences;
 import Khrypach.Andrey.chess.kletka.pgn.index.PgnFileEditor;
 import Khrypach.Andrey.chess.kletka.pgn.index.PgnIndexManager;
@@ -96,7 +99,8 @@ public class MainController {
     @Getter
     private final BoardSizeController sizeController;
     @Getter
-    private MenuBarFactory menuFactory;
+    @Setter
+    private CustomMenuBarFactory menuFactory;
     @Setter
     private NotationView notationView;
 
@@ -119,7 +123,7 @@ public class MainController {
 
         initPgnService();
 
-        this.menuFactory = new MenuBarFactory(this, primaryStage, sizeController);
+        this.menuFactory = new CustomMenuBarFactory(this, primaryStage, sizeController);
 
         if (engineManager == null || !engineManager.isEngineRunning()) {
             initEngine();
@@ -416,6 +420,11 @@ public class MainController {
             return;
         }
 
+        boardView.getNavController().setNavigationMode(NavigationMode.PGN);
+
+        // Очищаем книгу, если она была загружена
+        BookManager.getInstance().clearBook();
+
         try {
             String pgn = gameData.pgn();
             log.trace("PGN from GameData:\n{}", pgn);
@@ -701,6 +710,12 @@ public class MainController {
 
         log.info("Opening PGN file: {}", file.getAbsolutePath());
 
+        // Переключаем режим навигации на PGN
+        boardView.getNavController().setNavigationMode(NavigationMode.PGN);
+
+        // Очищаем книгу
+        BookManager.getInstance().clearBook();
+
         try {
             Path pgnPath = file.toPath();
 
@@ -892,14 +907,22 @@ public class MainController {
         }
 
         if (hasBodyChanges()) {
-            // Показываем диалог сохранения
             boolean shouldContinue = showSaveDialogBeforeLoading();
             if (!shouldContinue) {
-                return; // Пользователь отменил загрузку
+                return;
             }
         }
 
         try {
+            // ===== ПЕРЕКЛЮЧАЕМ РЕЖИМ НА PGN =====
+            MoveNavigationController navController = boardView.getNavController();
+            if (navController != null) {
+                navController.setNavigationMode(NavigationMode.PGN);
+            }
+
+            // Очищаем книгу
+            BookManager.getInstance().clearBook();
+
             if (gameData.isPosition()) {
                 String fen = gameData.fen();
 
@@ -918,7 +941,6 @@ public class MainController {
                         GameTree gameTree = parser.parseToGameTree(fullPgn);
 
                         if (gameTree != null && !gameTree.isEmpty()) {
-                            MoveNavigationController navController = boardView.getNavController();
                             if (navController != null) {
                                 navController.loadGameTree(
                                         gameTree.getRootNode(),
@@ -926,7 +948,6 @@ public class MainController {
                                         gameTree.getRootVariation(),
                                         gameTree.getInitialBoard()
                                 );
-
 
                                 Board fenBoard = new Board();
                                 fenBoard.loadFromFen(fen);
@@ -962,7 +983,6 @@ public class MainController {
                 return;
             }
 
-            MoveNavigationController navController = boardView.getNavController();
             if (navController != null) {
                 navController.loadGameTree(
                         gameTree.getRootNode(),
@@ -999,6 +1019,7 @@ public class MainController {
 
     /**
      * Показывает диалог сохранения перед загрузкой новой партии
+     *
      * @return true - продолжить загрузку, false - отменить
      */
     private boolean showSaveDialogBeforeLoading() {
@@ -1102,8 +1123,9 @@ public class MainController {
         PgnFileBrowser activeBrowser = manager.getActiveBrowser();
 
         if (activeBrowser != null && activeBrowser.isShowing()) {
+            // Устанавливаем callback перед обновлением
+            activeBrowser.setOnRefreshComplete(() -> showNotification(lang.get(LanguageKeys.MAIN_REFRESHED_MSG)));
             activeBrowser.refresh();
-            showNotification(lang.get(LanguageKeys.MAIN_REFRESHED_MSG));
         } else {
             showNotification(lang.get(LanguageKeys.MAIN_NO_ACTIVE_BROWSER_MSG));
         }
@@ -1115,6 +1137,8 @@ public class MainController {
     }
 
     public void savePgnFile(File file) {
+        log.info(">>> savePgnFile called with file: {}", file);
+
         if (file == null) {
             FileChooser fileChooser = new FileChooser();
             fileChooser.setTitle(lang.get(MENU_FILE_SAVE_PGN));
@@ -1122,17 +1146,28 @@ public class MainController {
                     new FileChooser.ExtensionFilter("PGN files", "*.pgn")
             );
 
-            String saveDir = AppPreferences.getSaveDirectory();
-            if (saveDir != null && !saveDir.isEmpty()) {
-                File dir = new File(saveDir);
+            String lastDir = AppPreferences.getLastSaveDirectory();
+            if (lastDir != null && !lastDir.isEmpty()) {
+                File dir = new File(lastDir);
                 if (dir.exists() && dir.isDirectory()) {
                     fileChooser.setInitialDirectory(dir);
+                }
+            } else {
+                String saveDir = AppPreferences.getSaveDirectory();
+                if (saveDir != null && !saveDir.isEmpty()) {
+                    File dir = new File(saveDir);
+                    if (dir.exists() && dir.isDirectory()) {
+                        fileChooser.setInitialDirectory(dir);
+                    }
                 }
             }
 
             file = fileChooser.showSaveDialog(primaryStage);
             if (file == null) return;
-            AppPreferences.saveSaveDirectory(file.getParent());
+        }
+
+        if (file.getParent() != null) {
+            AppPreferences.saveLastSaveDirectory(file.getParent());
         }
 
         try {
@@ -1346,6 +1381,7 @@ public class MainController {
     }
 
     private void saveToPgnFile(GameData gameData) {
+        log.info(">>> saveToPgnFile called");
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(lang.get(LanguageKeys.MAIN_SAVE_PGN_FILE_TITLE));
         fileChooser.getExtensionFilters().add(
@@ -1355,13 +1391,23 @@ public class MainController {
         PgnBrowserManager manager = PgnBrowserManager.getInstance();
         PgnFileBrowser activeBrowser = manager.getActiveBrowser();
 
-        if (activeBrowser != null && activeBrowser.isShowing()) {
-            Path currentPath = activeBrowser.getPgnPath();
-            if (currentPath != null) {
-                File defaultFile = currentPath.toFile();
-                if (defaultFile.exists()) {
-                    fileChooser.setInitialDirectory(defaultFile.getParentFile());
-                    fileChooser.setInitialFileName(defaultFile.getName());
+        // ========== ИСПОЛЬЗУЕМ ПОСЛЕДНЮЮ ПАПКУ ==========
+        String lastDir = AppPreferences.getLastSaveDirectory();
+        if (lastDir != null && !lastDir.isEmpty()) {
+            File dir = new File(lastDir);
+            if (dir.exists() && dir.isDirectory()) {
+                fileChooser.setInitialDirectory(dir);
+            }
+        } else {
+            // Если нет последней папки - используем bases
+            if (activeBrowser != null && activeBrowser.isShowing()) {
+                Path currentPath = activeBrowser.getPgnPath();
+                if (currentPath != null) {
+                    File defaultFile = currentPath.toFile();
+                    if (defaultFile.exists()) {
+                        fileChooser.setInitialDirectory(defaultFile.getParentFile());
+                        fileChooser.setInitialFileName(defaultFile.getName());
+                    }
                 }
             }
         }
@@ -1381,6 +1427,8 @@ public class MainController {
             return;
         }
 
+        // ========== СОХРАНЯЕМ ПАПКУ ==========
+        AppPreferences.saveLastSaveDirectory(selectedFile.getParent());
         AppPreferences.saveSaveDirectory(selectedFile.getParent());
 
         try {
@@ -1750,6 +1798,171 @@ public class MainController {
         dialog.getDialogPane().setContent(content);
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
         dialog.showAndWait();
+    }
+
+    /**
+     * Открывает диалог выбора Polyglot книги
+     */
+    public void openPolyglotBook() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle(lang.get(LanguageKeys.MENU_BOOKS_LOAD));
+        fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Polyglot Book", "*.bin")
+        );
+
+        // Устанавливаем начальную директорию
+        String bookDir = AppPreferences.getBookDirectory();
+        if (bookDir != null && !bookDir.isEmpty()) {
+            File dir = new File(bookDir);
+            if (dir.exists() && dir.isDirectory()) {
+                fileChooser.setInitialDirectory(dir);
+            }
+        }
+
+        File file = fileChooser.showOpenDialog(primaryStage);
+        if (file != null) {
+            // Сохраняем директорию
+            AppPreferences.saveBookDirectory(file.getParent());
+            loadPolyglotBook(file);
+        }
+    }
+
+    /**
+     * Загружает Polyglot книгу
+     */
+    public void loadPolyglotBook(File bookFile) {
+        if (bookFile == null) {
+            return;
+        }
+
+        try {
+            // Проверяем изменения в текущей партии
+            if (hasBodyChanges()) {
+                boolean shouldContinue = showSaveDialogBeforeLoading();
+                if (!shouldContinue) {
+                    return;
+                }
+            }
+
+            // ===== ЗАГРУЖАЕМ КНИГУ ЧЕРЕЗ BookManager =====
+            BookManager bookManager = BookManager.getInstance();
+            boolean loaded = bookManager.loadBook(bookFile.toPath());
+
+            if (!loaded) {
+                showNotification(lang.get(LanguageKeys.BOOK_LOAD_ERROR));
+                return;
+            }
+
+            bookManager.addToRecent(bookFile.getPath());
+            AppPreferences.saveRecentBook(bookFile.getPath());
+
+            if (menuFactory != null) {
+                menuFactory.updateBooksMenu();
+            }
+
+            // Получаем дерево и парсер из BookManager
+            GameTree bookTree = bookManager.getCurrentBookTree();
+            PolyglotBookParser parser = bookManager.getCurrentParser();
+
+            if (bookTree == null || bookTree.isEmpty()) {
+                showNotification(lang.get(LanguageKeys.BOOK_LOAD_ERROR));
+                return;
+            }
+
+            // ===== ПЕРЕДАЁМ ПАРСЕР В НАВИГАТОР =====
+            boardView.getNavController().setBookParser(parser);
+            bookManager.setCurrentBookPath(bookFile.toPath());
+            bookManager.setCurrentBookTree(bookTree);
+            bookManager.setBookLoaded(true);
+            bookManager.addToRecent(bookFile.getPath());
+            AppPreferences.saveRecentBook(bookFile.getPath());
+
+            // Загружаем дерево в навигатор
+            boardView.getNavController().loadGameTree(
+                    bookTree.getRootNode(),
+                    bookTree.getMainLine(),
+                    bookTree.getRootVariation(),
+                    bookTree.getInitialBoard()
+            );
+
+            // Устанавливаем режим книги
+            boardView.getNavController().setNavigationMode(NavigationMode.BOOK);
+
+            boardView.requestFocusOnScene();
+
+            // Обновляем отображение
+            boardView.refreshBoard();
+            notationView.refreshFromMainLine();
+            notationView.updateNotationDisplayWithVisitor();
+
+            // Обновляем заголовок
+            String bookName = bookFile.getName();
+            primaryStage.setTitle(lang.get(APP_TITLE) + " - " + bookName + " " + lang.get(LanguageKeys.BOOK_MODE));
+
+            // Показываем уведомление
+            String message = String.format(
+                    lang.get(LanguageKeys.BOOK_LOADED),
+                    bookName,
+                    parser.getTotalEntries()
+            );
+            showNotification(message);
+
+            // Обновляем индикатор режима
+            boardView.updateNavigationModeIndicator(NavigationMode.BOOK);
+
+            // Останавливаем анализ
+            if (boardView.getAnalysisPanel() != null &&
+                    boardView.getAnalysisPanel().isAnalyzingActive()) {
+                boardView.getAnalysisPanel().stopAnalysis();
+            }
+
+        } catch (Exception e) {
+            log.error("Failed to load Polyglot book", e);
+            showError(lang.get(LanguageKeys.BOOK_LOAD_ERROR), e.getMessage());
+        }
+    }
+
+    /**
+     * Очищает загруженную книгу и возвращается в PGN режим
+     */
+    public void clearBook() {
+        // 1. Останавливаем анализ
+        if (boardView.getAnalysisPanel() != null &&
+                boardView.getAnalysisPanel().isAnalyzingActive()) {
+            boardView.getAnalysisPanel().stopAnalysis();
+        }
+
+        // 2. Очищаем книгу из менеджера
+        BookManager.getInstance().clearBook();
+
+        if (menuFactory != null) {
+            menuFactory.updateBooksMenu();
+        }
+
+        // 3. Переключаем режим на PGN
+        if (boardView.getNavController() != null) {
+            boardView.getNavController().setNavigationMode(NavigationMode.PGN);
+            boardView.getNavController().setBookParser(null); // ← Убираем парсер
+            boardView.updateNavigationModeIndicator(NavigationMode.PGN);
+        }
+
+        // 4. Сбрасываем доску в начальную позицию
+        resetGame();
+
+        // 5. Очищаем нотацию
+        if (notationView != null) {
+            notationView.clearGameData();
+            notationView.refreshDisplay();
+        }
+
+        // 6. Восстанавливаем заголовок
+        primaryStage.setTitle(lang.get(APP_TITLE));
+
+        // 7. Обновляем индикатор режима
+        boardView.updateNavigationModeIndicator(NavigationMode.PGN);
+
+        // 8. Показываем уведомление
+        showNotification(lang.get(LanguageKeys.BOOK_CLEARED));
     }
 
     /**

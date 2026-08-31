@@ -269,6 +269,8 @@ public class LanguageKeys {
     public static final String NOTATION_TOGGLE_HIDE = "notation.toggle.hide";
     public static final String NOTATION_NO_MOVES = "notation.no.moves";
     public static final String NOTATION_NO_DATA = "notation.no.data";
+    public static final String NOTATION_NO_PGN_EXPORT = "notation.no.pgn.export";
+    public static final String NOTATION_NO_PGN_EXPORT_UNICODE = "notation.no.pgn.export.unicode";
 
     // Игровые сообщения
     public static final String GAME_CHECKMATE = "game.checkmate";
@@ -323,6 +325,38 @@ public class LanguageKeys {
     public static final String NAV_TOOLTIP_PREV = "nav.tooltip.prev";
     public static final String NAV_TOOLTIP_NEXT = "nav.tooltip.next";
     public static final String NAV_TOOLTIP_LAST = "nav.tooltip.last";
+    public static final String NAVIGATION_MODE = "navigation.mode";
+    public static final String NAVIGATION_MODE_PGN = "navigation.mode.pgn";
+    public static final String NAVIGATION_MODE_BOOK = "navigation.mode.book";
+
+    // ========== КНИГИ ==========
+    public static final String BOOK_MODE = "book.mode";
+    public static final String BOOK_LOADED = "book.loaded";
+    public static final String BOOK_NO_BOOK = "book.no.book";
+    public static final String BOOK_STATS = "book.stats";
+    public static final String BOOK_ENTRIES = "book.entries";
+    public static final String BOOK_LOAD_ERROR = "book.load.error";
+    public static final String BOOK_CLEARED = "book.cleared";
+
+    // ========== МЕНЮ "КНИГИ" ==========
+    public static final String MENU_BOOKS = "menu.books";
+    public static final String MENU_BOOKS_LOAD = "menu.books.load";
+    public static final String MENU_BOOKS_CLEAR = "menu.books.clear";
+    public static final String MENU_BOOKS_RECENT = "menu.books.recent";
+    public static final String MENU_BOOKS_AVAILABLE = "menu.books.available";
+    public static final String MENU_BOOKS_EXPORT = "menu.books.export";
+    public static final String MENU_BOOKS_INFO = "menu.books.info";
+    public static final String MENU_BOOKS_NO_RECENT = "menu.books.no.recent";
+    public static final String MENU_BOOKS_NO_AVAILABLE = "menu.books.no.available";
+    public static final String MENU_BOOKS_NO_BOOK_LOADED = "menu.books.no.book.loaded";
+    public static final String MENU_BOOKS_INFO_TITLE = "menu.books.info.title";
+    public static final String MENU_BOOKS_INFO_NAME = "menu.books.info.name";
+    public static final String MENU_BOOKS_INFO_MOVES = "menu.books.info.moves";
+    public static final String MENU_BOOKS_INFO_STATUS = "menu.books.info.status";
+    public static final String MENU_BOOKS_INFO_LOADED = "menu.books.info.loaded";
+    public static final String MENU_BOOKS_INFO_SIZE = "menu.books.info.size";
+    public static final String MENU_BOOKS_INFO_ENTRIES = "menu.books.info.entries";
+    public static final String MENU_BOOKS_INFO_VARIATIONS = "menu.books.info.variations";
 
     // Статус и уведомления
     public static final String NOTIFICATION_INFO = "notification.info";
@@ -406,6 +440,8 @@ public class LanguageKeys {
     public static final String ENGINE_NOT_ANALYZED = "engine.notAnalyzed";
     public static final String ENGINE_ILLEGAL_MOVE = "engine.illegalMove";
     public static final String ENGINE_MOVE_ERROR = "engine.moveError";
+    public static final String ENGINE_BOOK_MODE_NO_ANALYSIS = "engine.bookMode.NoAnalysis";
+    public static final String ENGINE_BOOK_MODE_NO_MOVE = "engine.bookMode.NoMove";
 
     // ========== ENGINE SETUP DIALOG ==========
     public static final String ENGINE_SETUP_DIALOG_TITLE = "engine.setup.dialog.title";
@@ -940,6 +976,7 @@ public class LanguageKeys {
     public static final String PGN_BROWSER_MSG_PASTE_ERROR =  "pgn.browser.msg.paste.error";
     public static final String PGN_BROWSER_MSG_PASTE_GAMES = "pgn.browser.msg.paste.games";
     public static final String PGN_BROWSER_MSG_PASTE_START = "pgn.browser.msg.paste.start";
+    public static final String PGN_BROWSER_REFRESH_COMPLETE = "pgn.browser.refresh.complete";
 
     // PGN Browser - Progress
     public static final String PGN_BROWSER_DELETING = "pgn.browser.deleting";

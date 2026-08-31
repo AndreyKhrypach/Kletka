@@ -43,13 +43,16 @@ public class ConfigFilePreferences {
 
     private static final String CONFIG_FILE_NAME = "config.properties";
     private static final String BASES_DIR_NAME = "bases";
+    public static final String KEY_RECENT_BOOK = "book.recent";
+    public static final String KEY_BOOK_DIRECTORY = "book.directory";
+    public static final String KEY_NAVIGATION_MODE = "navigation.mode";
+    public static final String KEY_LAST_SAVE_DIRECTORY = "save.last.directory";
 
     private static ConfigFilePreferences instance;
     private final Properties properties = new Properties();
 
     @Getter
     private Path configPath;
-    private Path baseDir;
     private Path basesDir;
 
     // Ключи настроек
@@ -109,7 +112,6 @@ public class ConfigFilePreferences {
             log.info("Linux/Unix: using config directory: {}", appDir);
         }
 
-        this.baseDir = appDir;
         this.configPath = appDir.resolve(CONFIG_FILE_NAME);
         this.basesDir = appDir.resolve(BASES_DIR_NAME);
 
@@ -133,7 +135,6 @@ public class ConfigFilePreferences {
                 if (!Files.exists(fallbackDir)) {
                     Files.createDirectories(fallbackDir);
                 }
-                this.baseDir = fallbackDir;
                 this.configPath = fallbackDir.resolve(CONFIG_FILE_NAME);
                 this.basesDir = fallbackDir.resolve(BASES_DIR_NAME);
                 if (!Files.exists(basesDir)) {
@@ -147,7 +148,6 @@ public class ConfigFilePreferences {
             // Последний fallback - текущая директория
             try {
                 Path fallbackDir = Paths.get(".");
-                this.baseDir = fallbackDir;
                 this.configPath = fallbackDir.resolve(CONFIG_FILE_NAME);
                 this.basesDir = fallbackDir.resolve(BASES_DIR_NAME);
                 if (!Files.exists(basesDir)) {
@@ -185,17 +185,17 @@ public class ConfigFilePreferences {
      */
     private void saveProperties() {
         try {
-            // Создаем директорию если ее нет
             if (!Files.exists(configPath.getParent())) {
                 Files.createDirectories(configPath.getParent());
             }
 
             try (OutputStream output = Files.newOutputStream(configPath)) {
                 properties.store(output, "Kletka Chess Application Configuration");
-                log.debug("Saved configuration to: {}", configPath);
+                log.info("Saved configuration to: {}", configPath);
+                log.info("Current properties: {}", properties);
             }
         } catch (IOException e) {
-            log.error("Failed to save config file: {}", e.getMessage());
+            log.error("Failed to save config file: {}", e.getMessage(), e);
         }
     }
 
@@ -403,5 +403,74 @@ public class ConfigFilePreferences {
      */
     public String getConfigFilePath() {
         return configPath.toString();
+    }
+
+    // ========== МЕТОДЫ ДЛЯ РАБОТЫ С КНИГАМИ ==========
+
+    public String getRecentBook() {
+        return properties.getProperty(KEY_RECENT_BOOK, null);
+    }
+
+    public void setRecentBook(String path) {
+        if (path != null && !path.isEmpty()) {
+            properties.setProperty(KEY_RECENT_BOOK, path);
+        } else {
+            properties.remove(KEY_RECENT_BOOK);
+        }
+        saveProperties();
+    }
+
+    public String getBookDirectory() {
+        String dir = properties.getProperty(KEY_BOOK_DIRECTORY);
+        if (dir == null || dir.isEmpty()) {
+            // По умолчанию: bases/book/
+            Path bookDir = basesDir.resolve("book");
+            try {
+                if (!Files.exists(bookDir)) {
+                    Files.createDirectories(bookDir);
+                }
+                return bookDir.toString();
+            } catch (IOException e) {
+                log.warn("Failed to create book directory: {}", e.getMessage());
+                return basesDir.toString();
+            }
+        }
+        return dir;
+    }
+
+    public void setBookDirectory(String path) {
+        if (path != null && !path.isEmpty()) {
+            properties.setProperty(KEY_BOOK_DIRECTORY, path);
+            saveProperties();
+        }
+    }
+
+    public String getNavigationMode() {
+        return properties.getProperty(KEY_NAVIGATION_MODE, "PGN");
+    }
+
+    public void setNavigationMode(String mode) {
+        if (mode != null && !mode.isEmpty()) {
+            properties.setProperty(KEY_NAVIGATION_MODE, mode);
+        } else {
+            properties.remove(KEY_NAVIGATION_MODE);
+        }
+        saveProperties();
+    }
+
+    public String getLastSaveDirectory() {
+        return properties.getProperty(KEY_LAST_SAVE_DIRECTORY, null);
+    }
+
+    public void setLastSaveDirectory(String path) {
+        if (path != null && !path.isEmpty()) {
+            log.info("Setting last save directory: {}", path);
+            properties.setProperty(KEY_LAST_SAVE_DIRECTORY, path);
+        } else {
+            log.info("Removing last save directory");
+            properties.remove(KEY_LAST_SAVE_DIRECTORY);
+        }
+        saveProperties();
+        log.info("After save, file exists: {}", Files.exists(configPath));
     }
 }

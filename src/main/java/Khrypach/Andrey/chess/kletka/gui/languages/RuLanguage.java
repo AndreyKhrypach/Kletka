@@ -198,6 +198,7 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.MENU_EDIT_UNDO_MARKER, "Отменить маркер");
         strings.put(LanguageKeys.MENU_EDIT_REDO_MARKER, "Повторить маркер");
         strings.put(LanguageKeys.MENU_EDIT_PREFERENCES, "Настройки");
+        strings.put(LanguageKeys.PREFERENCES_TITLE, "Настройки");
 
         // ========== НАСТРОЙКИ ==========
         strings.put(LanguageKeys.PREFERENCES_HEADER, "Настройки программы");
@@ -263,6 +264,10 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.NOTATION_TOGGLE_HIDE, "Скрыть запись партии");
         strings.put(LanguageKeys.NOTATION_NO_MOVES, "Нет ходов");
         strings.put(LanguageKeys.NOTATION_NO_DATA, "Нет данных");
+        strings.put(LanguageKeys.NOTATION_NO_PGN_EXPORT, "Копирование PGN недоступно в режиме дебютной книги." +
+                "\nКнига содержит статистические данные, а не дерево вариантов в формате PGN.");
+        strings.put(LanguageKeys.NOTATION_NO_PGN_EXPORT_UNICODE, "Копирование PGN в Unicode недоступно в режиме дебютной " +
+                "книги.\nКнига содержит статистические данные, а не дерево вариантов в формате PGN.");
 
         // Игровые сообщения
         strings.put(LanguageKeys.GAME_CHECKMATE, "Мат! Победили %s");
@@ -322,6 +327,37 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.NAV_TOOLTIP_PREV, "Назад (←)");
         strings.put(LanguageKeys.NAV_TOOLTIP_NEXT, "Вперед (→)");
         strings.put(LanguageKeys.NAV_TOOLTIP_LAST, "В конец (↓)");
+
+        strings.put(LanguageKeys.NAVIGATION_MODE, "Режим навигации");
+        strings.put(LanguageKeys.NAVIGATION_MODE_PGN, "PGN");
+        strings.put(LanguageKeys.NAVIGATION_MODE_BOOK, "Книга");
+        strings.put(LanguageKeys.BOOK_MODE, "\uD83D\uDCD6 Книга");
+        strings.put(LanguageKeys.BOOK_LOADED, "Книга загружена");
+        strings.put(LanguageKeys.BOOK_NO_BOOK, "Книга не загружена");
+        strings.put(LanguageKeys.BOOK_STATS, "Статистика");
+        strings.put(LanguageKeys.BOOK_ENTRIES, "записей");
+        strings.put(LanguageKeys.BOOK_LOAD_ERROR, "Ошибка загрузки книги");
+        strings.put(LanguageKeys.BOOK_CLEARED, "Книга выгружена");
+
+        //Меню книги
+        strings.put(LanguageKeys.MENU_BOOKS, "Книги");
+        strings.put(LanguageKeys.MENU_BOOKS_LOAD, "Загрузить книгу...");
+        strings.put(LanguageKeys.MENU_BOOKS_CLEAR, "Выгрузить книгу");
+        strings.put(LanguageKeys.MENU_BOOKS_RECENT, "Последние книги");
+        strings.put(LanguageKeys.MENU_BOOKS_AVAILABLE, "Доступные книги");
+        strings.put(LanguageKeys.MENU_BOOKS_EXPORT, "Экспортировать в PGN");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO, "Информация о книге");
+        strings.put(LanguageKeys.MENU_BOOKS_NO_RECENT, "Нет недавних книг");
+        strings.put(LanguageKeys.MENU_BOOKS_NO_AVAILABLE, "Нет доступных книг");
+        strings.put(LanguageKeys.MENU_BOOKS_NO_BOOK_LOADED, "Книга не загружена");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_TITLE, "Информация о книге");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_NAME, "Название");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_MOVES, "Ходов в главной линии");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_STATUS, "Статус");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_LOADED, "Загружена");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_SIZE, "Размер");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_ENTRIES, "Записей");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_VARIATIONS, "Вариантов");
 
         // Уведомления
         strings.put(LanguageKeys.NOTIFICATION_INFO, "Информация");
@@ -418,6 +454,8 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.ENGINE_NOT_ANALYZED, "Движок ещё не проанализировал позицию");
         strings.put(LanguageKeys.ENGINE_ILLEGAL_MOVE, "Движок предложил нелегальный ход");
         strings.put(LanguageKeys.ENGINE_MOVE_ERROR, "Ошибка выполнения хода");
+        strings.put(LanguageKeys.ENGINE_BOOK_MODE_NO_ANALYSIS, "В режиме книги движок не может выполнять ходы");
+        strings.put(LanguageKeys.ENGINE_BOOK_MODE_NO_MOVE, "В режиме книги анализ отключен");
 
         // ========== ANALYSIS PANEL ==========
         strings.put(LanguageKeys.ANALYSIS_TITLE, "Анализ движка");
@@ -922,6 +960,7 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_ERROR, "Ошибка вставки: %s");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_GAMES, "📋 Вставка партий");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_START, "Начинаем вставку...");
+        strings.put(LanguageKeys.PGN_BROWSER_REFRESH_COMPLETE, "Браузер обновлен");
 
         // ========== PGN BROWSER - PROGRESS ==========
         strings.put(LanguageKeys.PGN_BROWSER_DELETING, "Удаление %d партий...");
@@ -1195,6 +1234,11 @@ public class RuLanguage implements Language {
         shortcutsContent.append("  Ctrl+Tab - Следующий браузер\n");
         shortcutsContent.append("  Ctrl+Shift+Tab - Предыдущий браузер\n");
         shortcutsContent.append("  Ctrl+W - Закрыть браузер\n");
+
+        // 📖 Книги
+        shortcutsContent.append("\n📖 Книги:\n");
+        shortcutsContent.append("  Ctrl+B - Открыть/загрузить книгу\n");
+        shortcutsContent.append("  Ctrl+Shift+B - Очистить книгу\n");
 
         // 🗄️ База данных
         shortcutsContent.append("\n🗄️ База данных:\n");

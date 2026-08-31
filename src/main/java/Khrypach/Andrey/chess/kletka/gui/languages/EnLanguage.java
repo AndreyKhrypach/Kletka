@@ -242,6 +242,13 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.NOTATION_TOGGLE_HIDE, "Hide game notation");
         strings.put(LanguageKeys.NOTATION_NO_MOVES, "No moves");
         strings.put(LanguageKeys.NOTATION_NO_DATA, "No data");
+        strings.put(LanguageKeys.NOTATION_NO_PGN_EXPORT,
+                "PGN copy is not available in Book mode.\n" +
+                        "The book contains statistical data, not a tree of variations in PGN format.");
+
+        strings.put(LanguageKeys.NOTATION_NO_PGN_EXPORT_UNICODE,
+                "Unicode PGN copy is not available in Book mode.\n" +
+                        "The book contains statistical data, not a tree of variations in PGN format.");
 
         // Game messages
         strings.put(LanguageKeys.GAME_CHECKMATE, "Checkmate! %s win");
@@ -301,6 +308,36 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.NAV_TOOLTIP_PREV, "Previous (←)");
         strings.put(LanguageKeys.NAV_TOOLTIP_NEXT, "Next (→)");
         strings.put(LanguageKeys.NAV_TOOLTIP_LAST, "Last (↓)");
+        strings.put(LanguageKeys.NAVIGATION_MODE, "Navigation Mode");
+        strings.put(LanguageKeys.NAVIGATION_MODE_PGN, "PGN");
+        strings.put(LanguageKeys.NAVIGATION_MODE_BOOK, "Book");
+        strings.put(LanguageKeys.BOOK_MODE, "\uD83D\uDCD6 Book");
+        strings.put(LanguageKeys.BOOK_LOADED, "Book loaded");
+        strings.put(LanguageKeys.BOOK_NO_BOOK, "No book loaded");
+        strings.put(LanguageKeys.BOOK_STATS, "Statistics");
+        strings.put(LanguageKeys.BOOK_ENTRIES, "entries");
+        strings.put(LanguageKeys.BOOK_LOAD_ERROR, "Failed to load book");
+        strings.put(LanguageKeys.BOOK_CLEARED, "Book cleared");
+
+        //Меню книги
+        strings.put(LanguageKeys.MENU_BOOKS, "Books");
+        strings.put(LanguageKeys.MENU_BOOKS_LOAD, "Load Book...");
+        strings.put(LanguageKeys.MENU_BOOKS_CLEAR, "Clear Book");
+        strings.put(LanguageKeys.MENU_BOOKS_RECENT, "Recent Books");
+        strings.put(LanguageKeys.MENU_BOOKS_AVAILABLE, "Available Books");
+        strings.put(LanguageKeys.MENU_BOOKS_EXPORT, "Export to PGN");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO, "Book Info");
+        strings.put(LanguageKeys.MENU_BOOKS_NO_RECENT, "No recent books");
+        strings.put(LanguageKeys.MENU_BOOKS_NO_AVAILABLE, "No available books");
+        strings.put(LanguageKeys.MENU_BOOKS_NO_BOOK_LOADED, "No book loaded");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_TITLE, "Book Information");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_NAME, "Name");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_MOVES, "Main line moves");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_STATUS, "Status");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_LOADED, "Loaded");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_SIZE, "Size");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_ENTRIES, "Entries");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_VARIATIONS, "Variations");
 
         // Notifications
         strings.put(LanguageKeys.NOTIFICATION_INFO, "Information");
@@ -397,6 +434,8 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.ENGINE_NOT_ANALYZED, "Engine hasn't analyzed the position yet");
         strings.put(LanguageKeys.ENGINE_ILLEGAL_MOVE, "Engine proposed an illegal move");
         strings.put(LanguageKeys.ENGINE_MOVE_ERROR, "Error executing move");
+        strings.put(LanguageKeys.ENGINE_BOOK_MODE_NO_ANALYSIS, "Engine cannot make moves in book mode");
+        strings.put(LanguageKeys.ENGINE_BOOK_MODE_NO_MOVE, "Analysis is disabled in book mode");
 
         // ========== ENGINE SETUP DIALOG ==========
         strings.put(LanguageKeys.ENGINE_SETUP_DIALOG_TITLE, "Chess Engine Setup");
@@ -909,6 +948,8 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_ERROR, "Paste error: %s");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_GAMES, "📋 Paste games");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_START, "Starting paste...");
+        strings.put(LanguageKeys.PGN_BROWSER_REFRESH_COMPLETE, "Browser refreshed");
+
         strings.put(LanguageKeys.PGN_BROWSER_PASTE_PARTIAL, "Games pasted: successful - %d, total - %d, failed - %d");
         strings.put(LanguageKeys.PGN_BROWSER_PASTE_WRITING, "Pasting games...");
         strings.put(LanguageKeys.PGN_BROWSER_PASTE_READING_PROGRESS, "Reading games for paste: %d, %d");
@@ -1139,55 +1180,69 @@ public class EnLanguage implements Language {
 
     private static StringBuilder createShortcutsContent() {
         StringBuilder shortcutsContent = new StringBuilder();
+
+        // 📁 File
         shortcutsContent.append("═══════════════════════════════════════\n");
         shortcutsContent.append("📁 File:\n");
-        shortcutsContent.append("  Ctrl+N - New Game\n");
+        shortcutsContent.append("  Ctrl+N - New game\n");
         shortcutsContent.append("  Ctrl+O - Open PGN\n");
         shortcutsContent.append("  Ctrl+S - Save PGN\n");
-        shortcutsContent.append("  Ctrl+E - Export Current Game\n");
-        shortcutsContent.append("  Ctrl+Shift+V - Import from Clipboard\n");
-        shortcutsContent.append("  Ctrl+P - Setup Position\n");
+        shortcutsContent.append("  Ctrl+E - Export current game\n");
+        shortcutsContent.append("  Ctrl+Shift+V - Import from clipboard\n");
+        shortcutsContent.append("  Ctrl+P - Setup position\n");
         shortcutsContent.append("  Alt+F4 - Exit\n");
 
+        // 📝 Edit
         shortcutsContent.append("\n📝 Edit:\n");
-        shortcutsContent.append("  Ctrl+Z - Undo Marker\n");
-        shortcutsContent.append("  Ctrl+Y - Redo Marker\n");
+        shortcutsContent.append("  Ctrl+Z - Undo marker\n");
+        shortcutsContent.append("  Ctrl+Y - Redo marker\n");
         shortcutsContent.append("  Ctrl+Shift+O - Preferences\n");
 
+        // 👁️ View
         shortcutsContent.append("\n👁️ View:\n");
-        shortcutsContent.append("  Ctrl+F - Flip Board\n");
-        shortcutsContent.append("  Ctrl+= - Zoom In\n");
-        shortcutsContent.append("  Ctrl+- - Zoom Out\n");
-        shortcutsContent.append("  Ctrl+0 - Reset Zoom\n");
-        shortcutsContent.append("  H - Toggle Notation\n");
+        shortcutsContent.append("  Ctrl+F - Flip board\n");
+        shortcutsContent.append("  Ctrl+= - Zoom in\n");
+        shortcutsContent.append("  Ctrl+- - Zoom out\n");
+        shortcutsContent.append("  Ctrl+0 - Reset zoom\n");
+        shortcutsContent.append("  H - Show/hide notation\n");
 
+        // 🧭 Navigation
         shortcutsContent.append("\n🧭 Navigation:\n");
-        shortcutsContent.append("  ← - Previous Move\n");
-        shortcutsContent.append("  → - Next Move\n");
-        shortcutsContent.append("  ↑ - First Move\n");
-        shortcutsContent.append("  ↓ - Last Move\n");
+        shortcutsContent.append("  ← - Previous move\n");
+        shortcutsContent.append("  → - Next move\n");
+        shortcutsContent.append("  ↑ - First move\n");
+        shortcutsContent.append("  ↓ - Last move\n");
 
+        // ⚙️ Engine
         shortcutsContent.append("\n⚙️ Engine:\n");
-        shortcutsContent.append("  Space - Engine Move\n");
-        shortcutsContent.append("  Shift+Enter - Toggle Analysis\n");
-        shortcutsContent.append("  Ctrl+Shift+E - Configure Engine\n");
+        shortcutsContent.append("  Space - Engine move\n");
+        shortcutsContent.append("  Shift+Enter - Toggle analysis\n");
+        shortcutsContent.append("  Ctrl+Shift+E - Configure engine\n");
 
+        // 📚 PGN/Browser
         shortcutsContent.append("\n📚 PGN/Browser:\n");
-        shortcutsContent.append("  Ctrl+B - Open PGN Browser\n");
-        shortcutsContent.append("  Ctrl+R - Refresh Browser\n");
-        shortcutsContent.append("  F11 - Next Game\n");
-        shortcutsContent.append("  Ctrl+F11 - Previous Game\n");
-        shortcutsContent.append("  Ctrl+Tab - Next Browser\n");
-        shortcutsContent.append("  Ctrl+Shift+Tab - Previous Browser\n");
-        shortcutsContent.append("  Ctrl+W - Close Browser\n");
+        shortcutsContent.append("  Ctrl+B - Open PGN browser\n");
+        shortcutsContent.append("  Ctrl+R - Refresh browser\n");
+        shortcutsContent.append("  F11 - Next game\n");
+        shortcutsContent.append("  Ctrl+F11 - Previous game\n");
+        shortcutsContent.append("  Ctrl+Tab - Next browser\n");
+        shortcutsContent.append("  Ctrl+Shift+Tab - Previous browser\n");
+        shortcutsContent.append("  Ctrl+W - Close browser\n");
 
+        // 📖 Books
+        shortcutsContent.append("\n📖 Books:\n");
+        shortcutsContent.append("  Ctrl+B - Load book\n");
+        shortcutsContent.append("  Ctrl+Shift+B - Clear book\n");
+
+        // 🗄️ Database
         shortcutsContent.append("\n🗄️ Database:\n");
-        shortcutsContent.append("  Ctrl+D - Connect to Database\n");
-        shortcutsContent.append("  Ctrl+I - Import to Database\n");
-        shortcutsContent.append("  Ctrl+Shift+F - Search Database\n");
+        shortcutsContent.append("  Ctrl+D - Connect to DB\n");
+        shortcutsContent.append("  Ctrl+I - Import to DB\n");
+        shortcutsContent.append("  Ctrl+Shift+F - Search in DB\n");
 
+        // 🪟 Windows
         shortcutsContent.append("\n🪟 Windows:\n");
-        shortcutsContent.append("  Ctrl+Shift+W - Close All Browsers\n");
+        shortcutsContent.append("  Ctrl+Shift+W - Close all browsers\n");
 
         shortcutsContent.append("\n═══════════════════════════════════════");
         return shortcutsContent;
