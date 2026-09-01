@@ -31,8 +31,6 @@ import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.Tooltip;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -63,6 +61,8 @@ public class TimerPanel extends VBox {
     private int blinkCount = 0;
     private static final int MAX_BLINKS = 4; // 4 изменения цвета = 2 полных мигания
 
+    private HBox mainBox;
+
     public TimerPanel() {
         timer = new ChessTimer(300); // По умолчанию 5 минут (300 секунд)
         setupUI();
@@ -70,6 +70,27 @@ public class TimerPanel extends VBox {
     }
 
     private void setupUI() {
+        mainBox = new HBox(8);
+        mainBox.setAlignment(Pos.CENTER);
+
+        timeText = new Text("05:00");
+        timeText.setFont(Font.font("Courier New", 28));
+        timeText.setFill(Color.WHITE);
+        timeText.setStyle("-fx-font-weight: bold;");
+
+        startPauseButton = createStyledButton("▶");
+        startPauseButton.setOnAction(e -> toggleTimer());
+
+        settingsButton = createStyledButton("⏰");
+        settingsButton.setOnAction(e -> showTimeSettingsDialog());
+
+        // Сначала добавляем всё в HBox
+        mainBox.getChildren().addAll(timeText, startPauseButton, settingsButton);
+
+        // Добавляем HBox в VBox
+        getChildren().add(mainBox);
+
+        // Настройки VBox (вертикальный режим по умолчанию)
         setAlignment(Pos.CENTER);
         setPadding(new Insets(10, 15, 10, 15));
         setStyle(String.format(
@@ -81,28 +102,6 @@ public class TimerPanel extends VBox {
                 TIMER_BG_COLOR, TIMER_BORDER_COLOR
         ));
         setEffect(new DropShadow(5, Color.BLACK));
-
-        timeText = new Text("05:00");
-        timeText.setFont(Font.font("Courier New", 28));
-        timeText.setFill(Color.WHITE);
-        timeText.setStyle("-fx-font-weight: bold;");
-
-        HBox buttonBox = new HBox(10);
-        buttonBox.setAlignment(Pos.CENTER);
-
-        startPauseButton = createStyledButton("▶");
-        startPauseButton.setOnAction(e -> toggleTimer());
-
-        settingsButton = createStyledButton("⏰");
-        settingsButton.setOnAction(e -> showTimeSettingsDialog());
-
-        buttonBox.getChildren().addAll(startPauseButton, settingsButton);
-
-        Region spacer = new Region();
-        VBox.setVgrow(spacer, Priority.ALWAYS);
-
-        getChildren().addAll(timeText, spacer, buttonBox);
-
         setMinWidth(120);
         setPrefWidth(140);
         setMaxWidth(180);
@@ -339,5 +338,100 @@ public class TimerPanel extends VBox {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    /**
+     * Переключает в режим меню (горизонтальный, плоский)
+     */
+    public void setMenuMode(boolean menuMode) {
+        if (menuMode) {
+            // ========== ГОРИЗОНТАЛЬНЫЙ РЕЖИМ ДЛЯ МЕНЮ ==========
+            mainBox.setAlignment(Pos.CENTER);
+            mainBox.setSpacing(8);  // Увеличиваем отступ между элементами
+            setAlignment(Pos.CENTER);
+            setPadding(new Insets(4, 14, 4, 14));  // Увеличиваем горизонтальный паддинг
+
+            // ЧЁРНЫЙ ФОН С ЗАКРУГЛЕНИЯМИ
+            setStyle(
+                    "-fx-background-color: #2d2d2d; " +
+                            "-fx-background-radius: 6; " +
+                            "-fx-border-color: #555555; " +
+                            "-fx-border-radius: 6; " +
+                            "-fx-border-width: 1;"
+            );
+            setEffect(new DropShadow(2, Color.rgb(0, 0, 0, 0.3)));
+
+            // УВЕЛИЧЕННАЯ ШИРИНА (+20% от 120 = 144, округляем до 145)
+            setMinWidth(150);
+            setPrefWidth(200);
+            setMaxWidth(200);
+            setMinHeight(30);
+            setPrefHeight(30);
+            setMaxHeight(34);
+
+            // БЕЛЫЕ ЦИФРЫ (чуть крупнее)
+            timeText.setFill(Color.WHITE);
+            timeText.setFont(Font.font("Courier New", 17));
+
+            // СИНИЕ КНОПКИ (чуть больше)
+            if (startPauseButton != null) {
+                startPauseButton.setStyle(
+                        "-fx-background-color: #2196F3; " +
+                                "-fx-text-fill: white; " +
+                                "-fx-font-size: 11px; " +
+                                "-fx-font-weight: bold; " +
+                                "-fx-min-width: 32px; " +
+                                "-fx-min-height: 26px; " +
+                                "-fx-max-width: 32px; " +
+                                "-fx-max-height: 26px; " +
+                                "-fx-border-radius: 13; " +
+                                "-fx-background-radius: 13; " +
+                                "-fx-cursor: hand;"
+                );
+            }
+            if (settingsButton != null) {
+                settingsButton.setStyle(
+                        "-fx-background-color: #2196F3; " +
+                                "-fx-text-fill: white; " +
+                                "-fx-font-size: 11px; " +
+                                "-fx-font-weight: bold; " +
+                                "-fx-min-width: 32px; " +
+                                "-fx-min-height: 26px; " +
+                                "-fx-max-width: 32px; " +
+                                "-fx-max-height: 26px; " +
+                                "-fx-border-radius: 13; " +
+                                "-fx-background-radius: 13; " +
+                                "-fx-cursor: hand;"
+                );
+            }
+        } else {
+            // Вертикальный режим (для доски)
+            mainBox.setAlignment(Pos.CENTER);
+            mainBox.setSpacing(10);
+            setAlignment(Pos.CENTER);
+            setPadding(new Insets(10, 15, 10, 15));
+            setStyle(String.format(
+                    "-fx-background-color: %s; " +
+                            "-fx-border-color: %s; " +
+                            "-fx-border-width: 3; " +
+                            "-fx-border-radius: 10; " +
+                            "-fx-background-radius: 10;",
+                    TIMER_BG_COLOR, TIMER_BORDER_COLOR
+            ));
+            setEffect(new DropShadow(5, Color.BLACK));
+            setMinWidth(120);
+            setPrefWidth(140);
+            setMaxWidth(180);
+            setMinHeight(100);
+            setPrefHeight(120);
+            setMaxHeight(150);
+            timeText.setFont(Font.font("Courier New", 28));
+            if (startPauseButton != null) {
+                startPauseButton.setStyle("-fx-font-size: 14px; -fx-min-width: 40px; -fx-min-height: 40px; -fx-max-width: 40px; -fx-max-height: 40px; -fx-border-radius: 20; -fx-background-radius: 20;");
+            }
+            if (settingsButton != null) {
+                settingsButton.setStyle("-fx-font-size: 14px; -fx-min-width: 40px; -fx-min-height: 40px; -fx-max-width: 40px; -fx-max-height: 40px; -fx-border-radius: 20; -fx-background-radius: 20;");
+            }
+        }
     }
 }

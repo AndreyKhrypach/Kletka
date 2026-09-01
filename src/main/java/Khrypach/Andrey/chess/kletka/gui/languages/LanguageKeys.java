@@ -170,10 +170,34 @@ public class LanguageKeys {
 
     // === Меню Правка ===
     public static final String MENU_EDIT = "menu.edit";
-    public static final String MENU_EDIT_UNDO = "menu.edit.undo";
-    public static final String MENU_EDIT_REDO = "menu.edit.redo";
+    public static final String MENU_EDIT_UNDO_MARKER = "menu.edit.undoю.marker";
+    public static final String MENU_EDIT_REDO_MARKER = "menu.edit.redo.marker";
     public static final String MENU_EDIT_PREFERENCES = "menu.edit.preferences";
     public static final String PREFERENCES_TITLE = "preferences.title";
+
+    // ========== НАСТРОЙКИ ==========
+    public static final String PREFERENCES_HEADER = "preferences.header";
+    public static final String PREFERENCES_SAVE = "preferences.save";
+    public static final String PREFERENCES_CANCEL = "preferences.cancel";
+    public static final String PREFERENCES_RESET = "preferences.reset";
+    public static final String PREFERENCES_RESET_TITLE = "preferences.reset.title";
+    public static final String PREFERENCES_RESET_HEADER = "preferences.reset.header";
+    public static final String PREFERENCES_RESET_CONTENT = "preferences.reset.content";
+    public static final String PREFERENCES_RESET_SUCCESS = "preferences.reset.success";
+    public static final String PREFERENCES_SAVED = "preferences.saved";
+    public static final String PREFERENCES_LANGUAGE = "preferences.language";
+    public static final String PREFERENCES_BOARD_THEME = "preferences.board.theme";
+    public static final String PREFERENCES_BOARD_SIZE = "preferences.board.size";
+    public static final String PREFERENCES_COORDINATES = "preferences.coordinates";
+    public static final String PREFERENCES_FLIP_BOARD = "preferences.flip.board";
+    public static final String PREFERENCES_SAVE_DIRECTORY = "preferences.save.directory";
+    public static final String PREFERENCES_ENGINE = "preferences.engine";
+    public static final String PREFERENCES_BROWSE = "preferences.browse";
+    public static final String PREFERENCES_SELECT_SAVE_DIR = "preferences.select.save.dir";
+    public static final String PREFERENCES_SELECT_ENGINE = "preferences.select.engine";
+    public static final String PREFERENCES_CONFIG_PATH = "preferences.config.path";
+    public static final String PREFERENCES_OPEN_FOLDER = "preferences.open.folder";
+    public static final String PREFERENCES_OPEN_FOLDER_ERROR = "preferences.open.folder.error";
 
     // === Меню Вид ===
     public static final String MENU_VIEW = "menu.view";
@@ -189,11 +213,27 @@ public class LanguageKeys {
     public static final String MENU_ENGINE = "menu.engine";
     public static final String MENU_ENGINE_CONFIGURE = "menu.engine.configure";
     public static final String MENU_ENGINE_ANALYZE = "menu.engine.analyze";
+    public static final String ENGINE_ILLEGAL_POSITION_TITLE = "engine.illegal.position.title";
+    public static final String ENGINE_ILLEGAL_POSITION_HEADER = "engine.illegal.position.header";
+    public static final String ENGINE_ILLEGAL_POSITION_CONTENT = "engine.illegal.position.content";
 
     // Пункты меню Help
     public static final String MENU_HELP_SHORTCUTS = "menu.help.shortcuts";
     public static final String MENU_HELP_ABOUT = "menu.help.about";
     public static final String MENU_HELP_DONATE = "menu.help.donate";
+    public static final String MENU_HELP_GITHUB = "menu.help.github";
+    public static final String MENU_HELP_CHECK_UPDATES = "menu.help.check.updates";
+    public static final String MENU_HELP_GITHUB_ERROR = "menu.help.github.error";
+    public static final String MENU_HELP_CHECKING_UPDATES = "menu.help.checking.updates";
+    public static final String MENU_HELP_CHECKING_UPDATES_MSG = "menu.help.checking.updates.msg";
+    public static final String MENU_HELP_UPDATE_AVAILABLE = "menu.help.update.available";
+    public static final String MENU_HELP_UPDATE_AVAILABLE_HEADER = "menu.help.update.available.header";
+    public static final String MENU_HELP_UPDATE_AVAILABLE_MSG = "menu.help.update.available.msg";
+    public static final String MENU_HELP_UPDATE_DOWNLOAD = "menu.help.update.download";
+    public static final String MENU_HELP_UPDATE_LATER = "menu.help.update.later";
+    public static final String MENU_HELP_NO_UPDATES = "menu.help.no.updates";
+    public static final String MENU_HELP_NO_UPDATES_MSG = "menu.help.no.updates.msg";
+    public static final String MENU_HELP_UPDATE_CHECK_ERROR = "menu.help.update.check.error";
 
     // Language menu
     public static final String MENU_LANGUAGE_RUSSIAN = "menu.language.russian";
@@ -229,6 +269,8 @@ public class LanguageKeys {
     public static final String NOTATION_TOGGLE_HIDE = "notation.toggle.hide";
     public static final String NOTATION_NO_MOVES = "notation.no.moves";
     public static final String NOTATION_NO_DATA = "notation.no.data";
+    public static final String NOTATION_NO_PGN_EXPORT = "notation.no.pgn.export";
+    public static final String NOTATION_NO_PGN_EXPORT_UNICODE = "notation.no.pgn.export.unicode";
 
     // Игровые сообщения
     public static final String GAME_CHECKMATE = "game.checkmate";
@@ -283,6 +325,38 @@ public class LanguageKeys {
     public static final String NAV_TOOLTIP_PREV = "nav.tooltip.prev";
     public static final String NAV_TOOLTIP_NEXT = "nav.tooltip.next";
     public static final String NAV_TOOLTIP_LAST = "nav.tooltip.last";
+    public static final String NAVIGATION_MODE = "navigation.mode";
+    public static final String NAVIGATION_MODE_PGN = "navigation.mode.pgn";
+    public static final String NAVIGATION_MODE_BOOK = "navigation.mode.book";
+
+    // ========== КНИГИ ==========
+    public static final String BOOK_MODE = "book.mode";
+    public static final String BOOK_LOADED = "book.loaded";
+    public static final String BOOK_NO_BOOK = "book.no.book";
+    public static final String BOOK_STATS = "book.stats";
+    public static final String BOOK_ENTRIES = "book.entries";
+    public static final String BOOK_LOAD_ERROR = "book.load.error";
+    public static final String BOOK_CLEARED = "book.cleared";
+
+    // ========== МЕНЮ "КНИГИ" ==========
+    public static final String MENU_BOOKS = "menu.books";
+    public static final String MENU_BOOKS_LOAD = "menu.books.load";
+    public static final String MENU_BOOKS_CLEAR = "menu.books.clear";
+    public static final String MENU_BOOKS_RECENT = "menu.books.recent";
+    public static final String MENU_BOOKS_AVAILABLE = "menu.books.available";
+    public static final String MENU_BOOKS_EXPORT = "menu.books.export";
+    public static final String MENU_BOOKS_INFO = "menu.books.info";
+    public static final String MENU_BOOKS_NO_RECENT = "menu.books.no.recent";
+    public static final String MENU_BOOKS_NO_AVAILABLE = "menu.books.no.available";
+    public static final String MENU_BOOKS_NO_BOOK_LOADED = "menu.books.no.book.loaded";
+    public static final String MENU_BOOKS_INFO_TITLE = "menu.books.info.title";
+    public static final String MENU_BOOKS_INFO_NAME = "menu.books.info.name";
+    public static final String MENU_BOOKS_INFO_MOVES = "menu.books.info.moves";
+    public static final String MENU_BOOKS_INFO_STATUS = "menu.books.info.status";
+    public static final String MENU_BOOKS_INFO_LOADED = "menu.books.info.loaded";
+    public static final String MENU_BOOKS_INFO_SIZE = "menu.books.info.size";
+    public static final String MENU_BOOKS_INFO_ENTRIES = "menu.books.info.entries";
+    public static final String MENU_BOOKS_INFO_VARIATIONS = "menu.books.info.variations";
 
     // Статус и уведомления
     public static final String NOTIFICATION_INFO = "notification.info";
@@ -346,6 +420,12 @@ public class LanguageKeys {
     public static final String SHORTCUT_CONNECT_DB = "shortcut.connect.db";
     public static final String SHORTCUT_IMPORT_DB = "shortcut.import.db";
 
+    // ========== ГОРЯЧИЕ КЛАВИШИ - ПРАВКА ==========
+    public static final String SHORTCUT_EDIT = "shortcut.edit";
+    public static final String SHORTCUT_UNDO_MARKER = "shortcut.undo.marker";
+    public static final String SHORTCUT_REDO_MARKER = "shortcut.redo.marker";
+    public static final String SHORTCUT_PREFERENCES = "shortcut.preferences";
+
     // ========== ENGINE MESSAGES ==========
     public static final String ENGINE_SEND_POSITION_ERROR = "engine.sendPositionError";
     public static final String ENGINE_TIMEOUT_ERROR = "engine.timeoutError";
@@ -360,6 +440,8 @@ public class LanguageKeys {
     public static final String ENGINE_NOT_ANALYZED = "engine.notAnalyzed";
     public static final String ENGINE_ILLEGAL_MOVE = "engine.illegalMove";
     public static final String ENGINE_MOVE_ERROR = "engine.moveError";
+    public static final String ENGINE_BOOK_MODE_NO_ANALYSIS = "engine.bookMode.NoAnalysis";
+    public static final String ENGINE_BOOK_MODE_NO_MOVE = "engine.bookMode.NoMove";
 
     // ========== ENGINE SETUP DIALOG ==========
     public static final String ENGINE_SETUP_DIALOG_TITLE = "engine.setup.dialog.title";
@@ -506,6 +588,7 @@ public class LanguageKeys {
     public static final String SAVE_GAME_DIALOG_TITLE = "main.saveGame.dialog.title";
     public static final String SAVE_GAME_DIALOG_HEADER = "main.saveGame.dialog.header";
     public static final String SAVE_GAME_DIALOG_SAVE = "main.saveGame.dialog.save";
+    public static final String BOOK_MODE_NO_SAVE = "main.saveGame.dialog.book.mode.no.save";
 
     public static final String SAVE_GAME_PROMPT_WHITE = "main.saveGame.prompt.white";
     public static final String SAVE_GAME_PROMPT_BLACK = "main.saveGame.prompt.black";
@@ -674,6 +757,9 @@ public class LanguageKeys {
     public static final String SAVE_DIALOG_TITLE_SAVE = "save.dialog.title.save";
     public static final String SAVE_DIALOG_HEADER_EDIT = "save.dialog.header.edit";
     public static final String SAVE_DIALOG_HEADER_SAVE = "save.dialog.header.save";
+    // ========== SAVE GAME ==========
+    public static final String SAVE_GAME_LOAD_HEADER = "save.game.load.header";
+    public static final String SAVE_GAME_LOAD_CONTENT = "save.game.load.content";
 
     // Tabs
     public static final String SAVE_TAB_PLAYERS = "save.tab.players";
@@ -891,6 +977,7 @@ public class LanguageKeys {
     public static final String PGN_BROWSER_MSG_PASTE_ERROR =  "pgn.browser.msg.paste.error";
     public static final String PGN_BROWSER_MSG_PASTE_GAMES = "pgn.browser.msg.paste.games";
     public static final String PGN_BROWSER_MSG_PASTE_START = "pgn.browser.msg.paste.start";
+    public static final String PGN_BROWSER_REFRESH_COMPLETE = "pgn.browser.refresh.complete";
 
     // PGN Browser - Progress
     public static final String PGN_BROWSER_DELETING = "pgn.browser.deleting";

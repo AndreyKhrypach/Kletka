@@ -239,6 +239,18 @@ public class PgnBrowserManager {
             activeBrowser.setActive(true);
             activeBrowser.updateStatus();
 
+            // ========== ПРИНУДИТЕЛЬНЫЙ ЗАХВАТ ФОКУСА ==========
+            Platform.runLater(() -> {
+                if (activeBrowser != null && activeBrowser.isShowing()) {
+                    Stage stage = activeBrowser.getStage(); // Нужно добавить геттер для stage
+                    if (stage != null) {
+                        stage.requestFocus();
+                        stage.toFront();
+                        log.debug("🔧 Focus set to active browser: {}", activeBrowser.getPgnPath().getFileName());
+                    }
+                }
+            });
+
             updateAllTitles();
             notifyBrowserListChanged();
             log.debug("Active browser: {}", browser.getPgnPath().getFileName());

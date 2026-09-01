@@ -400,4 +400,5 @@ public class PgnExportVisitor implements VariationTreeVisitor<String> {
             pgnBuilder.append("[Deleted \"true\"]\n");
         }
     }
+
 }

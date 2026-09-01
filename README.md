@@ -8,6 +8,7 @@
 
 - 📁 Open, edit, and save PGN files
 - 🧩 Full support for variations and annotations
+- 📚 **Polyglot opening books** — load and browse opening variations
 - 🔍 Position analysis with **Stockfish** (UCI engine)
 - 🎨 Customizable board themes
 - 🌍 Multilingual: English, Russian, Chinese
@@ -15,16 +16,51 @@
 
 ---
 
+## 📚 Opening Books (Polyglot)
+
+Kletka supports **Polyglot opening books** (`.bin` files), allowing you to explore and study chess openings interactively.
+
+### How to use opening books:
+
+1. Go to **Books → Load Book**
+2. Select a Polyglot book file (`.bin`)
+3. Navigate through variations using the keyboard:
+    - **↑ / ↓** — move between variations
+    - **→ / Enter** — select a variation
+    - **←** — go back to the previous position
+
+### Recommended books:
+
+For best results, we recommend using the **`uho-pohl.bin`** opening book, which contains extensive high-quality opening variations.
+
+### Where to get Polyglot books:
+
+You can download free opening books from the official Polyglot books repository:
+🔗 **[Polyglot Books Repository](https://github.com/ChrisWhittington/polyglot-books)**
+
+Other popular sources:
+- [UHO-Pohl openings](https://www.chessdb.com/) — high-quality opening database
+- [ChessTempo's Polyglot books](https://www.chesstempo.com/)
+- Create your own using the Polyglot format
+
+---
+
 ## 🖥️ Screenshots
 
 ### English
 | ![Main Window](screenshots/Main_en.png) | ![PGN file browser](screenshots/Browser_en.png) |
+|------------------------------------------|--------------------------------------------------|
+| *Main interface*                          | *PGN browser*                                    |
 
 ### Русский
 | ![Главное окно](screenshots/Main_ru.png) | ![Пгн файл обозреватель](screenshots/Browser_ru.png) |
+|-------------------------------------------|-----------------------------------------------------|
+| *Главный интерфейс*                       | *Обозреватель PGN*                                  |
 
 ### 中文 (Chinese)
 | ![主窗口](screenshots/Main_zh.png) | ![PGN 浏览器](screenshots/Browser_zh.png) |
+|-------------------------------------|-------------------------------------------|
+| *主界面*                            | *PGN 浏览器*                              |
 
 ---
 
@@ -51,7 +87,7 @@ Download `Kletka.dmg`, open it, and drag `Kletka.app` to the `Applications` fold
 
 ### Linux (Debian/Ubuntu)
 ```bash
-sudo dpkg -i kletka_1.0-1_amd64.deb
+sudo dpkg -i kletka_1.2.0-1_amd64.deb
 ````
 🛠️ Building from Source
 

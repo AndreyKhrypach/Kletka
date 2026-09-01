@@ -21,11 +21,14 @@
 package Khrypach.Andrey.chess.kletka.gui.board;
 
 import Khrypach.Andrey.chess.kletka.database.model.GameData;
+import Khrypach.Andrey.chess.kletka.gui.book.BookManager;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.MoveAnnotationDialog;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageManager;
 import Khrypach.Andrey.chess.kletka.gui.model.*;
 import Khrypach.Andrey.chess.kletka.gui.visitor.VariationTreeTraverser;
+import Khrypach.Andrey.chess.kletka.gui.visitor.VariationTreeVisitor;
+import Khrypach.Andrey.chess.kletka.gui.visitor.impl.BookHtmlVisitor;
 import Khrypach.Andrey.chess.kletka.gui.visitor.impl.HtmlTreeVisitor;
 import Khrypach.Andrey.chess.kletka.gui.visitor.impl.PgnExportVisitor;
 import com.github.bhlangonijr.chesslib.Board;
@@ -63,6 +66,7 @@ public class NotationView extends VBox {
     private int currentNumberFontSize = 12;
 
     private final ScrollPane scrollPane;
+    @Getter
     private final WebView webView;
     private final WebEngine webEngine;
     private JavaScriptBridge jsBridge;
@@ -124,7 +128,7 @@ public class NotationView extends VBox {
         webView = new WebView();
         webView.setContextMenuEnabled(false);
         webView.setFontScale(1.0);
-        webView.setStyle("-fx-background-color: white; -fx-border-color: #d2b48c; -fx-border-width: 1;");
+        webView.setStyle("-fx-background-color: white; -fx-border-color: #d2b48c; -fx-border-width: 1; -fx-padding: 0;");
 
         webView.setOnMouseClicked(event -> {
             if (event.getButton() == javafx.scene.input.MouseButton.SECONDARY) {
@@ -335,13 +339,45 @@ public class NotationView extends VBox {
                 activeNode = (MoveNode) currentNode;
             }
 
-            HtmlTreeVisitor htmlVisitor = new HtmlTreeVisitor(activeNode, currentMoveFontSize);
-            htmlVisitor.setGameResult(gameResult);
-
+            // ========== ВЫБИРАЕМ ВИЗИТЕР В ЗАВИСИМОСТИ ОТ РЕЖИМА ==========
             VariationTreeTraverser traverser = new VariationTreeTraverser();
-            traverser.traverse(rootNode, mainLine, htmlVisitor);
+            VariationTreeVisitor<String> visitor;
 
-            String html = htmlVisitor.getResult();
+            if (navController.getNavigationMode() == NavigationMode.BOOK) {
+                // Режим книги - используем BookHtmlVisitor
+                BookHtmlVisitor bookVisitor = new BookHtmlVisitor(currentMoveFontSize);
+
+                bookVisitor.setSelectedIndex(navController.getSelectedVariationIndex());
+
+                // Передаем текущую позицию в traverser для подсветки
+                traverser.setCurrentPosition(
+                        navController.getCurrentVariation(),
+                        navController.getCurrentNode()
+                );
+
+                // Добавляем информацию о книге
+                BookManager bookManager = BookManager.getInstance();
+                if (bookManager.isBookLoaded() && bookManager.getCurrentBookPath() != null) {
+                    String bookName = bookManager.getCurrentBookPath().getFileName().toString();
+                    int totalEntries = bookManager.getTotalEntries();
+                    bookVisitor.visitBookInfo(bookName, totalEntries, "");
+                }
+
+                visitor = bookVisitor;
+                // Обходим дерево в режиме BOOK
+                traverser.traverseBook(rootNode, visitor);
+
+            } else {
+                // Режим PGN - используем HtmlTreeVisitor
+                HtmlTreeVisitor htmlVisitor = new HtmlTreeVisitor(activeNode, currentMoveFontSize);
+                htmlVisitor.setGameResult(gameResult);
+                visitor = htmlVisitor;
+
+                // Обходим дерево в режиме PGN
+                traverser.traverse(rootNode, mainLine, visitor);
+            }
+
+            String html = visitor.getResult();
             if (html == null || html.isEmpty()) {
                 webEngine.loadContent("<html><body style='font-family: monospace; padding: 20px; color: #888;'>" +
                         lang.get(NOTATION_NO_DATA) + "</body></html>");
@@ -351,6 +387,7 @@ public class NotationView extends VBox {
             webEngine.loadContent(html);
             log.trace("HTML loaded, length: {}", html.length());
 
+            // Регистрируем JavaScript bridge после загрузки
             webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
                 if (newState == javafx.concurrent.Worker.State.SUCCEEDED) {
                     try {
@@ -712,7 +749,7 @@ public class NotationView extends VBox {
         return pgn.toString();
     }
 
-    private GameData createDefaultGameData() {
+    public GameData createDefaultGameData() {
         return new GameData(
                 lang.get(LanguageKeys.DEFAULT_PLAYER_NAME), lang.get(LanguageKeys.DEFAULT_PLAYER_NAME), "*",
                 "?", "?",
@@ -747,6 +784,13 @@ public class NotationView extends VBox {
     }
 
     private void copyPgnToClipboard() {
+        // ========== ПРОВЕРКА РЕЖИМА ==========
+        if (navController != null && navController.getNavigationMode() == NavigationMode.BOOK) {
+            showNotification(lang.get(LanguageKeys.NOTATION_NO_PGN_EXPORT));
+            return;
+        }
+
+        // Обычная логика для PGN режима
         String pgn = getCurrentPGN();
         ClipboardContent content = new ClipboardContent();
         content.putString(pgn);
@@ -755,6 +799,13 @@ public class NotationView extends VBox {
     }
 
     private void copyPgnUnicodeToClipboard() {
+        // ========== ПРОВЕРКА РЕЖИМА ==========
+        if (navController != null && navController.getNavigationMode() == NavigationMode.BOOK) {
+            showNotification(lang.get(LanguageKeys.NOTATION_NO_PGN_EXPORT_UNICODE));
+            return;
+        }
+
+        // Обычная логика для PGN режима
         log.trace("copyPgnUnicodeToClipboard called");
         String pgn = getCurrentPGN();
         log.trace("PGN length: {}", pgn.length());

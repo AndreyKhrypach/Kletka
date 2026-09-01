@@ -157,13 +157,50 @@ public class EnLanguage implements Language {
         // Help menu
         strings.put(LanguageKeys.MENU_HELP_SHORTCUTS, "Keyboard Shortcuts");
         strings.put(LanguageKeys.MENU_HELP_ABOUT, "About");
+        strings.put(LanguageKeys.MENU_HELP_GITHUB, "GitHub");
+        strings.put(LanguageKeys.MENU_HELP_CHECK_UPDATES, "Check for Updates");
+        strings.put(LanguageKeys.MENU_HELP_GITHUB_ERROR, "Failed to open GitHub page");
+        strings.put(LanguageKeys.MENU_HELP_CHECKING_UPDATES, "Checking for updates...");
+        strings.put(LanguageKeys.MENU_HELP_CHECKING_UPDATES_MSG, "Checking for new version...");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_AVAILABLE, "Update Available!");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_AVAILABLE_HEADER, "New version %s available");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_AVAILABLE_MSG, "Go to download page?");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_DOWNLOAD, "Download");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_LATER, "Later");
+        strings.put(LanguageKeys.MENU_HELP_NO_UPDATES, "No Updates");
+        strings.put(LanguageKeys.MENU_HELP_NO_UPDATES_MSG, "You have the latest version of Kletka.");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_CHECK_ERROR, "Update check failed");
 
         // === Edit Menu ===
         strings.put(LanguageKeys.MENU_EDIT, "Edit");
-        strings.put(LanguageKeys.MENU_EDIT_UNDO, "Undo");
-        strings.put(LanguageKeys.MENU_EDIT_REDO, "Redo");
+        strings.put(LanguageKeys.MENU_EDIT_UNDO_MARKER, "Undo Marker");
+        strings.put(LanguageKeys.MENU_EDIT_REDO_MARKER, "Redo Marker");
         strings.put(LanguageKeys.MENU_EDIT_PREFERENCES, "Preferences");
         strings.put(LanguageKeys.PREFERENCES_TITLE, "Preferences");
+
+        // ========== PREFERENCES ==========
+        strings.put(LanguageKeys.PREFERENCES_HEADER, "Program Settings");
+        strings.put(LanguageKeys.PREFERENCES_SAVE, "Save");
+        strings.put(LanguageKeys.PREFERENCES_CANCEL, "Cancel");
+        strings.put(LanguageKeys.PREFERENCES_RESET, "Reset");
+        strings.put(LanguageKeys.PREFERENCES_RESET_TITLE, "Reset Settings");
+        strings.put(LanguageKeys.PREFERENCES_RESET_HEADER, "Reset all settings?");
+        strings.put(LanguageKeys.PREFERENCES_RESET_CONTENT, "All settings will be restored to default values. Continue?");
+        strings.put(LanguageKeys.PREFERENCES_RESET_SUCCESS, "Settings reset to default values");
+        strings.put(LanguageKeys.PREFERENCES_SAVED, "Settings saved");
+        strings.put(LanguageKeys.PREFERENCES_LANGUAGE, "Language");
+        strings.put(LanguageKeys.PREFERENCES_BOARD_THEME, "Board Theme");
+        strings.put(LanguageKeys.PREFERENCES_BOARD_SIZE, "Board Size");
+        strings.put(LanguageKeys.PREFERENCES_COORDINATES, "Show Coordinates");
+        strings.put(LanguageKeys.PREFERENCES_FLIP_BOARD, "Flip Board");
+        strings.put(LanguageKeys.PREFERENCES_SAVE_DIRECTORY, "Save Directory");
+        strings.put(LanguageKeys.PREFERENCES_ENGINE, "Engine Path");
+        strings.put(LanguageKeys.PREFERENCES_BROWSE, "Browse...");
+        strings.put(LanguageKeys.PREFERENCES_SELECT_SAVE_DIR, "Select Save Directory");
+        strings.put(LanguageKeys.PREFERENCES_SELECT_ENGINE, "Select Chess Engine File");
+        strings.put(LanguageKeys.PREFERENCES_CONFIG_PATH, "Config File Path");
+        strings.put(LanguageKeys.PREFERENCES_OPEN_FOLDER, "Open Folder");
+        strings.put(LanguageKeys.PREFERENCES_OPEN_FOLDER_ERROR, "Failed to open settings folder");
 
         // === View Menu ===
         strings.put(LanguageKeys.MENU_VIEW, "View");
@@ -178,6 +215,10 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.MENU_ENGINE, "Engine");
         strings.put(LanguageKeys.MENU_ENGINE_CONFIGURE, "Configure Engine");
         strings.put(LanguageKeys.MENU_ENGINE_ANALYZE, "Show Best Move");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_TITLE, "Illegal Position");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_HEADER, "Engine cannot analyze illegal position");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_CONTENT, "Position is illegal: one or both kings are missing, \n" +
+                "or they are in check, or kings are adjacent.");
 
         // Variation dialogs
         strings.put(LanguageKeys.DIALOG_VARIATION_TITLE, "Choose Variation");
@@ -201,6 +242,13 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.NOTATION_TOGGLE_HIDE, "Hide game notation");
         strings.put(LanguageKeys.NOTATION_NO_MOVES, "No moves");
         strings.put(LanguageKeys.NOTATION_NO_DATA, "No data");
+        strings.put(LanguageKeys.NOTATION_NO_PGN_EXPORT,
+                "PGN copy is not available in Book mode.\n" +
+                        "The book contains statistical data, not a tree of variations in PGN format.");
+
+        strings.put(LanguageKeys.NOTATION_NO_PGN_EXPORT_UNICODE,
+                "Unicode PGN copy is not available in Book mode.\n" +
+                        "The book contains statistical data, not a tree of variations in PGN format.");
 
         // Game messages
         strings.put(LanguageKeys.GAME_CHECKMATE, "Checkmate! %s win");
@@ -260,6 +308,36 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.NAV_TOOLTIP_PREV, "Previous (←)");
         strings.put(LanguageKeys.NAV_TOOLTIP_NEXT, "Next (→)");
         strings.put(LanguageKeys.NAV_TOOLTIP_LAST, "Last (↓)");
+        strings.put(LanguageKeys.NAVIGATION_MODE, "Navigation Mode");
+        strings.put(LanguageKeys.NAVIGATION_MODE_PGN, "PGN");
+        strings.put(LanguageKeys.NAVIGATION_MODE_BOOK, "Book");
+        strings.put(LanguageKeys.BOOK_MODE, "\uD83D\uDCD6 Book");
+        strings.put(LanguageKeys.BOOK_LOADED, "Book loaded");
+        strings.put(LanguageKeys.BOOK_NO_BOOK, "No book loaded");
+        strings.put(LanguageKeys.BOOK_STATS, "Statistics");
+        strings.put(LanguageKeys.BOOK_ENTRIES, "entries");
+        strings.put(LanguageKeys.BOOK_LOAD_ERROR, "Failed to load book");
+        strings.put(LanguageKeys.BOOK_CLEARED, "Book cleared");
+
+        //Меню книги
+        strings.put(LanguageKeys.MENU_BOOKS, "Books");
+        strings.put(LanguageKeys.MENU_BOOKS_LOAD, "Load Book...");
+        strings.put(LanguageKeys.MENU_BOOKS_CLEAR, "Clear Book");
+        strings.put(LanguageKeys.MENU_BOOKS_RECENT, "Recent Books");
+        strings.put(LanguageKeys.MENU_BOOKS_AVAILABLE, "Available Books");
+        strings.put(LanguageKeys.MENU_BOOKS_EXPORT, "Export to PGN");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO, "Book Info");
+        strings.put(LanguageKeys.MENU_BOOKS_NO_RECENT, "No recent books");
+        strings.put(LanguageKeys.MENU_BOOKS_NO_AVAILABLE, "No available books");
+        strings.put(LanguageKeys.MENU_BOOKS_NO_BOOK_LOADED, "No book loaded");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_TITLE, "Book Information");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_NAME, "Name");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_MOVES, "Main line moves");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_STATUS, "Status");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_LOADED, "Loaded");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_SIZE, "Size");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_ENTRIES, "Entries");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_VARIATIONS, "Variations");
 
         // Notifications
         strings.put(LanguageKeys.NOTIFICATION_INFO, "Information");
@@ -269,18 +347,6 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.NOTIFICATION_IMPORT, "PGN import to database will be implemented");
         strings.put(LanguageKeys.NOTIFICATION_ANALYSIS, "Position analysis will be implemented");
         strings.put(LanguageKeys.NOTIFICATION_WARNING, "Warning");
-
-        // Shortcuts
-        strings.put(LanguageKeys.SHORTCUTS_CONTENT,
-                """
-                        Keyboard Shortcuts:
-                        Ctrl+N - New Game
-                        Ctrl+O - Open PGN
-                        Ctrl+S - Save PGN
-                        Ctrl+F - Flip Board
-                        Ctrl+D - Database Search
-                        F1 - Help
-                        Ctrl+Q - Exit""");
 
         // ========== MOVE ANNOTATIONS (Chess Informant) ==========
 
@@ -368,6 +434,8 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.ENGINE_NOT_ANALYZED, "Engine hasn't analyzed the position yet");
         strings.put(LanguageKeys.ENGINE_ILLEGAL_MOVE, "Engine proposed an illegal move");
         strings.put(LanguageKeys.ENGINE_MOVE_ERROR, "Error executing move");
+        strings.put(LanguageKeys.ENGINE_BOOK_MODE_NO_ANALYSIS, "Engine cannot make moves in book mode");
+        strings.put(LanguageKeys.ENGINE_BOOK_MODE_NO_MOVE, "Analysis is disabled in book mode");
 
         // ========== ENGINE SETUP DIALOG ==========
         strings.put(LanguageKeys.ENGINE_SETUP_DIALOG_TITLE, "Chess Engine Setup");
@@ -442,6 +510,7 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.SAVE_GAME_DIALOG_TITLE, "Save Game");
         strings.put(LanguageKeys.SAVE_GAME_DIALOG_HEADER, "Enter game information");
         strings.put(LanguageKeys.SAVE_GAME_DIALOG_SAVE, "Save");
+        strings.put(LanguageKeys.BOOK_MODE_NO_SAVE, "Saving is not available in book mode");
 
         strings.put(LanguageKeys.SAVE_GAME_PROMPT_WHITE, "White");
         strings.put(LanguageKeys.SAVE_GAME_PROMPT_BLACK, "Black");
@@ -497,8 +566,8 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.ABOUT_TITLE, "About Kletka");
         strings.put(LanguageKeys.ABOUT_CONTENT,
                 """
-                    ♔ Kletka Chess ♔
-                    Version: 1.0
+                    ♔ Kletka Chess Analyzer ♔
+                    Version: %s
                     Platform: Java 17, OpenJFX
                     Library: chesslib 1.3.6 (GPL v3)
                     
@@ -630,6 +699,8 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.SAVE_DIALOG_TITLE_SAVE, "💾 Save Game");
         strings.put(LanguageKeys.SAVE_DIALOG_HEADER_EDIT, "Edit game information");
         strings.put(LanguageKeys.SAVE_DIALOG_HEADER_SAVE, "Enter game information");
+        strings.put(LanguageKeys.SAVE_GAME_LOAD_HEADER, "Current game is not saved");
+        strings.put(LanguageKeys.SAVE_GAME_LOAD_CONTENT, "Do you want to save the current game before loading a new one?");
 
         // Tabs
         strings.put(LanguageKeys.SAVE_TAB_PLAYERS, "Players & Result");
@@ -878,6 +949,8 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_ERROR, "Paste error: %s");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_GAMES, "📋 Paste games");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_START, "Starting paste...");
+        strings.put(LanguageKeys.PGN_BROWSER_REFRESH_COMPLETE, "Browser refreshed");
+
         strings.put(LanguageKeys.PGN_BROWSER_PASTE_PARTIAL, "Games pasted: successful - %d, total - %d, failed - %d");
         strings.put(LanguageKeys.PGN_BROWSER_PASTE_WRITING, "Pasting games...");
         strings.put(LanguageKeys.PGN_BROWSER_PASTE_READING_PROGRESS, "Reading games for paste: %d, %d");
@@ -1082,6 +1155,12 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.SHORTCUT_IMPORT_DB, "Ctrl+I - Import to Database");
         strings.put(LanguageKeys.SHORTCUT_SEARCH_DB, "Ctrl+Shift+F - Search Database");
 
+        // ========== HOTKEYS - EDIT ==========
+        strings.put(LanguageKeys.SHORTCUT_EDIT, "Edit");
+        strings.put(LanguageKeys.SHORTCUT_UNDO_MARKER, "Ctrl+Z - Undo Marker");
+        strings.put(LanguageKeys.SHORTCUT_REDO_MARKER, "Ctrl+Y - Redo Marker");
+        strings.put(LanguageKeys.SHORTCUT_PREFERENCES, "Ctrl+Shift+O - Preferences");
+
         strings.put(LanguageKeys.SHORTCUT_CLOSE_ALL_BROWSERS, "Ctrl+Shift+W - Close All Browsers");
 
         strings.put(LanguageKeys.FAILED_TOKENIZE_PGN, "Failed to tokenize PGN");
@@ -1102,50 +1181,69 @@ public class EnLanguage implements Language {
 
     private static StringBuilder createShortcutsContent() {
         StringBuilder shortcutsContent = new StringBuilder();
+
+        // 📁 File
         shortcutsContent.append("═══════════════════════════════════════\n");
         shortcutsContent.append("📁 File:\n");
-        shortcutsContent.append("  Ctrl+N - New Game\n");
+        shortcutsContent.append("  Ctrl+N - New game\n");
         shortcutsContent.append("  Ctrl+O - Open PGN\n");
         shortcutsContent.append("  Ctrl+S - Save PGN\n");
-        shortcutsContent.append("  Ctrl+E - Export Current Game\n");
-        shortcutsContent.append("  Ctrl+Shift+V - Import from Clipboard\n");
-        shortcutsContent.append("  Ctrl+P - Setup Position\n");
+        shortcutsContent.append("  Ctrl+E - Export current game\n");
+        shortcutsContent.append("  Ctrl+Shift+V - Import from clipboard\n");
+        shortcutsContent.append("  Ctrl+P - Setup position\n");
         shortcutsContent.append("  Alt+F4 - Exit\n");
 
+        // 📝 Edit
+        shortcutsContent.append("\n📝 Edit:\n");
+        shortcutsContent.append("  Ctrl+Z - Undo marker\n");
+        shortcutsContent.append("  Ctrl+Y - Redo marker\n");
+        shortcutsContent.append("  Ctrl+Shift+O - Preferences\n");
+
+        // 👁️ View
         shortcutsContent.append("\n👁️ View:\n");
-        shortcutsContent.append("  Ctrl+F - Flip Board\n");
-        shortcutsContent.append("  Ctrl+= - Zoom In\n");
-        shortcutsContent.append("  Ctrl+- - Zoom Out\n");
-        shortcutsContent.append("  Ctrl+0 - Reset Zoom\n");
-        shortcutsContent.append("  H - Toggle Notation\n");
+        shortcutsContent.append("  Ctrl+F - Flip board\n");
+        shortcutsContent.append("  Ctrl+= - Zoom in\n");
+        shortcutsContent.append("  Ctrl+- - Zoom out\n");
+        shortcutsContent.append("  Ctrl+0 - Reset zoom\n");
+        shortcutsContent.append("  H - Show/hide notation\n");
 
+        // 🧭 Navigation
         shortcutsContent.append("\n🧭 Navigation:\n");
-        shortcutsContent.append("  ← - Previous Move\n");
-        shortcutsContent.append("  → - Next Move\n");
-        shortcutsContent.append("  ↑ - First Move\n");
-        shortcutsContent.append("  ↓ - Last Move\n");
+        shortcutsContent.append("  ← - Previous move\n");
+        shortcutsContent.append("  → - Next move\n");
+        shortcutsContent.append("  ↑ - First move\n");
+        shortcutsContent.append("  ↓ - Last move\n");
 
+        // ⚙️ Engine
         shortcutsContent.append("\n⚙️ Engine:\n");
-        shortcutsContent.append("  Space - Engine Move\n");
-        shortcutsContent.append("  Shift+Enter - Toggle Analysis\n");
-        shortcutsContent.append("  Ctrl+Shift+E - Configure Engine\n");
+        shortcutsContent.append("  Space - Engine move\n");
+        shortcutsContent.append("  Shift+Enter - Toggle analysis\n");
+        shortcutsContent.append("  Ctrl+Shift+E - Configure engine\n");
 
+        // 📚 PGN/Browser
         shortcutsContent.append("\n📚 PGN/Browser:\n");
-        shortcutsContent.append("  Ctrl+B - Open PGN Browser\n");
-        shortcutsContent.append("  Ctrl+R - Refresh Browser\n");
-        shortcutsContent.append("  F11 - Next Game\n");
-        shortcutsContent.append("  Ctrl+F11 - Previous Game\n");
-        shortcutsContent.append("  Ctrl+Tab - Next Browser\n");
-        shortcutsContent.append("  Ctrl+Shift+Tab - Previous Browser\n");
-        shortcutsContent.append("  Ctrl+W - Close Browser\n");
+        shortcutsContent.append("  Ctrl+B - Open PGN browser\n");
+        shortcutsContent.append("  Ctrl+R - Refresh browser\n");
+        shortcutsContent.append("  F11 - Next game\n");
+        shortcutsContent.append("  Ctrl+F11 - Previous game\n");
+        shortcutsContent.append("  Ctrl+Tab - Next browser\n");
+        shortcutsContent.append("  Ctrl+Shift+Tab - Previous browser\n");
+        shortcutsContent.append("  Ctrl+W - Close browser\n");
 
+        // 📖 Books
+        shortcutsContent.append("\n📖 Books:\n");
+        shortcutsContent.append("  Ctrl+B - Load book\n");
+        shortcutsContent.append("  Ctrl+Shift+B - Clear book\n");
+
+        // 🗄️ Database
         shortcutsContent.append("\n🗄️ Database:\n");
-        shortcutsContent.append("  Ctrl+D - Connect to Database\n");
-        shortcutsContent.append("  Ctrl+I - Import to Database\n");
-        shortcutsContent.append("  Ctrl+Shift+F - Search Database\n");
+        shortcutsContent.append("  Ctrl+D - Connect to DB\n");
+        shortcutsContent.append("  Ctrl+I - Import to DB\n");
+        shortcutsContent.append("  Ctrl+Shift+F - Search in DB\n");
 
+        // 🪟 Windows
         shortcutsContent.append("\n🪟 Windows:\n");
-        shortcutsContent.append("  Ctrl+Shift+W - Close All Browsers\n");
+        shortcutsContent.append("  Ctrl+Shift+W - Close all browsers\n");
 
         shortcutsContent.append("\n═══════════════════════════════════════");
         return shortcutsContent;

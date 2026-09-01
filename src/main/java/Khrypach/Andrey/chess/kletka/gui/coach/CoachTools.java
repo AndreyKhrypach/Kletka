@@ -25,6 +25,7 @@ import Khrypach.Andrey.chess.kletka.gui.coach.tools.ArrowData;
 import Khrypach.Andrey.chess.kletka.gui.coach.tools.CrossData;
 import Khrypach.Andrey.chess.kletka.gui.coach.tools.MarkerColor;
 import Khrypach.Andrey.chess.kletka.gui.coach.tools.ToolType;
+import Khrypach.Andrey.chess.kletka.gui.menu.CustomMenuBarFactory;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -61,6 +62,12 @@ public class CoachTools extends VBox {
     private final String buttonSelectedStyle = "-fx-background-color: #D2691E; -fx-text-fill: yellow; " +
             "-fx-border-color: #FFD700; -fx-border-width: 3; " +
             "-fx-border-radius: 8; -fx-background-radius: 8;";
+
+    // ========== СТИЛЬ ДЛЯ АКТИВНОГО ЛАСТИКА (красный) ==========
+    private final String eraseActiveStyle = "-fx-background-color: #cc0000; -fx-text-fill: white; " +
+            "-fx-border-color: #FFD700; -fx-border-width: 3; " +
+            "-fx-border-radius: 8; -fx-background-radius: 8;";
+
     @Getter
     @Setter
     private ChessBoardView boardView;
@@ -83,8 +90,14 @@ public class CoachTools extends VBox {
     private boolean panelExpanded = false;
 
     // Хранилища маркеров
+    @Getter
     private final Map<String, CrossData> crosses = new HashMap<>();
     private final Map<String, ArrowData> arrows = new HashMap<>();
+
+    // ========== ИСТОРИЯ ДЕЙСТВИЙ ДЛЯ ОТМЕНЫ ==========
+    private final java.util.Stack<MarkerAction> actionHistory = new java.util.Stack<>();
+    // Стек для Redo (восстановление удаленных маркеров)
+    private final java.util.Stack<MarkerAction> redoHistory = new java.util.Stack<>();
 
     // Callback для уведомления о необходимости перерисовки
     @Setter
@@ -236,6 +249,7 @@ public class CoachTools extends VBox {
             highlightColorButton(blackColorButton, true);
         });
 
+        // ========== ЛАСТИК - ОТМЕНА ПОСЛЕДНЕГО ДЕЙСТВИЯ ==========
         eraseButton = new Button();
         Image eraseImage = loadImage("/images/coach/eraser.png");
         if (eraseImage != null) {
@@ -247,7 +261,22 @@ public class CoachTools extends VBox {
         eraseButton.setStyle(buttonStyle);
         eraseButton.setPrefWidth(50);
         eraseButton.setPrefHeight(50);
-        eraseButton.setOnAction(e -> clearAllMarkers());
+        eraseButton.setOnAction(e -> undoLastAction());
+        // Добавляем тултип
+        javafx.scene.control.Tooltip.install(eraseButton,
+                new javafx.scene.control.Tooltip("Отменить последний маркер"));
+
+        // Синхронизация с текущим инструментом
+        eraseButton.setOnMousePressed(e -> {
+            // Небольшая визуальная обратная связь
+            eraseButton.setStyle(eraseActiveStyle);
+        });
+        eraseButton.setOnMouseReleased(e -> {
+            // Возвращаем стиль после клика
+            if (actionHistory.isEmpty()) {
+                eraseButton.setStyle(buttonStyle);
+            }
+        });
     }
 
     private Button createColorButton(MarkerColor color) {
@@ -359,17 +388,16 @@ public class CoachTools extends VBox {
                 log.trace("Cross already exists with same color, skipping: {}", square);
                 return;
             }
+            pushAction(MarkerAction.updateCross(existing, square, existing.getColor(), currentColor));
             existing.setColor(currentColor);
-            if (boardView != null) {
-                boardView.updateCrossColor(square, currentColor.getColor());
-            }
+            notifyMarkersChanged();
         } else {
-            crosses.put(square, new CrossData(square, currentColor));
-            if (boardView != null) {
-                boardView.addCrossToSquare(square, currentColor.getColor());
-            }
+            CrossData newCross = new CrossData(square, currentColor);
+            pushAction(MarkerAction.createCross(newCross));
+            crosses.put(square, newCross);
+            notifyMarkersChanged();
         }
-        notifyMarkersChanged();
+        updateEraseButtonState();
     }
 
     public void startArrowDrag(String fromSquare) {
@@ -377,6 +405,11 @@ public class CoachTools extends VBox {
         if (currentTool == ToolType.ARROW) {
             isDraggingArrow = true;
             dragStartSquare = fromSquare;
+            pendingArrowStart = fromSquare;
+            // ========== СОЗДАЕМ ВРЕМЕННУЮ СТРЕЛКУ СРАЗУ ==========
+            // Показываем точку старта как маленькую стрелку (саму в себя)
+            tempArrow = new ArrowData(fromSquare, fromSquare, currentColor);
+            notifyMarkersChanged();
             log.trace("Arrow drag started at: {}", fromSquare);
         } else {
             log.trace("Arrow drag ignored - wrong tool: {}", currentTool);
@@ -389,22 +422,16 @@ public class CoachTools extends VBox {
             tempArrow = new ArrowData(dragStartSquare, toSquare, currentColor);
             notifyMarkersChanged();
             log.trace("Temp arrow updated: {} -> {}", dragStartSquare, toSquare);
+        } else {
+            log.trace("updateArrowDrag: conditions not met - isDraggingArrow={}, dragStartSquare={}",
+                    isDraggingArrow, dragStartSquare);
         }
-    }
-
-    public void finishArrowDrag(String fromSquare, String toSquare) {
-        log.trace("finishArrowDrag: {} -> {}", fromSquare, toSquare);
-        if (isDraggingArrow && fromSquare != null && toSquare != null && !fromSquare.equals(toSquare)) {
-            createArrow(fromSquare, toSquare);
-        }
-        isDraggingArrow = false;
-        dragStartSquare = null;
-        tempArrow = null;
     }
 
     public void cancelArrowDrag() {
         isDraggingArrow = false;
         dragStartSquare = null;
+        pendingArrowStart = null;
         tempArrow = null;
         notifyMarkersChanged();
     }
@@ -412,15 +439,16 @@ public class CoachTools extends VBox {
     public void clearAllMarkers() {
         crosses.clear();
         arrows.clear();
+        actionHistory.clear();
+        redoHistory.clear();
         tempArrow = null;
         isDraggingArrow = false;
         dragStartSquare = null;
         cancelPendingArrow();
 
-        if (boardView != null) {
-            boardView.clearAllCrosses();
-        }
         notifyMarkersChanged();
+        updateEraseButtonState();
+        updateMenuState();
     }
 
     public Map<String, ArrowData> getArrows() {
@@ -447,41 +475,287 @@ public class CoachTools extends VBox {
         String key = fromSquare + "->" + toSquare;
         ArrowData existing = arrows.get(key);
         if (existing != null) {
+            // Сохраняем действие в историю (обновление цвета)
+            pushAction(MarkerAction.updateArrow(existing, fromSquare, toSquare, existing.getColor(), currentColor));
             existing.setColor(currentColor);
             log.trace("Updated existing arrow: {}", key);
         } else {
-            arrows.put(key, new ArrowData(fromSquare, toSquare, currentColor));
+            // Сохраняем действие в историю (создание)
+            ArrowData newArrow = new ArrowData(fromSquare, toSquare, currentColor);
+            pushAction(MarkerAction.createArrow(newArrow));
+            arrows.put(key, newArrow);
             log.trace("Created new arrow: {}", key);
         }
+        // ========== ВАЖНО: ЯВНО ВЫЗЫВАЕМ ПЕРЕРИСОВКУ ==========
         notifyMarkersChanged();
+        updateEraseButtonState();
         log.trace("notifyMarkersChanged called, arrows size: {}", arrows.size());
-    }
-
-    public void handleArrowClick(String square) {
-        if (currentTool != ToolType.ARROW) return;
-
-        if (pendingArrowStart == null) {
-            pendingArrowStart = square;
-            log.trace("Arrow start set at: {}", square);
-            if (boardView != null) {
-                boardView.highlightSquare(square, Color.YELLOW);
-            }
-        } else {
-            if (!pendingArrowStart.equals(square)) {
-                createArrow(pendingArrowStart, square);
-                log.trace("Arrow created: {} -> {}", pendingArrowStart, square);
-            }
-            pendingArrowStart = null;
-            if (boardView != null) {
-                boardView.clearHighlight();
-            }
-        }
     }
 
     public void cancelPendingArrow() {
         pendingArrowStart = null;
         if (boardView != null) {
             boardView.clearHighlight();
+        }
+    }
+
+    // ========== ИСТОРИЯ ДЕЙСТВИЙ И ОТМЕНА ==========
+
+    /**
+     * Сохраняет действие в историю
+     */
+    private void pushAction(MarkerAction action) {
+        actionHistory.push(action);
+        redoHistory.clear();
+        log.trace("Action pushed: {}, history size: {}", action.getType(), actionHistory.size());
+        updateMenuState();
+    }
+
+    /**
+     * Отменяет последнее действие (ластик)
+     */
+    public void undoLastAction() {
+        if (actionHistory.isEmpty()) {
+            log.trace("No actions to undo");
+            flashEraseButton();
+            return;
+        }
+
+        MarkerAction action = actionHistory.pop();
+        // ========== СОХРАНЯЕМ В REDO СТЕК ДЛЯ ВОССТАНОВЛЕНИЯ ==========
+        redoHistory.push(action);
+        log.trace("Undo action: {}, moved to redo stack", action.getType());
+
+        // Отменяем действие
+        undoAction(action);
+
+        notifyMarkersChanged();
+        updateEraseButtonState();
+        updateMenuState();
+    }
+
+    /**
+     * Отменяет действие
+     */
+    private void undoAction(MarkerAction action) {
+        switch (action.getType()) {
+            case CREATE_CROSS -> {
+                CrossData cross = action.getCrossData();
+                crosses.remove(cross.getSquare());
+                notifyMarkersChanged();
+                log.trace("Undo: removed cross at {}", cross.getSquare());
+            }
+            case UPDATE_CROSS -> {
+                CrossData cross = crosses.get(action.getSquare());
+                if (cross != null) {
+                    cross.setColor(action.getOldColor());
+                    notifyMarkersChanged();
+                    log.trace("Undo: restored cross color at {}", action.getSquare());
+                }
+            }
+            case CREATE_ARROW -> {
+                ArrowData arrow = action.getArrowData();
+                String key = arrow.getFromSquare() + "->" + arrow.getToSquare();
+                arrows.remove(key);
+                log.trace("Undo: removed arrow from {} to {}", arrow.getFromSquare(), arrow.getToSquare());
+            }
+            case UPDATE_ARROW -> {
+                String key = action.getFromSquare() + "->" + action.getToSquare();
+                ArrowData arrow = arrows.get(key);
+                if (arrow != null) {
+                    arrow.setColor(action.getOldColor());
+                    log.trace("Undo: restored arrow color from {} to {}", action.getFromSquare(), action.getToSquare());
+                }
+            }
+        }
+    }
+
+    /**
+     * Обновляет состояние кнопок Undo/Redo в меню
+     */
+    private void updateMenuState() {
+        if (boardView != null && boardView.getMainController() != null) {
+            CustomMenuBarFactory menuFactory = boardView.getMainController().getMenuFactory();
+            if (menuFactory != null) {
+                menuFactory.updateUndoRedoState(canUndo(), canRedo());
+            }
+        }
+    }
+
+    // ========== МЕТОДЫ ДЛЯ СОСТОЯНИЯ КНОПОК ==========
+    public boolean canUndo() {
+        return !actionHistory.isEmpty();
+    }
+
+    public boolean canRedo() {
+        return !redoHistory.isEmpty();
+    }
+
+    /**
+     * Обновляет состояние кнопки ластика
+     */
+    private void updateEraseButtonState() {
+        if (eraseButton != null) {
+            if (actionHistory.isEmpty()) {
+                eraseButton.setStyle(buttonStyle);
+                eraseButton.setTooltip(new javafx.scene.control.Tooltip("Нет действий для отмены"));
+            } else {
+                eraseButton.setStyle(buttonStyle);
+                eraseButton.setTooltip(new javafx.scene.control.Tooltip(
+                        "Отменить последний маркер (" + actionHistory.size() + ")" ));
+            }
+        }
+    }
+
+    /**
+     * Визуальная обратная связь при пустой истории
+     */
+    private void flashEraseButton() {
+        if (eraseButton == null) return;
+        // Моргаем красным
+        eraseButton.setStyle(eraseActiveStyle);
+        javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(
+                javafx.util.Duration.millis(300)
+        );
+        pause.setOnFinished(e -> {
+            eraseButton.setStyle(buttonStyle);
+            updateEraseButtonState();
+        });
+        pause.play();
+    }
+
+    public void redo() {
+        if (redoHistory.isEmpty()) {
+            log.trace("No actions to redo");
+            return;
+        }
+
+        MarkerAction action = redoHistory.pop();
+        log.trace("Redo action: {}", action.getType());
+
+        // ========== ВАЖНО: возвращаем действие в actionHistory ==========
+        actionHistory.push(action);
+        log.trace("Action returned to undo stack, history size: {}", actionHistory.size());
+
+        // Восстанавливаем действие на доске
+        redoAction(action);
+
+        // Обновляем состояние
+        updateEraseButtonState();
+        updateMenuState();
+        notifyMarkersChanged();
+    }
+
+    public int getActionHistorySize() {
+        return actionHistory.size();
+    }
+
+    public int getRedoHistorySize() {
+        return redoHistory.size();
+    }
+
+    /**
+     * Восстанавливает действие из Redo стека
+     */
+    private void redoAction(MarkerAction action) {
+        switch (action.getType()) {
+            case CREATE_CROSS -> {
+                CrossData cross = action.getCrossData();
+                if (cross != null) {
+                    crosses.put(cross.getSquare(), cross);
+                    // ========== ВСЕГДА ПЕРЕРИСОВЫВАЕМ ОВЕРЛЕЙ ==========
+                    notifyMarkersChanged();
+                    log.trace("Redo: restored cross at {}", cross.getSquare());
+                }
+            }
+            case UPDATE_CROSS -> {
+                CrossData cross = crosses.get(action.getSquare());
+                if (cross != null) {
+                    cross.setColor(action.getNewColor());
+                    // ========== ВСЕГДА ПЕРЕРИСОВЫВАЕМ ОВЕРЛЕЙ ==========
+                    notifyMarkersChanged();
+                    log.trace("Redo: restored cross color at {}", action.getSquare());
+                }
+            }
+            case CREATE_ARROW -> {
+                ArrowData arrow = action.getArrowData();
+                if (arrow != null) {
+                    String key = arrow.getFromSquare() + "->" + arrow.getToSquare();
+                    arrows.put(key, arrow);
+                    // ========== ВСЕГДА ПЕРЕРИСОВЫВАЕМ ОВЕРЛЕЙ ==========
+                    notifyMarkersChanged();
+                    log.trace("Redo: restored arrow from {} to {}", arrow.getFromSquare(), arrow.getToSquare());
+                }
+            }
+            case UPDATE_ARROW -> {
+                String key = action.getFromSquare() + "->" + action.getToSquare();
+                ArrowData arrow = arrows.get(key);
+                if (arrow != null) {
+                    arrow.setColor(action.getNewColor());
+                    // ========== ВСЕГДА ПЕРЕРИСОВЫВАЕМ ОВЕРЛЕЙ ==========
+                    notifyMarkersChanged();
+                    log.trace("Redo: restored arrow color from {} to {}", action.getFromSquare(), action.getToSquare());
+                }
+            }
+        }
+    }
+
+    // ========== ВНУТРЕННИЙ КЛАСС ДЛЯ ИСТОРИИ ==========
+
+    /**
+     * Запись о действии для отмены
+     */
+    @Getter
+    public static class MarkerAction {
+        private final ActionType type;
+        private final CrossData crossData;
+        private final ArrowData arrowData;
+        private final String square;
+        private final String fromSquare;
+        private final String toSquare;
+        private final MarkerColor oldColor;
+        private final MarkerColor newColor;
+
+        private MarkerAction(ActionType type, CrossData crossData, ArrowData arrowData,
+                             String square, String fromSquare, String toSquare,
+                             MarkerColor oldColor, MarkerColor newColor) {
+            this.type = type;
+            this.crossData = crossData;
+            this.arrowData = arrowData;
+            this.square = square;
+            this.fromSquare = fromSquare;
+            this.toSquare = toSquare;
+            this.oldColor = oldColor;
+            this.newColor = newColor;
+        }
+
+        public static MarkerAction createCross(CrossData cross) {
+            return new MarkerAction(ActionType.CREATE_CROSS, cross, null,
+                    null, null, null, null, null);
+        }
+
+        public static MarkerAction updateCross(CrossData cross, String square,
+                                               MarkerColor oldColor, MarkerColor newColor) {
+            return new MarkerAction(ActionType.UPDATE_CROSS, cross, null,
+                    square, null, null, oldColor, newColor);
+        }
+
+        public static MarkerAction createArrow(ArrowData arrow) {
+            return new MarkerAction(ActionType.CREATE_ARROW, null, arrow,
+                    null, null, null, null, null);
+        }
+
+        public static MarkerAction updateArrow(ArrowData arrow, String fromSquare, String toSquare,
+                                               MarkerColor oldColor, MarkerColor newColor) {
+            return new MarkerAction(ActionType.UPDATE_ARROW, null, arrow,
+                    null, fromSquare, toSquare, oldColor, newColor);
+        }
+
+        public enum ActionType {
+            CREATE_CROSS,
+            UPDATE_CROSS,
+            CREATE_ARROW,
+            UPDATE_ARROW
         }
     }
 }

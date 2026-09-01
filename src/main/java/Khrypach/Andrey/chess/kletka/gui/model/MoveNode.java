@@ -118,7 +118,7 @@ public class MoveNode extends ParentNode {
                 san.append(fromFile).append("x");
             }
             san.append(toSquare);
-            if (promotionPiece != null) {
+            if (promotionPiece !=null && promotionPiece != Piece.NONE) {
                 san.append("=").append(getPromotionChar(promotionPiece).toUpperCase());
             }
             return san.toString();

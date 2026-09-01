@@ -25,6 +25,8 @@ import Khrypach.Andrey.chess.kletka.gui.model.ParentNode;
 import Khrypach.Andrey.chess.kletka.gui.model.RootNode;
 import Khrypach.Andrey.chess.kletka.gui.model.Variation;
 import javafx.application.Platform;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,6 +82,112 @@ public class JavaScriptBridge {
 
             if (notationView != null) {
                 notationView.refreshDisplay();
+            }
+        });
+    }
+
+    @SuppressWarnings("unused")
+    public void onMoveUp() {
+        log.debug("[JS Bridge] onMoveUp called");
+        Platform.runLater(() -> {
+            if (navController != null) {
+                // Имитируем нажатие клавиши UP
+                KeyEvent event = new KeyEvent(
+                        KeyEvent.KEY_PRESSED,
+                        null, null, KeyCode.UP,
+                        false, false, false, false
+                );
+                navController.handleKeyPress(event);
+            }
+        });
+    }
+
+    @SuppressWarnings("unused")
+    public void onMoveDown() {
+        log.debug("[JS Bridge] onMoveDown called");
+        Platform.runLater(() -> {
+            if (navController != null) {
+                KeyEvent event = new KeyEvent(
+                        KeyEvent.KEY_PRESSED,
+                        null, null, KeyCode.DOWN,
+                        false, false, false, false
+                );
+                navController.handleKeyPress(event);
+            }
+        });
+    }
+
+    @SuppressWarnings("unused")
+    public void onMoveLeft() {
+        log.debug("[JS Bridge] onMoveLeft called");
+        Platform.runLater(() -> {
+            if (navController != null) {
+                KeyEvent event = new KeyEvent(
+                        KeyEvent.KEY_PRESSED,
+                        null, null, KeyCode.LEFT,
+                        false, false, false, false
+                );
+                navController.handleKeyPress(event);
+            }
+        });
+    }
+
+    @SuppressWarnings("unused")
+    public void onMoveRight() {
+        log.debug("[JS Bridge] onMoveRight called");
+        Platform.runLater(() -> {
+            if (navController != null) {
+                KeyEvent event = new KeyEvent(
+                        KeyEvent.KEY_PRESSED,
+                        null, null, KeyCode.RIGHT,
+                        false, false, false, false
+                );
+                navController.handleKeyPress(event);
+            }
+        });
+    }
+
+    @SuppressWarnings("unused")
+    public void onHomePressed() {
+        log.debug("[JS Bridge] onHomePressed called");
+        Platform.runLater(() -> {
+            if (navController != null) {
+                KeyEvent event = new KeyEvent(
+                        KeyEvent.KEY_PRESSED,
+                        null, null, KeyCode.HOME,
+                        false, false, false, false
+                );
+                navController.handleKeyPress(event);
+            }
+        });
+    }
+
+    @SuppressWarnings("unused")
+    public void onEndPressed() {
+        log.debug("[JS Bridge] onEndPressed called");
+        Platform.runLater(() -> {
+            if (navController != null) {
+                KeyEvent event = new KeyEvent(
+                        KeyEvent.KEY_PRESSED,
+                        null, null, KeyCode.END,
+                        false, false, false, false
+                );
+                navController.handleKeyPress(event);
+            }
+        });
+    }
+
+    @SuppressWarnings("unused")
+    public void onEnterPressed() {
+        log.debug("[JS Bridge] onEnterPressed called");
+        Platform.runLater(() -> {
+            if (navController != null) {
+                KeyEvent event = new KeyEvent(
+                        KeyEvent.KEY_PRESSED,
+                        null, null, KeyCode.ENTER,
+                        false, false, false, false
+                );
+                navController.handleKeyPress(event);
             }
         });
     }

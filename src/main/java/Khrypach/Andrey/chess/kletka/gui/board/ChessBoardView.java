@@ -30,7 +30,7 @@ import Khrypach.Andrey.chess.kletka.gui.dialogs.PromotionDialog;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.VariationChoiceDialog;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageManager;
-import Khrypach.Andrey.chess.kletka.gui.menu.MenuBarFactory;
+import Khrypach.Andrey.chess.kletka.gui.menu.CustomMenuBarFactory;
 import Khrypach.Andrey.chess.kletka.gui.model.*;
 import Khrypach.Andrey.chess.kletka.gui.settings.AppPreferences;
 import Khrypach.Andrey.chess.kletka.pgn.index.manager.PgnBrowserManager;
@@ -45,9 +45,7 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Cursor;
-import javafx.scene.Scene;
-import javafx.scene.SnapshotParameters;
+import javafx.scene.*;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -74,6 +72,7 @@ import java.util.stream.Collectors;
 
 import static Khrypach.Andrey.chess.kletka.engine.UciConstants.UCI_NEW_GAME;
 import static Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys.*;
+import static Khrypach.Andrey.chess.kletka.gui.model.SanGenerator.countAttackersViaReflection;
 
 public class ChessBoardView extends Application {
 
@@ -101,9 +100,11 @@ public class ChessBoardView extends Application {
 
     @Getter
     private NotationView notationView;
+    @Getter
     private int tileSize = BoardSizeController.DEFAULT_TILE_SIZE;
     private BorderPane root;
     private boolean showCoordinates = true;
+    @Getter
     private boolean boardFlipped = false;
 
     @Getter
@@ -130,9 +131,12 @@ public class ChessBoardView extends Application {
     @Setter
     private GridPane currentBoardGrid;
     private final Map<String, StackPane> squareMap = new HashMap<>();
-    private final Map<String, Pane> crossMap = new HashMap<>();
     private Square highlightedSquare = null;
-    private TimerPanel timerPanel;
+
+    /**
+     * Индикатор режима навигации
+     */
+    private Label navigationModeIndicator;
 
     @Override
     public void start(Stage primaryStage) {
@@ -152,7 +156,7 @@ public class ChessBoardView extends Application {
         coachTools.setBoardView(this);
         coachTools.setOnMarkersChanged(this::refreshCoachToolsLayout);
 
-        timerPanel = new TimerPanel();
+        TimerPanel timerPanel = new TimerPanel();
 
         // Создаем нотацию
         notationView = new NotationView();
@@ -180,11 +184,15 @@ public class ChessBoardView extends Application {
         mainController = new MainController(this, primaryStage);
         mainController.setNotationView(notationView);
 
-        MenuBarFactory menuFactory = mainController.getMenuFactory();
         BoardSizeController sizeController = mainController.getSizeController();
 
-        HBox menuBarContainer = menuFactory.createMenuBarWithLanguageButtons();
+        CustomMenuBarFactory customMenuFactory = new CustomMenuBarFactory(mainController, primaryStage, sizeController);
+        customMenuFactory.setTimerPanel(timerPanel);
+        HBox menuBarContainer = customMenuFactory.createCustomMenuBar();
         root.setTop(menuBarContainer);
+
+        mainController.setMenuFactory(customMenuFactory);
+        customMenuFactory.updateBooksMenu();
 
         Scene scene = new Scene(root,
                 sizeController.calculateWindowWidth(),
@@ -211,7 +219,7 @@ public class ChessBoardView extends Application {
 
         // Обновляем чекбокс в меню
         if (mainController != null && mainController.getMenuFactory() != null) {
-            menuFactory.updateCoordinatesCheckbox(showCoordinates);
+            customMenuFactory.updateCoordinatesCheckbox(showCoordinates);
         }
 
         setupGlobalHotkeys(scene);
@@ -222,32 +230,9 @@ public class ChessBoardView extends Application {
         primaryStage.setResizable(true);
 
         sizeController.tileSizeProperty().addListener((obs, oldVal, newVal) -> {
-            int newSize = newVal.intValue();
 
             // Обновляем tileSize в самом BoardView
-            tileSize = newSize;
-
-            // Обновляем крестики
-            for (Map.Entry<String, Pane> entry : crossMap.entrySet()) {
-                Pane container = entry.getValue();
-                if (container != null) {
-                    container.setTranslateX(newSize / 2.0);
-                    container.setTranslateY(newSize / 2.0);
-                    if (container.getChildren().size() >= 2) {
-                        double halfSize = newSize * 0.35;
-                        javafx.scene.shape.Line line1 = (javafx.scene.shape.Line) container.getChildren().get(0);
-                        javafx.scene.shape.Line line2 = (javafx.scene.shape.Line) container.getChildren().get(1);
-                        line1.setStartX(-halfSize);
-                        line1.setStartY(-halfSize);
-                        line1.setEndX(halfSize);
-                        line1.setEndY(halfSize);
-                        line2.setStartX(halfSize);
-                        line2.setStartY(-halfSize);
-                        line2.setEndX(-halfSize);
-                        line2.setEndY(halfSize);
-                    }
-                }
-            }
+            tileSize = newVal.intValue();
 
             // ========== ГЛАВНОЕ: обновить доску ==========
             Platform.runLater(() -> {
@@ -307,7 +292,7 @@ public class ChessBoardView extends Application {
         scene.getRoot().requestFocus();
         root.setOnMouseClicked(e -> scene.getRoot().requestFocus());
 
-
+        setupGlobalMouseHandlers(scene);
 
         log.info("Application started successfully");
     }
@@ -319,6 +304,13 @@ public class ChessBoardView extends Application {
             // Пробел - ход движка
             if (event.getCode() == KeyCode.SPACE) {
                 event.consume();
+
+                // ========== ПРОВЕРКА РЕЖИМА КНИГИ ==========
+                if (navController != null && navController.getNavigationMode() == NavigationMode.BOOK) {
+                    showTemporaryMessage(lang.get(ENGINE_BOOK_MODE_NO_MOVE)); // "В режиме книги движок не может делать ходы"
+                    return;
+                }
+
                 if (analysisPanel != null && analysisPanel.isAnalyzingActive()) {
                     makeEngineMove();
                 } else {
@@ -330,6 +322,13 @@ public class ChessBoardView extends Application {
             // Enter - запуск/остановка анализа
             if (event.getCode() == KeyCode.ENTER && event.isShiftDown()) {
                 event.consume();
+
+                // ========== В РЕЖИМЕ КНИГИ АНАЛИЗ ТОЖЕ НЕ ДОЛЖЕН РАБОТАТЬ ==========
+                if (navController != null && navController.getNavigationMode() == NavigationMode.BOOK) {
+                    showTemporaryMessage(lang.get(ENGINE_BOOK_MODE_NO_ANALYSIS)); // "В режиме книги анализ отключен"
+                    return;
+                }
+
                 if (analysisPanel != null) {
                     analysisPanel.toggleAnalysisByKey();
                 }
@@ -387,7 +386,7 @@ public class ChessBoardView extends Application {
             }
         });
 
-        // CTRL+TAB - СЛЕДУЮЩИЙ БРАУЗЕР
+        // CTRL+tab - СЛЕДУЮЩИЙ БРАУЗЕР
         KeyCombination ctrlTab = new KeyCodeCombination(KeyCode.TAB, KeyCombination.CONTROL_DOWN);
         scene.getAccelerators().put(ctrlTab, () -> {
             PgnBrowserManager manager = PgnBrowserManager.getInstance();
@@ -424,7 +423,7 @@ public class ChessBoardView extends Application {
             manager.setActiveBrowser(next);
         });
 
-        // CTRL+SHIFT+TAB - ПРЕДЫДУЩИЙ БРАУЗЕР
+        // CTRL+shift+tab - ПРЕДЫДУЩИЙ БРАУЗЕР
         KeyCombination ctrlShiftTab = new KeyCodeCombination(KeyCode.TAB,
                 KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN);
         scene.getAccelerators().put(ctrlShiftTab, () -> {
@@ -479,6 +478,190 @@ public class ChessBoardView extends Application {
                 // Меню обновится через слушатель
             }
         });
+
+        // Ctrl+= (увеличение) - основная клавиатура
+        KeyCombination ctrlEquals = new KeyCodeCombination(KeyCode.EQUALS, KeyCombination.CONTROL_DOWN);
+        scene.getAccelerators().put(ctrlEquals, () -> {
+            if (mainController != null && mainController.getSizeController() != null) {
+                mainController.getSizeController().increaseSize();
+            }
+        });
+
+        // Ctrl++ (цифровая клавиатура)
+        KeyCombination ctrlPlus = new KeyCodeCombination(KeyCode.PLUS, KeyCombination.CONTROL_DOWN);
+        scene.getAccelerators().put(ctrlPlus, () -> {
+            if (mainController != null && mainController.getSizeController() != null) {
+                mainController.getSizeController().increaseSize();
+            }
+        });
+
+        // Ctrl+- (уменьшение) - основная клавиатура
+        KeyCombination ctrlMinus = new KeyCodeCombination(KeyCode.MINUS, KeyCombination.CONTROL_DOWN);
+        scene.getAccelerators().put(ctrlMinus, () -> {
+            if (mainController != null && mainController.getSizeController() != null) {
+                mainController.getSizeController().decreaseSize();
+            }
+        });
+
+        // Ctrl+0 (сброс масштаба)
+        KeyCombination ctrlZero = new KeyCodeCombination(KeyCode.DIGIT0, KeyCombination.CONTROL_DOWN);
+        scene.getAccelerators().put(ctrlZero, () -> {
+            if (mainController != null && mainController.getSizeController() != null) {
+                mainController.getSizeController().resetSize();
+            }
+        });
+
+        // Ctrl+Z — отмена последнего маркера (undo)
+        KeyCombination ctrlZ = new KeyCodeCombination(KeyCode.Z, KeyCombination.CONTROL_DOWN);
+        scene.getAccelerators().put(ctrlZ, () -> {
+            if (coachTools != null && coachTools.canUndo()) {
+                coachTools.undoLastAction();
+                // Обновляем состояние в меню
+                if (mainController != null && mainController.getMenuFactory() != null) {
+                    mainController.getMenuFactory().updateUndoRedoState(
+                            coachTools.canUndo(),
+                            coachTools.canRedo()
+                    );
+                }
+            } else {
+                log.debug("Ctrl+Z: cannot undo (coachTools={}, canUndo={})",
+                        coachTools != null ? "exists" : "null",
+                        coachTools != null && coachTools.canUndo());
+            }
+        });
+
+        // Ctrl+Y — повтор последнего маркера (redo)
+        KeyCombination ctrlY = new KeyCodeCombination(KeyCode.Y, KeyCombination.CONTROL_DOWN);
+        scene.getAccelerators().put(ctrlY, () -> {
+            if (coachTools != null && coachTools.canRedo()) {
+                coachTools.redo();
+                // Обновляем состояние в меню
+                if (mainController != null && mainController.getMenuFactory() != null) {
+                    mainController.getMenuFactory().updateUndoRedoState(
+                            coachTools.canUndo(),
+                            coachTools.canRedo()
+                    );
+                }
+            } else {
+                log.debug("Ctrl+Y: cannot redo (coachTools={}, canRedo={})",
+                        coachTools != null ? "exists" : "null",
+                        coachTools != null && coachTools.canRedo());
+            }
+        });
+    }
+
+    private void setupGlobalMouseHandlers(Scene scene) {
+        // Глобальный обработчик для drag
+        scene.setOnMouseDragged(event -> {
+            if (coachTools != null && coachTools.getCurrentTool() == ToolType.ARROW) {
+                if (event.isPrimaryButtonDown()) {
+                    String squareName = getSquareAt(event.getSceneX(), event.getSceneY());
+                    if (squareName != null && coachTools.getPendingArrowStart() != null &&
+                            !coachTools.getPendingArrowStart().equals(squareName)) {
+                        coachTools.updateArrowDrag(squareName);
+                        if (markerOverlay != null) {
+                            markerOverlay.redraw();
+                        }
+                        event.consume();
+                    }
+                }
+            }
+        });
+
+        scene.setOnMouseReleased(event -> {
+            if (coachTools != null && coachTools.getCurrentTool() == ToolType.ARROW) {
+                // НЕ ПРОВЕРЯЕМ isPrimaryButtonDown() - при отпускании оно false
+                String startSquare = coachTools.getPendingArrowStart();
+                String endSquare = getSquareAt(event.getSceneX(), event.getSceneY());
+
+                log.debug("Mouse released: start={}, end={}", startSquare, endSquare);
+
+                if (startSquare != null && endSquare != null && !startSquare.equals(endSquare)) {
+                    coachTools.createArrow(startSquare, endSquare);
+                    log.debug("Arrow created: {} -> {}", startSquare, endSquare);
+                    if (markerOverlay != null) {
+                        markerOverlay.redraw();
+                    }
+                } else if (startSquare != null && startSquare.equals(endSquare)) {
+                    // Клик по одной клетке - ничего не делаем или показываем точку
+                    log.debug("Same square clicked, no arrow created");
+                }
+
+                // Очищаем состояние
+                coachTools.cancelPendingArrow();
+                coachTools.cancelArrowDrag();
+                clearHighlight();
+                if (markerOverlay != null) {
+                    markerOverlay.redraw();
+                }
+                event.consume();
+            }
+        });
+
+        // В setupGlobalMouseHandlers() добавим:
+        scene.setOnMouseExited(event -> {
+            if (coachTools != null && coachTools.getCurrentTool() == ToolType.ARROW) {
+                if (coachTools.isDraggingArrow()) {
+                    // Отменяем рисование если мышь вышла за пределы
+                    coachTools.cancelPendingArrow();
+                    coachTools.cancelArrowDrag();
+                    clearHighlight();
+                    if (markerOverlay != null) {
+                        markerOverlay.redraw();
+                    }
+                    event.consume();
+                }
+            }
+        });
+
+        // Добавим обработчик клавиши Escape
+        scene.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ESCAPE) {
+                if (coachTools != null && coachTools.getCurrentTool() == ToolType.ARROW) {
+                    if (coachTools.isDraggingArrow()) {
+                        coachTools.cancelPendingArrow();
+                        coachTools.cancelArrowDrag();
+                        clearHighlight();
+                        if (markerOverlay != null) {
+                            markerOverlay.redraw();
+                        }
+                        event.consume();
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * Получает клетку по координатам мыши
+     */
+    private String getSquareAt(double sceneX, double sceneY) {
+        if (boardAndNav == null) return null;
+
+        // Получаем координаты относительно boardAndNav
+        javafx.geometry.Bounds bounds = boardAndNav.localToScene(boardAndNav.getBoundsInLocal());
+        double localX = sceneX - bounds.getMinX();
+        double localY = sceneY - bounds.getMinY();
+
+        // Определяем размеры доски
+        double boardWidth = bounds.getWidth();
+
+        // Учитываем паддинг и координаты
+        int padding = 12; // из createBoardWithCoordinates()
+        double cellSize = (boardWidth - 2 * padding) / 8;
+
+        int col = (int) ((localX - padding) / cellSize);
+        int row = (int) ((localY - padding) / cellSize);
+
+        if (col < 0 || col > 7 || row < 0 || row > 7) {
+            return null;
+        }
+
+        // Учитываем переворот доски
+        int chessRow = boardFlipped ? row : 7 - row;
+        int chessCol = boardFlipped ? 7 - col : col;
+
+        return convertToSquare(chessRow, chessCol).name();
     }
 
     private void initPieceImageMap() {
@@ -530,10 +713,15 @@ public class ChessBoardView extends Application {
             markerOverlay = new MarkerOverlay(coachTools);
         }
         markerOverlay.setBoardContainer(boardAndNav);
+
+        // ========== ДОБАВЛЯЕМ ОВЕРЛЕЙ ПОВЕРХ ВСЕГО ==========
         boardStack.getChildren().add(markerOverlay);
         StackPane.setAlignment(markerOverlay, Pos.TOP_LEFT);
         markerOverlay.prefWidthProperty().bind(boardAndNav.widthProperty());
         markerOverlay.prefHeightProperty().bind(boardAndNav.heightProperty());
+
+        // ========== ВАЖНО: ПОДНИМАЕМ ОВЕРЛЕЙ НАВЕРХ ==========
+        markerOverlay.toFront();
 
         anchorPane = new AnchorPane();
         anchorPane.getChildren().add(coachTools);
@@ -544,10 +732,6 @@ public class ChessBoardView extends Application {
         double leftOffset = coachTools.isPanelExpanded() ? coachTools.getWidth() + 20.0 : coachTools.getWidth() + 10.0;
         AnchorPane.setLeftAnchor(boardStack, leftOffset);
         AnchorPane.setTopAnchor(boardStack, 20.0);
-
-        anchorPane.getChildren().add(timerPanel);
-        AnchorPane.setRightAnchor(timerPanel, 20.0);
-        AnchorPane.setTopAnchor(timerPanel, 20.0);
 
         root.setCenter(anchorPane);
         root.layout();
@@ -644,21 +828,76 @@ public class ChessBoardView extends Application {
         }
 
         squareMap.put(square.name(), tile);
-        final boolean[] isArrowDrag = {false};
+
+        // ========== ОБРАБОТЧИКИ ДЛЯ СТРЕЛОК ЧЕРЕЗ MOUSE EVENTS ==========
+
+        // MousePressed - старт рисования стрелки
+        tile.setOnMousePressed(e -> {
+            if (coachTools != null && coachTools.getCurrentTool() == ToolType.ARROW) {
+                // Если это левая кнопка мыши
+                if (e.isPrimaryButtonDown()) {
+                    String squareName = square.name();
+                    coachTools.startArrowDrag(squareName);
+                    // Сохраняем начальную клетку
+                    coachTools.setPendingArrowStart(squareName);
+                    // Подсвечиваем начальную клетку
+                    highlightSquare(squareName, Color.YELLOW);
+                    e.consume();
+                }
+            }
+        });
+
+        // MouseDragged - рисуем временную стрелку
+        tile.setOnMousePressed(e -> {
+            if (coachTools != null && coachTools.getCurrentTool() == ToolType.ARROW) {
+                if (e.isPrimaryButtonDown()) {
+                    String squareName = square.name();
+                    log.debug("Arrow: mouse pressed on {}", squareName);
+                    coachTools.startArrowDrag(squareName);
+                    coachTools.setPendingArrowStart(squareName);
+                    highlightSquare(squareName, Color.YELLOW);
+
+                    // ========== ПРИНУДИТЕЛЬНО ОБНОВЛЯЕМ ==========
+                    if (markerOverlay != null) {
+                        markerOverlay.redraw();
+                    }
+                    e.consume();
+                }
+            }
+        });
+
+        // MouseReleased - фиксируем стрелку
+        tile.setOnMouseReleased(e -> {
+            if (coachTools != null && coachTools.getCurrentTool() == ToolType.ARROW) {
+                if (e.isPrimaryButtonDown()) {
+                    String startSquare = coachTools.getPendingArrowStart();
+                    String endSquare = square.name();
+
+                    if (startSquare != null && !startSquare.equals(endSquare)) {
+                        // Создаем стрелку
+                        coachTools.createArrow(startSquare, endSquare);
+                        log.debug("Arrow created via mouse release: {} -> {}", startSquare, endSquare);
+                    }
+
+                    // Очищаем состояние
+                    coachTools.cancelPendingArrow();
+                    coachTools.cancelArrowDrag();
+                    clearHighlight();
+                    if (markerOverlay != null) {
+                        markerOverlay.redraw();
+                    }
+                    e.consume();
+                }
+            }
+        });
+
+        // ========== СУЩЕСТВУЮЩИЕ ОБРАБОТЧИКИ DRAG-AND-DROP ДЛЯ ФИГУР ==========
 
         tile.setOnMouseClicked(e -> handleTileClick(square));
 
         tile.setOnDragDetected(e -> {
+            // Если активен инструмент ARROW - не даем перетаскивать фигуры
             if (coachTools != null && coachTools.getCurrentTool() == ToolType.ARROW) {
-                isArrowDrag[0] = true;
-                Dragboard db = tile.startDragAndDrop(TransferMode.MOVE);
-                ClipboardContent content = new ClipboardContent();
-                content.putString(square.name());
-                db.setContent(content);
-                WritableImage transparent = new WritableImage(1, 1);
-                db.setDragView(transparent);
-                coachTools.startArrowDrag(square.name());
-                e.consume();
                 return;
             }
 
@@ -691,24 +930,25 @@ public class ChessBoardView extends Application {
         });
 
         tile.setOnDragOver(e -> {
-            if (isArrowDrag[0] && e.getDragboard().hasString()) {
-                e.acceptTransferModes(TransferMode.MOVE);
-                coachTools.updateArrowDrag(square.name());
-                e.consume();
-            } else if (e.getDragboard().hasString() && !isArrowDrag[0]) {
+            // Если активен инструмент ARROW - игнорируем
+            if (coachTools != null && coachTools.getCurrentTool() == ToolType.ARROW) {
+                return;
+            }
+
+            if (e.getDragboard().hasString()) {
                 e.acceptTransferModes(TransferMode.MOVE);
                 e.consume();
             }
         });
 
         tile.setOnDragDropped(e -> {
+            // Если активен инструмент ARROW - игнорируем
+            if (coachTools != null && coachTools.getCurrentTool() == ToolType.ARROW) {
+                return;
+            }
+
             Dragboard db = e.getDragboard();
-            if (isArrowDrag[0] && db.hasString()) {
-                String fromSquare = db.getString();
-                coachTools.finishArrowDrag(fromSquare, square.name());
-                if (markerOverlay != null) markerOverlay.redraw();
-                e.setDropCompleted(true);
-            } else if (db.hasString() && !isArrowDrag[0]) {
+            if (db.hasString()) {
                 Square fromSquare = Square.valueOf(db.getString());
                 List<Move> legalMoves = chessBoard.legalMoves().stream()
                         .filter(m -> m.getFrom() == fromSquare && m.getTo() == square)
@@ -719,7 +959,6 @@ public class ChessBoardView extends Application {
                     Piece movingPiece = chessBoard.getPiece(move.getFrom());
                     boolean isCapture = chessBoard.getPiece(move.getTo()) != Piece.NONE;
 
-                    // Проверяем превращение
                     Piece promotionPiece = null;
                     if (movingPiece == Piece.WHITE_PAWN && move.getTo().getRank().ordinal() == 7) {
                         log.debug("Drag&Drop - PROMOTION for white pawn");
@@ -739,15 +978,10 @@ public class ChessBoardView extends Application {
                     e.setDropCompleted(false);
                 }
             }
-            isArrowDrag[0] = false;
             e.consume();
         });
 
         tile.setOnDragDone(e -> {
-            if (isArrowDrag[0]) {
-                coachTools.cancelArrowDrag();
-                isArrowDrag[0] = false;
-            }
             tile.setCursor(Cursor.OPEN_HAND);
             e.consume();
         });
@@ -787,16 +1021,19 @@ public class ChessBoardView extends Application {
                 coachTools.addCross(clickedSquare.name());
                 return;
             }
-            if (tool == ToolType.ARROW) {
-                coachTools.handleArrowClick(clickedSquare.name());
-                return;
-            }
         }
 
         if (isTerminalPosition()) {
             log.debug("Terminal position, no moves possible");
             return;
         }
+
+        if (isPositionIlLegal()) {
+            log.debug("Illegal position, moves not allowed");
+            showTemporaryMessage(lang.get(ENGINE_ILLEGAL_POSITION_CONTENT));
+            return;
+        }
+
 
         if (selectedSquare == null) {
             Piece piece = chessBoard.getPiece(clickedSquare);
@@ -857,6 +1094,12 @@ public class ChessBoardView extends Application {
         if (coachTools != null && coachTools.isPanelExpanded()) {
             coachTools.togglePanel();
         }
+
+        if (isPositionIlLegal()) {
+            showTemporaryMessage(lang.get(ENGINE_ILLEGAL_POSITION_CONTENT));
+            return;
+        }
+
 
         Board boardBeforeMove = chessBoard.clone();
 
@@ -1125,26 +1368,115 @@ public class ChessBoardView extends Application {
     }
 
     /**
-     * Проверяет, является ли текущая позиция легальной
-     * (есть оба короля, нет пешек на 1/8 ряду и т.д.)
+     * Проверяет, является ли позиция легальной
      */
-    public boolean isPositionLegal() {
-        if (chessBoard == null) return false;
+    public boolean isPositionIlLegal() {
+        if (chessBoard == null) return true;
 
-        boolean hasWhiteKing = false;
-        boolean hasBlackKing = false;
+        // 1. Проверяем наличие королей (ровно по одному каждого цвета)
+        int whiteKingCount = 0;
+        int blackKingCount = 0;
+        Square whiteKingSquare = null;
+        Square blackKingSquare = null;
 
         for (int rank = 0; rank < 8; rank++) {
             for (int file = 0; file < 8; file++) {
                 Square square = Square.squareAt(rank * 8 + file);
                 Piece piece = chessBoard.getPiece(square);
-
-                if (piece == Piece.WHITE_KING) hasWhiteKing = true;
-                if (piece == Piece.BLACK_KING) hasBlackKing = true;
+                if (piece == Piece.WHITE_KING) {
+                    whiteKingCount++;
+                    whiteKingSquare = square;
+                }
+                if (piece == Piece.BLACK_KING) {
+                    blackKingCount++;
+                    blackKingSquare = square;
+                }
             }
         }
 
-        return hasWhiteKing && hasBlackKing;
+        // ========== ПРОВЕРКА: РОВНО ПО ОДНОМУ КОРОЛЮ ==========
+        if (whiteKingCount != 1 || blackKingCount != 1) {
+            log.debug("Position illegal: incorrect king count - white={}, black={}",
+                    whiteKingCount, blackKingCount);
+            return true;
+        }
+
+        // 2. Проверяем, что короли не рядом
+        if (whiteKingSquare != null && blackKingSquare != null) {
+            int fileDiff = Math.abs(whiteKingSquare.getFile().ordinal() - blackKingSquare.getFile().ordinal());
+            int rankDiff = Math.abs(whiteKingSquare.getRank().ordinal() - blackKingSquare.getRank().ordinal());
+            if (fileDiff <= 1 && rankDiff <= 1) {
+                log.debug("Position illegal: kings are adjacent");
+                return true;
+            }
+        }
+
+        // 3. Проверяем пешки на первой и последней линиях
+        for (int file = 0; file < 8; file++) {
+            Square rank1 = Square.squareAt(file);  // 1-я линия (rank 0)
+            Square rank8 = Square.squareAt(7 * 8 + file);  // 8-я линия (rank 7)
+
+            Piece piece1 = chessBoard.getPiece(rank1);
+            Piece piece8 = chessBoard.getPiece(rank8);
+
+            // Белые пешки не могут быть на 8-й линии
+            if (piece1 == Piece.WHITE_PAWN || piece8 == Piece.WHITE_PAWN) {
+                log.debug("Position illegal: white pawn on 1st or 8th rank");
+                return true;
+            }
+            // Черные пешки не могут быть на 1-й линии
+            if (piece1 == Piece.BLACK_PAWN || piece8 == Piece.BLACK_PAWN) {
+                log.debug("Position illegal: black pawn on 1st or 8th rank");
+                return true;
+            }
+        }
+
+        // 4. Проверяем шахи с учетом стороны хода
+        try {
+            Side sideToMove = chessBoard.getSideToMove();
+            int whiteAttackers = 0;
+            int blackAttackers = 0;
+
+            if (whiteKingSquare != null) {
+                whiteAttackers = countAttackersViaReflection(chessBoard, whiteKingSquare, Side.BLACK);
+            }
+
+            if (blackKingSquare != null) {
+                blackAttackers = countAttackersViaReflection(chessBoard, blackKingSquare, Side.WHITE);
+            }
+
+            // Если оба короля под шахом - позиция нелегальна
+            if (whiteAttackers > 0 && blackAttackers > 0) {
+                log.debug("Position illegal: both kings are in check");
+                return true;
+            }
+
+            // Проверка на тройной шах
+            if (whiteAttackers > 2 || blackAttackers > 2) {
+                log.debug("Position illegal: triple+ check detected! whiteAttackers={}, blackAttackers={}",
+                        whiteAttackers, blackAttackers);
+                return true;
+            }
+
+            // Проверка с учетом стороны хода
+            if (sideToMove == Side.WHITE) {
+                if (blackAttackers > 0) {
+                    log.debug("Position illegal: white to move, but black king is in check (attackers={})",
+                            blackAttackers);
+                    return true;
+                }
+            } else {
+                if (whiteAttackers > 0) {
+                    log.debug("Position illegal: black to move, but white king is in check (attackers={})",
+                            whiteAttackers);
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Error checking king attack: {}", e.getMessage());
+        }
+
+        return false;
     }
 
     public void forceResetGame() {
@@ -1215,6 +1547,13 @@ public class ChessBoardView extends Application {
 
     private void makeEngineMove() {
         if (analysisPanel == null) return;
+
+        // ========== ПРОВЕРКА РЕЖИМА КНИГИ ==========
+        if (navController != null && navController.getNavigationMode() == NavigationMode.BOOK) {
+            showTemporaryMessage(lang.get(ENGINE_BOOK_MODE_NO_MOVE));
+            return;
+        }
+
         if (isTerminalPosition()) {
             showTemporaryMessage(lang.get(ENGINE_TERMINAL_POSITION));
             return;
@@ -1244,7 +1583,6 @@ public class ChessBoardView extends Application {
 
             // Определяем promotionPiece
             Piece promotionPiece = null;
-
             if (movingPiece == Piece.WHITE_PAWN && move.getTo().getRank().ordinal() == 7) {
                 log.debug("EngineMove - PROMOTION for white pawn");
                 PromotionDialog dialog = new PromotionDialog(primaryStage, true);
@@ -1260,10 +1598,28 @@ public class ChessBoardView extends Application {
             // Останавливаем анализ
             navController.getEngineManager().stopAnalysis();
 
-            // Передаем promotionPiece в addMove (может быть null)
-            navController.addMove(move, movingPiece, isCapture, promotionPiece);
+            // Пытаемся добавить ход обычным способом
+            Boolean addResult = navController.addMove(move, movingPiece, isCapture, promotionPiece);
+
+            // Если addMove вернул null (требуется диалог) - принудительно создаем вариант
+            if (addResult == null) {
+                log.debug("Engine move requires dialog - forcing new variation creation");
+
+                // Получаем текущие вариацию и узел
+                Variation currentVar = navController.getCurrentVariation();
+                ParentNode currentNode = navController.getCurrentNode();
+
+                // Используем новый метод для принудительного добавления
+                VariationStateSnapshot snapshot = navController.getVariationManager()
+                        .forceAddMoveAsNewVariation(move, movingPiece, isCapture, promotionPiece,
+                                currentVar, currentNode);
+
+                // Применяем снимок состояния
+                navController.applySnapshot(snapshot);
+            }
 
             mainController.updateCurrentGameData();
+            navController.restoreBoardFromCurrentNode();
 
             notationView.refreshFromMainLine();
             checkGameEnd();
@@ -1316,7 +1672,26 @@ public class ChessBoardView extends Application {
     private void savePgnFile() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(lang.get(MENU_FILE_SAVE_PGN));
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PGN files", "*.pgn"));
+        fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("PGN files", "*.pgn")
+        );
+
+        String lastDir = AppPreferences.getLastSaveDirectory();
+        if (lastDir != null && !lastDir.isEmpty()) {
+            File dir = new File(lastDir);
+            if (dir.exists() && dir.isDirectory()) {
+                fileChooser.setInitialDirectory(dir);
+            }
+        } else {
+            String saveDir = AppPreferences.getSaveDirectory();
+            if (saveDir != null && !saveDir.isEmpty()) {
+                File dir = new File(saveDir);
+                if (dir.exists() && dir.isDirectory()) {
+                    fileChooser.setInitialDirectory(dir);
+                }
+            }
+        }
+
         File file = fileChooser.showSaveDialog(primaryStage);
         if (file != null && mainController != null) {
             mainController.savePgnFile(file);
@@ -1340,73 +1715,6 @@ public class ChessBoardView extends Application {
 
     public StackPane getSquarePane(String squareName) {
         return squareMap.get(squareName);
-    }
-
-    public void addCrossToSquare(String squareName, Color color) {
-        if (crossMap.containsKey(squareName)) {
-            updateCrossColor(squareName, color);
-            return;
-        }
-
-        StackPane cell = squareMap.get(squareName);
-        if (cell == null) return;
-
-        Pane crossContainer = new Pane();
-        crossContainer.setMouseTransparent(true);
-
-        // Устанавливаем размеры контейнера
-        crossContainer.setPrefSize(tileSize, tileSize);
-        crossContainer.setMaxSize(tileSize, tileSize);
-        crossContainer.setMinSize(tileSize, tileSize);
-
-        // Смещаем в центр клетки
-        crossContainer.setTranslateX(tileSize / 2.0);
-        crossContainer.setTranslateY(tileSize / 2.0);
-
-        // Создаем линии
-        double halfSize = tileSize * 0.25;
-        javafx.scene.shape.Line line1 = new javafx.scene.shape.Line(
-                -halfSize, -halfSize, halfSize, halfSize
-        );
-        javafx.scene.shape.Line line2 = new javafx.scene.shape.Line(
-                halfSize, -halfSize, -halfSize, halfSize
-        );
-
-        line1.setStroke(color);
-        line2.setStroke(color);
-        line1.setStrokeWidth(Math.max(3, tileSize * 0.08));
-        line2.setStrokeWidth(Math.max(3, tileSize * 0.08));
-        line1.setStrokeLineCap(javafx.scene.shape.StrokeLineCap.ROUND);
-        line2.setStrokeLineCap(javafx.scene.shape.StrokeLineCap.ROUND);
-
-        crossContainer.getChildren().addAll(line1, line2);
-        cell.getChildren().add(crossContainer);
-        crossMap.put(squareName, crossContainer);
-    }
-
-    public void removeCrossFromSquare(String squareName) {
-        Pane cross = crossMap.remove(squareName);
-        if (cross != null) {
-            StackPane cell = squareMap.get(squareName);
-            if (cell != null) cell.getChildren().remove(cross);
-        }
-    }
-
-    public void clearAllCrosses() {
-        for (String squareName : new ArrayList<>(crossMap.keySet())) {
-            removeCrossFromSquare(squareName);
-        }
-        crossMap.clear();
-    }
-
-    public void updateCrossColor(String squareName, Color color) {
-        Pane cross = crossMap.get(squareName);
-        if (cross != null && cross.getChildren().size() >= 2) {
-            javafx.scene.shape.Line line1 = (javafx.scene.shape.Line) cross.getChildren().get(0);
-            javafx.scene.shape.Line line2 = (javafx.scene.shape.Line) cross.getChildren().get(1);
-            line1.setStroke(color);
-            line2.setStroke(color);
-        }
     }
 
     public ImageView getWhiteKingIcon() {
@@ -1455,6 +1763,51 @@ public class ChessBoardView extends Application {
     }
 
     /**
+     * Обновляет индикатор режима навигации
+     */
+    public void updateNavigationModeIndicator(NavigationMode mode) {
+        if (navigationModeIndicator == null) {
+            createNavigationModeIndicator();
+        }
+
+        Platform.runLater(() -> {
+            String text;
+            String style;
+
+            if (mode == NavigationMode.BOOK) {
+                text = lang.get(LanguageKeys.BOOK_MODE); // "📖 Книга" / "📖 Book" / "📖 书籍"
+                style = "-fx-text-fill: #8b5a2b; -fx-font-weight: bold; -fx-font-size: 13px;";
+            } else {
+                text = "♟ " + lang.get(LanguageKeys.NAVIGATION_MODE_PGN); // "♟ PGN"
+                style = "-fx-text-fill: #2c3e50; -fx-font-weight: normal; -fx-font-size: 13px;";
+            }
+
+            navigationModeIndicator.setText(text);
+            navigationModeIndicator.setStyle(style);
+        });
+    }
+
+    /**
+     * Создает индикатор режима навигации
+     */
+    private void createNavigationModeIndicator() {
+        navigationModeIndicator = new Label("♟ " + lang.get(LanguageKeys.NAVIGATION_MODE_PGN));
+        navigationModeIndicator.setStyle("-fx-font-size: 13px; -fx-text-fill: #2c3e50;");
+        navigationModeIndicator.setPadding(new Insets(5, 10, 5, 10));
+        navigationModeIndicator.setStyle("-fx-background-color: rgba(255,255,255,0.8); " +
+                "-fx-background-radius: 5px; " +
+                "-fx-border-color: #d2b48c; " +
+                "-fx-border-radius: 5px;");
+
+        // Добавляем в правый верхний угол доски
+        if (anchorPane != null) {
+            anchorPane.getChildren().add(navigationModeIndicator);
+            AnchorPane.setRightAnchor(navigationModeIndicator, 20.0);
+            AnchorPane.setTopAnchor(navigationModeIndicator, 60.0);
+        }
+    }
+
+    /**
      * Проверяет, находится ли текущая позиция в главной линии
      */
     private boolean isInMainLine() {
@@ -1468,4 +1821,5 @@ public class ChessBoardView extends Application {
 
         return currentVar.isMainLine();
     }
+
 }

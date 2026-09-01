@@ -179,13 +179,50 @@ public class RuLanguage implements Language {
         // Пункты меню Help
         strings.put(LanguageKeys.MENU_HELP_SHORTCUTS, "Горячие клавиши");
         strings.put(LanguageKeys.MENU_HELP_ABOUT, "О программе");
+        strings.put(LanguageKeys.MENU_HELP_GITHUB, "GitHub");
+        strings.put(LanguageKeys.MENU_HELP_CHECK_UPDATES, "Проверить обновления");
+        strings.put(LanguageKeys.MENU_HELP_GITHUB_ERROR, "Не удалось открыть страницу GitHub");
+        strings.put(LanguageKeys.MENU_HELP_CHECKING_UPDATES, "Проверка обновлений...");
+        strings.put(LanguageKeys.MENU_HELP_CHECKING_UPDATES_MSG, "Проверяем наличие новой версии...");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_AVAILABLE, "Доступно обновление!");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_AVAILABLE_HEADER, "Доступна новая версия %s");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_AVAILABLE_MSG, "Перейти на страницу загрузки?");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_DOWNLOAD, "Скачать");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_LATER, "Позже");
+        strings.put(LanguageKeys.MENU_HELP_NO_UPDATES, "Нет обновлений");
+        strings.put(LanguageKeys.MENU_HELP_NO_UPDATES_MSG, "У вас установлена последняя версия Kletka.");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_CHECK_ERROR, "Ошибка проверки обновлений");
 
         // === Меню Правка ===
         strings.put(LanguageKeys.MENU_EDIT, "Правка");
-        strings.put(LanguageKeys.MENU_EDIT_UNDO, "Отменить");
-        strings.put(LanguageKeys.MENU_EDIT_REDO, "Повторить");
+        strings.put(LanguageKeys.MENU_EDIT_UNDO_MARKER, "Отменить маркер");
+        strings.put(LanguageKeys.MENU_EDIT_REDO_MARKER, "Повторить маркер");
         strings.put(LanguageKeys.MENU_EDIT_PREFERENCES, "Настройки");
         strings.put(LanguageKeys.PREFERENCES_TITLE, "Настройки");
+
+        // ========== НАСТРОЙКИ ==========
+        strings.put(LanguageKeys.PREFERENCES_HEADER, "Настройки программы");
+        strings.put(LanguageKeys.PREFERENCES_SAVE, "Сохранить");
+        strings.put(LanguageKeys.PREFERENCES_CANCEL, "Отмена");
+        strings.put(LanguageKeys.PREFERENCES_RESET, "Сбросить");
+        strings.put(LanguageKeys.PREFERENCES_RESET_TITLE, "Сброс настроек");
+        strings.put(LanguageKeys.PREFERENCES_RESET_HEADER, "Сбросить все настройки?");
+        strings.put(LanguageKeys.PREFERENCES_RESET_CONTENT, "Все настройки будут возвращены к значениям по умолчанию. Продолжить?");
+        strings.put(LanguageKeys.PREFERENCES_RESET_SUCCESS, "Настройки сброшены к значениям по умолчанию");
+        strings.put(LanguageKeys.PREFERENCES_SAVED, "Настройки сохранены");
+        strings.put(LanguageKeys.PREFERENCES_LANGUAGE, "Язык");
+        strings.put(LanguageKeys.PREFERENCES_BOARD_THEME, "Тема доски");
+        strings.put(LanguageKeys.PREFERENCES_BOARD_SIZE, "Размер доски");
+        strings.put(LanguageKeys.PREFERENCES_COORDINATES, "Показывать координаты");
+        strings.put(LanguageKeys.PREFERENCES_FLIP_BOARD, "Перевернуть доску");
+        strings.put(LanguageKeys.PREFERENCES_SAVE_DIRECTORY, "Папка для сохранения");
+        strings.put(LanguageKeys.PREFERENCES_ENGINE, "Путь к шахматному движку");
+        strings.put(LanguageKeys.PREFERENCES_BROWSE, "Обзор...");
+        strings.put(LanguageKeys.PREFERENCES_SELECT_SAVE_DIR, "Выберите папку для сохранения");
+        strings.put(LanguageKeys.PREFERENCES_SELECT_ENGINE, "Выберите файл шахматного движка");
+        strings.put(LanguageKeys.PREFERENCES_CONFIG_PATH, "Путь к файлу настроек");
+        strings.put(LanguageKeys.PREFERENCES_OPEN_FOLDER, "Открыть папку");
+        strings.put(LanguageKeys.PREFERENCES_OPEN_FOLDER_ERROR, "Не удалось открыть папку с настройками");
 
         // === Меню Вид ===
         strings.put(LanguageKeys.MENU_VIEW, "Вид");
@@ -200,6 +237,10 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.MENU_ENGINE, "Движок");
         strings.put(LanguageKeys.MENU_ENGINE_CONFIGURE, "Настроить движок");
         strings.put(LanguageKeys.MENU_ENGINE_ANALYZE, "Показать лучший ход");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_TITLE, "Нелегальная позиция");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_HEADER, "Движок не может анализировать нелегальную позицию");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_CONTENT, "Позиция нелегальна: один или оба короля отсутствуют, \n" +
+                "или они находятся под шахом, или короли рядом.");
 
         // Диалоги вариантов
         strings.put(LanguageKeys.DIALOG_VARIATION_TITLE, "Выбор варианта");
@@ -223,6 +264,10 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.NOTATION_TOGGLE_HIDE, "Скрыть запись партии");
         strings.put(LanguageKeys.NOTATION_NO_MOVES, "Нет ходов");
         strings.put(LanguageKeys.NOTATION_NO_DATA, "Нет данных");
+        strings.put(LanguageKeys.NOTATION_NO_PGN_EXPORT, "Копирование PGN недоступно в режиме дебютной книги." +
+                "\nКнига содержит статистические данные, а не дерево вариантов в формате PGN.");
+        strings.put(LanguageKeys.NOTATION_NO_PGN_EXPORT_UNICODE, "Копирование PGN в Unicode недоступно в режиме дебютной " +
+                "книги.\nКнига содержит статистические данные, а не дерево вариантов в формате PGN.");
 
         // Игровые сообщения
         strings.put(LanguageKeys.GAME_CHECKMATE, "Мат! Победили %s");
@@ -282,6 +327,37 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.NAV_TOOLTIP_PREV, "Назад (←)");
         strings.put(LanguageKeys.NAV_TOOLTIP_NEXT, "Вперед (→)");
         strings.put(LanguageKeys.NAV_TOOLTIP_LAST, "В конец (↓)");
+
+        strings.put(LanguageKeys.NAVIGATION_MODE, "Режим навигации");
+        strings.put(LanguageKeys.NAVIGATION_MODE_PGN, "PGN");
+        strings.put(LanguageKeys.NAVIGATION_MODE_BOOK, "Книга");
+        strings.put(LanguageKeys.BOOK_MODE, "\uD83D\uDCD6 Книга");
+        strings.put(LanguageKeys.BOOK_LOADED, "Книга загружена");
+        strings.put(LanguageKeys.BOOK_NO_BOOK, "Книга не загружена");
+        strings.put(LanguageKeys.BOOK_STATS, "Статистика");
+        strings.put(LanguageKeys.BOOK_ENTRIES, "записей");
+        strings.put(LanguageKeys.BOOK_LOAD_ERROR, "Ошибка загрузки книги");
+        strings.put(LanguageKeys.BOOK_CLEARED, "Книга выгружена");
+
+        //Меню книги
+        strings.put(LanguageKeys.MENU_BOOKS, "Книги");
+        strings.put(LanguageKeys.MENU_BOOKS_LOAD, "Загрузить книгу...");
+        strings.put(LanguageKeys.MENU_BOOKS_CLEAR, "Выгрузить книгу");
+        strings.put(LanguageKeys.MENU_BOOKS_RECENT, "Последние книги");
+        strings.put(LanguageKeys.MENU_BOOKS_AVAILABLE, "Доступные книги");
+        strings.put(LanguageKeys.MENU_BOOKS_EXPORT, "Экспортировать в PGN");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO, "Информация о книге");
+        strings.put(LanguageKeys.MENU_BOOKS_NO_RECENT, "Нет недавних книг");
+        strings.put(LanguageKeys.MENU_BOOKS_NO_AVAILABLE, "Нет доступных книг");
+        strings.put(LanguageKeys.MENU_BOOKS_NO_BOOK_LOADED, "Книга не загружена");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_TITLE, "Информация о книге");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_NAME, "Название");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_MOVES, "Ходов в главной линии");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_STATUS, "Статус");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_LOADED, "Загружена");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_SIZE, "Размер");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_ENTRIES, "Записей");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_VARIATIONS, "Вариантов");
 
         // Уведомления
         strings.put(LanguageKeys.NOTIFICATION_INFO, "Информация");
@@ -364,18 +440,6 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.ROOT, "КОРЕНЬ");
         strings.put(LanguageKeys.VARIATION_DEFAULT_NAME, "Вариант");
 
-        // Короткие клавиши
-        strings.put(LanguageKeys.SHORTCUTS_CONTENT,
-                """
-                        Горячие клавиши:
-                        Ctrl+N - Новая партия
-                        Ctrl+O - Открыть PGN
-                        Ctrl+S - Сохранить PGN
-                        Ctrl+F - Перевернуть доску
-                        Ctrl+D - Поиск по базе
-                        F1 - Справка
-                        Ctrl+Q - Выход""");
-
         // ========== ENGINE MESSAGES ==========
         strings.put(LanguageKeys.ENGINE_SEND_POSITION_ERROR, "Не удалось отправить позицию");
         strings.put(LanguageKeys.ENGINE_TIMEOUT_ERROR, "Движок не ответил в течение отведённого времени");
@@ -390,6 +454,8 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.ENGINE_NOT_ANALYZED, "Движок ещё не проанализировал позицию");
         strings.put(LanguageKeys.ENGINE_ILLEGAL_MOVE, "Движок предложил нелегальный ход");
         strings.put(LanguageKeys.ENGINE_MOVE_ERROR, "Ошибка выполнения хода");
+        strings.put(LanguageKeys.ENGINE_BOOK_MODE_NO_ANALYSIS, "В режиме книги движок не может выполнять ходы");
+        strings.put(LanguageKeys.ENGINE_BOOK_MODE_NO_MOVE, "В режиме книги анализ отключен");
 
         // ========== ANALYSIS PANEL ==========
         strings.put(LanguageKeys.ANALYSIS_TITLE, "Анализ движка");
@@ -443,6 +509,7 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.SAVE_GAME_DIALOG_TITLE, "Сохранение партии");
         strings.put(LanguageKeys.SAVE_GAME_DIALOG_HEADER, "Введите информацию о партии");
         strings.put(LanguageKeys.SAVE_GAME_DIALOG_SAVE, "Сохранить");
+        strings.put(LanguageKeys.BOOK_MODE_NO_SAVE, "В режиме книги сохранение недоступно");
 
         strings.put(LanguageKeys.SAVE_GAME_PROMPT_WHITE, "Белые");
         strings.put(LanguageKeys.SAVE_GAME_PROMPT_BLACK, "Черные");
@@ -498,8 +565,8 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.ABOUT_TITLE, "О программе Kletka");
         strings.put(LanguageKeys.ABOUT_CONTENT,
                 """
-                    ♔ Kletka Chess ♔
-                    Версия: 1.0
+                    ♔ Клетка шахматный анализатор♔
+                    Версия: %s
                     Платформа: Java 17, OpenJFX
                     Библиотека: chesslib 1.3.6 (GPL v3)
                     
@@ -639,6 +706,8 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.SAVE_DIALOG_TITLE_SAVE, "💾 Сохранение партии");
         strings.put(LanguageKeys.SAVE_DIALOG_HEADER_EDIT, "Редактирование информации о партии");
         strings.put(LanguageKeys.SAVE_DIALOG_HEADER_SAVE, "Введите информацию о партии");
+        strings.put(LanguageKeys.SAVE_GAME_LOAD_HEADER, "Текущая партия не сохранена");
+        strings.put(LanguageKeys.SAVE_GAME_LOAD_CONTENT, "Вы хотите сохранить текущую партию перед загрузкой новой?");
 
         // Tabs
         strings.put(LanguageKeys.SAVE_TAB_PLAYERS, "Игроки и результат");
@@ -892,6 +961,7 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_ERROR, "Ошибка вставки: %s");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_GAMES, "📋 Вставка партий");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_START, "Начинаем вставку...");
+        strings.put(LanguageKeys.PGN_BROWSER_REFRESH_COMPLETE, "Браузер обновлен");
 
         // ========== PGN BROWSER - PROGRESS ==========
         strings.put(LanguageKeys.PGN_BROWSER_DELETING, "Удаление %d партий...");
@@ -1092,6 +1162,12 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.SHORTCUT_IMPORT_DB, "Ctrl+I - Импорт в БД");
         strings.put(LanguageKeys.SHORTCUT_SEARCH_DB, "Ctrl+Shift+F - Поиск в БД");
 
+        // ========== ГОРЯЧИЕ КЛАВИШИ - ПРАВКА ==========
+        strings.put(LanguageKeys.SHORTCUT_EDIT, "Правка");
+        strings.put(LanguageKeys.SHORTCUT_UNDO_MARKER, "Ctrl+Z - Отменить маркер");
+        strings.put(LanguageKeys.SHORTCUT_REDO_MARKER, "Ctrl+Y - Вернуть маркер");
+        strings.put(LanguageKeys.SHORTCUT_PREFERENCES, "Ctrl+Shift+O - Настройки");
+
         strings.put(LanguageKeys.SHORTCUT_CLOSE_ALL_BROWSERS, "Ctrl+Shift+W - Закрыть все браузеры");
 
         strings.put(LanguageKeys.FAILED_TOKENIZE_PGN, "Невозможно токенизировать PGN");
@@ -1123,6 +1199,12 @@ public class RuLanguage implements Language {
         shortcutsContent.append("  Ctrl+P - Расстановка позиции\n");
         shortcutsContent.append("  Alt+F4 - Выход\n");
 
+        // 📝 Правка
+        shortcutsContent.append("\n📝 Правка:\n");
+        shortcutsContent.append("  Ctrl+Z - Отменить маркер\n");
+        shortcutsContent.append("  Ctrl+Y - Вернуть маркер\n");
+        shortcutsContent.append("  Ctrl+Shift+O - Настройки\n");
+
         // 👁️ Вид
         shortcutsContent.append("\n👁️ Вид:\n");
         shortcutsContent.append("  Ctrl+F - Перевернуть доску\n");
@@ -1153,6 +1235,11 @@ public class RuLanguage implements Language {
         shortcutsContent.append("  Ctrl+Tab - Следующий браузер\n");
         shortcutsContent.append("  Ctrl+Shift+Tab - Предыдущий браузер\n");
         shortcutsContent.append("  Ctrl+W - Закрыть браузер\n");
+
+        // 📖 Книги
+        shortcutsContent.append("\n📖 Книги:\n");
+        shortcutsContent.append("  Ctrl+B - Открыть/загрузить книгу\n");
+        shortcutsContent.append("  Ctrl+Shift+B - Очистить книгу\n");
 
         // 🗄️ База данных
         shortcutsContent.append("\n🗄️ База данных:\n");

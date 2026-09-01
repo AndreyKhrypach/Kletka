@@ -511,7 +511,6 @@ public class VariationManager {
         Variation currentVar = selectedVariation;
         Variation updatedMainLine = null;
         int iteration = 0;
-        List<Variation> pathToRoot = new ArrayList<>();
 
         while (true) {
             iteration++;
@@ -688,7 +687,6 @@ public class VariationManager {
             log.trace("Updated owningVariation for all nodes in new main line");
 
             updatedMainLine = currentVar;
-            pathToRoot.add(currentVar);
 
             String forkInfo = forkNodeDesc + " → " + firstNode.getSan();
             processedForks.add(forkInfo);
@@ -1137,6 +1135,126 @@ public class VariationManager {
             namingService.updateAllVariationNames(rootVariation);
         }
     }
+
+    /**
+     * Принудительно добавляет ход как новый вариант (для движка)
+     * Создает новый вариант без проверки существования и без диалога
+     */
+    public VariationStateSnapshot forceAddMoveAsNewVariation(Move move, Piece piece, boolean isCapture,
+                                                             Piece promotionPiece,
+                                                             Variation currentVariation, ParentNode currentNode) {
+        if (move == null || currentNode == null) {
+            log.error("forceAddMoveAsNewVariation: move or currentNode is null");
+            return new VariationStateSnapshot(rootNode, rootVariation, mainLine,
+                    currentVariation, currentNode, false);
+        }
+
+        log.trace("forceAddMoveAsNewVariation - forcing new variation for move: {}", move);
+
+        // Создаем новый узел для хода
+        MoveNode newNode = new MoveNode(move, piece, isCapture, promotionPiece);
+
+        // Вычисляем абсолютный полуход
+        Board boardBefore = boardReconstructor.reconstruct(currentVariation, currentNode);
+        setAbsolutePlyForNode(newNode, boardBefore);
+
+        // Если мы в корневой позиции
+        if (currentNode.isRoot()) {
+            // Проверяем, есть ли уже варианты в корне
+            boolean hasAnyMoves = false;
+            for (Variation var : rootNode.getSubVariations()) {
+                if (var != null && !var.isEmpty()) {
+                    hasAnyMoves = true;
+                    break;
+                }
+            }
+
+            Variation newVar;
+            if (!hasAnyMoves) {
+                // Если нет ни одного хода - создаем главную линию
+                newVar = addFirstMoveAsMainLineInternal(move, piece, isCapture, promotionPiece);
+            } else {
+                // Создаем новый вариант в корне
+                newVar = new Variation("");
+                newVar.addMove(newNode);
+                newVar.setMainLine(false);
+                newVar.setParentVariation(rootVariation);
+                newVar.setParentNodeRef(rootNode);
+
+                newNode.setParent(rootNode);
+                newNode.setForkNode(rootNode);
+                newNode.setOwningVariation(newVar);
+
+                rootNode.getSubVariations().add(newVar);
+
+                // Переименовываем варианты
+                renameVariationsAtNode(rootNode, rootVariation);
+            }
+
+            updateAllVariationNames();
+
+            return new VariationStateSnapshot(rootNode, rootVariation, mainLine,
+                    newVar, newVar.getFirstNode(), true);
+        }
+
+        // Если у узла есть следующий ход - сохраняем его как отдельный вариант
+        if (currentNode.getNext() != null && !currentNode.getNext().isRoot()) {
+            ParentNode oldNext = currentNode.getNext();
+
+            // Создаем новый вариант из старого next
+            Variation oldMainVar = new Variation("~");
+            oldMainVar.setFirstNode(oldNext);
+            oldMainVar.setMainLine(currentVariation.isMainLine());
+            oldMainVar.setParentVariation(currentVariation);
+            oldMainVar.setParentNodeRef(currentNode);
+
+            // Обновляем связи для старого next
+            ParentNode current = oldNext;
+            ParentNode prev = currentNode;
+            while (current != null && !current.isRoot()) {
+                current.setParent(prev);
+                current.setForkNode(currentNode);
+                current.setOwningVariation(oldMainVar);
+                prev = current;
+                current = current.getNext();
+            }
+
+            currentNode.getSubVariations().add(oldMainVar);
+            currentNode.setNext(null); // Открепляем от основной линии
+        }
+
+        // Создаем новый вариант с ходом движка
+        Variation newVar = new Variation("");
+        newVar.addMove(newNode);
+        newVar.setMainLine(true);
+        newVar.setParentVariation(currentVariation);
+        newVar.setParentNodeRef(currentNode);
+
+        newNode.setParent(currentNode);
+        newNode.setForkNode(currentNode);
+        newNode.setOwningVariation(newVar);
+
+        currentNode.getSubVariations().add(newVar);
+
+        // Обновляем главную линию
+        if (currentVariation == this.mainLine || currentVariation.isMainLine()) {
+            this.mainLine = newVar;
+            this.mainLine.setMainLine(true);
+            this.mainLine.setName(languageManager.get(LanguageKeys.MAIN_LINE));
+        }
+
+        // Обновляем связи
+        currentNode.setNext(newNode);
+        syncForkNodeAtNode(currentNode);
+        renameVariationsAtNode(currentNode, currentVariation);
+        updateAllVariationNames();
+
+        log.trace("forceAddMoveAsNewVariation - new variation created: {}", newVar.getName());
+
+        return new VariationStateSnapshot(rootNode, rootVariation, mainLine,
+                newVar, newNode, true);
+    }
+
 
     private void setAbsolutePlyForNode(ParentNode node, Board boardBeforeMove) {
         if (node == null || node.isRoot()) return;

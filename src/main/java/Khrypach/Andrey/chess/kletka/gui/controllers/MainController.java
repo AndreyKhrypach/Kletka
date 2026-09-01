@@ -29,13 +29,16 @@ import Khrypach.Andrey.chess.kletka.database.repository.GameRepository;
 import Khrypach.Andrey.chess.kletka.database.service.PgnService;
 import Khrypach.Andrey.chess.kletka.engine.UciEngineManager;
 import Khrypach.Andrey.chess.kletka.gui.board.*;
+import Khrypach.Andrey.chess.kletka.gui.book.BookManager;
+import Khrypach.Andrey.chess.kletka.gui.book.PolyglotBookParser;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.EngineSetupDialog;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.PositionSetupDialog;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageManager;
 import Khrypach.Andrey.chess.kletka.gui.logo.LogoGenerator;
-import Khrypach.Andrey.chess.kletka.gui.menu.MenuBarFactory;
+import Khrypach.Andrey.chess.kletka.gui.menu.CustomMenuBarFactory;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.SaveGameDialog;
+import Khrypach.Andrey.chess.kletka.gui.model.NavigationMode;
 import Khrypach.Andrey.chess.kletka.gui.settings.AppPreferences;
 import Khrypach.Andrey.chess.kletka.pgn.index.PgnFileEditor;
 import Khrypach.Andrey.chess.kletka.pgn.index.PgnIndexManager;
@@ -60,6 +63,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import lombok.Getter;
 import lombok.Setter;
 import org.slf4j.Logger;
@@ -95,7 +99,8 @@ public class MainController {
     @Getter
     private final BoardSizeController sizeController;
     @Getter
-    private MenuBarFactory menuFactory;
+    @Setter
+    private CustomMenuBarFactory menuFactory;
     @Setter
     private NotationView notationView;
 
@@ -118,17 +123,16 @@ public class MainController {
 
         initPgnService();
 
-        this.menuFactory = new MenuBarFactory(this, primaryStage, sizeController);
+        this.menuFactory = new CustomMenuBarFactory(this, primaryStage, sizeController);
 
         if (engineManager == null || !engineManager.isEngineRunning()) {
             initEngine();
         }
 
-        primaryStage.setOnCloseRequest(event -> {
+        primaryStage.addEventFilter(WindowEvent.WINDOW_CLOSE_REQUEST, event -> {
             if (hasBodyChanges()) {
                 event.consume();
                 showSaveDialogBeforeNewGameWithCallback(() -> {
-                    log.info("Primary stage closing...");
                     closePgnBrowser();
                     if (engineManager != null) {
                         engineManager.stopEngine();
@@ -138,7 +142,6 @@ public class MainController {
                 return;
             }
 
-            log.info("Primary stage closing...");
             closePgnBrowser();
             if (engineManager != null) {
                 engineManager.stopEngine();
@@ -200,7 +203,7 @@ public class MainController {
         }
 
         // Если позиция нелегальная - просто сбрасываем без вопросов
-        if (!boardView.isPositionLegal()) {
+        if (boardView.isPositionIlLegal()) {
             log.debug("Illegal position detected, resetting to initial position");
             if (boardView.getNavController() != null) {
                 boardView.getNavController().resetInitialPosition();
@@ -416,6 +419,11 @@ public class MainController {
             showNotification(lang.get(DB_LOAD_ERROR));
             return;
         }
+
+        boardView.getNavController().setNavigationMode(NavigationMode.PGN);
+
+        // Очищаем книгу, если она была загружена
+        BookManager.getInstance().clearBook();
 
         try {
             String pgn = gameData.pgn();
@@ -702,6 +710,12 @@ public class MainController {
 
         log.info("Opening PGN file: {}", file.getAbsolutePath());
 
+        // Переключаем режим навигации на PGN
+        boardView.getNavController().setNavigationMode(NavigationMode.PGN);
+
+        // Очищаем книгу
+        BookManager.getInstance().clearBook();
+
         try {
             Path pgnPath = file.toPath();
 
@@ -892,7 +906,23 @@ public class MainController {
             return;
         }
 
+        if (hasBodyChanges()) {
+            boolean shouldContinue = showSaveDialogBeforeLoading();
+            if (!shouldContinue) {
+                return;
+            }
+        }
+
         try {
+            // ===== ПЕРЕКЛЮЧАЕМ РЕЖИМ НА PGN =====
+            MoveNavigationController navController = boardView.getNavController();
+            if (navController != null) {
+                navController.setNavigationMode(NavigationMode.PGN);
+            }
+
+            // Очищаем книгу
+            BookManager.getInstance().clearBook();
+
             if (gameData.isPosition()) {
                 String fen = gameData.fen();
 
@@ -911,7 +941,6 @@ public class MainController {
                         GameTree gameTree = parser.parseToGameTree(fullPgn);
 
                         if (gameTree != null && !gameTree.isEmpty()) {
-                            MoveNavigationController navController = boardView.getNavController();
                             if (navController != null) {
                                 navController.loadGameTree(
                                         gameTree.getRootNode(),
@@ -919,7 +948,6 @@ public class MainController {
                                         gameTree.getRootVariation(),
                                         gameTree.getInitialBoard()
                                 );
-
 
                                 Board fenBoard = new Board();
                                 fenBoard.loadFromFen(fen);
@@ -955,7 +983,6 @@ public class MainController {
                 return;
             }
 
-            MoveNavigationController navController = boardView.getNavController();
             if (navController != null) {
                 navController.loadGameTree(
                         gameTree.getRootNode(),
@@ -988,6 +1015,54 @@ public class MainController {
         }
 
         updateLoadedGameHash(gameData);
+    }
+
+    /**
+     * Показывает диалог сохранения перед загрузкой новой партии
+     *
+     * @return true - продолжить загрузку, false - отменить
+     */
+    private boolean showSaveDialogBeforeLoading() {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle(lang.get(SAVE_GAME_TITLE));
+        alert.setHeaderText(lang.get(SAVE_GAME_LOAD_HEADER));
+        alert.setContentText(lang.get(SAVE_GAME_LOAD_CONTENT));
+
+        ButtonType saveButton = new ButtonType(lang.get(SAVE_GAME_SAVE));
+        ButtonType noSaveButton = new ButtonType(lang.get(SAVE_GAME_DONT_SAVE));
+        ButtonType cancelButton = new ButtonType(lang.get(SAVE_GAME_CANCEL), ButtonBar.ButtonData.CANCEL_CLOSE);
+
+        alert.getButtonTypes().setAll(saveButton, noSaveButton, cancelButton);
+
+        ButtonType result = alert.showAndWait().orElse(cancelButton);
+
+        if (result == cancelButton) {
+            return false; // Отмена загрузки
+        }
+
+        if (result == saveButton) {
+            // Сохраняем текущую партию
+            SaveGameDialog dialog = new SaveGameDialog(primaryStage, boardView, notationView);
+            GameData gameData = dialog.showAndWait();
+            if (gameData != null && pgnService != null) {
+                try {
+                    pgnService.saveGame(gameData);
+                    if (notationView != null) {
+                        notationView.updateGameData(gameData);
+                    }
+                    updateGameHashes(gameData);
+                    showNotification(lang.get(LanguageKeys.PGN_SAVE_SUCCESS));
+                } catch (PgnException e) {
+                    showError(lang.get(PGN_SAVE_ERROR), e.getMessage());
+                    return false; // Ошибка сохранения - отменяем загрузку
+                }
+            } else {
+                return false; // Пользователь отменил сохранение
+            }
+        }
+
+        // Если noSaveButton - просто продолжаем
+        return true;
     }
 
     private String buildFullPgnForPosition(GameData gameData) {
@@ -1048,8 +1123,9 @@ public class MainController {
         PgnFileBrowser activeBrowser = manager.getActiveBrowser();
 
         if (activeBrowser != null && activeBrowser.isShowing()) {
+            // Устанавливаем callback перед обновлением
+            activeBrowser.setOnRefreshComplete(() -> showNotification(lang.get(LanguageKeys.MAIN_REFRESHED_MSG)));
             activeBrowser.refresh();
-            showNotification(lang.get(LanguageKeys.MAIN_REFRESHED_MSG));
         } else {
             showNotification(lang.get(LanguageKeys.MAIN_NO_ACTIVE_BROWSER_MSG));
         }
@@ -1061,6 +1137,14 @@ public class MainController {
     }
 
     public void savePgnFile(File file) {
+        // ========== БЛОКИРУЕМ СОХРАНЕНИЕ В РЕЖИМЕ КНИГИ ==========
+        MoveNavigationController navController = boardView.getNavController();
+        if (navController != null && navController.getNavigationMode() == NavigationMode.BOOK) {
+            showNotification(lang.get(BOOK_MODE_NO_SAVE));
+            return;
+        }
+        log.info(">>> savePgnFile called with file: {}", file);
+
         if (file == null) {
             FileChooser fileChooser = new FileChooser();
             fileChooser.setTitle(lang.get(MENU_FILE_SAVE_PGN));
@@ -1068,17 +1152,28 @@ public class MainController {
                     new FileChooser.ExtensionFilter("PGN files", "*.pgn")
             );
 
-            String saveDir = AppPreferences.getSaveDirectory();
-            if (saveDir != null && !saveDir.isEmpty()) {
-                File dir = new File(saveDir);
+            String lastDir = AppPreferences.getLastSaveDirectory();
+            if (lastDir != null && !lastDir.isEmpty()) {
+                File dir = new File(lastDir);
                 if (dir.exists() && dir.isDirectory()) {
                     fileChooser.setInitialDirectory(dir);
+                }
+            } else {
+                String saveDir = AppPreferences.getSaveDirectory();
+                if (saveDir != null && !saveDir.isEmpty()) {
+                    File dir = new File(saveDir);
+                    if (dir.exists() && dir.isDirectory()) {
+                        fileChooser.setInitialDirectory(dir);
+                    }
                 }
             }
 
             file = fileChooser.showSaveDialog(primaryStage);
             if (file == null) return;
-            AppPreferences.saveSaveDirectory(file.getParent());
+        }
+
+        if (file.getParent() != null) {
+            AppPreferences.saveLastSaveDirectory(file.getParent());
         }
 
         try {
@@ -1200,23 +1295,16 @@ public class MainController {
 
         alert.showAndWait().ifPresent(response -> {
             if (response == saveButton) {
+                // ========== ИСПОЛЬЗУЕМ saveGameDataWithChoice() ==========
                 SaveGameDialog dialog = new SaveGameDialog(primaryStage, boardView, notationView);
                 GameData gameData = dialog.showAndWait();
-                if (gameData != null && pgnService != null) {
-                    try {
-                        pgnService.saveGame(gameData);
-                        if (notationView != null) {
-                            notationView.updateGameData(gameData);
-                        }
-                        updateGameHashes(gameData);
-                        showNotification(lang.get(LanguageKeys.PGN_SAVE_SUCCESS));
-                    } catch (PgnException e) {
-                        showError(lang.get(PGN_SAVE_ERROR), e.getMessage());
+                if (gameData != null) {
+                    saveGameDataWithChoice(gameData);
+                    if (onComplete != null) {
+                        onComplete.run();
                     }
                 }
-                if (onComplete != null) {
-                    onComplete.run();
-                }
+                // Если пользователь отменил сохранение - onComplete не вызывается
             } else if (response == noSaveButton) {
                 startBodyHash = 0;
                 loadedFullHash = 0;
@@ -1224,6 +1312,7 @@ public class MainController {
                     onComplete.run();
                 }
             }
+            // Если cancel - ничего не делаем
         });
     }
 
@@ -1251,20 +1340,19 @@ public class MainController {
 
         alert.showAndWait().ifPresent(response -> {
             if (response == saveButton) {
+                // ========== ИСПОЛЬЗУЕМ saveGameDataWithChoice() ==========
                 SaveGameDialog dialog = new SaveGameDialog(primaryStage, boardView, notationView);
-                GameData editedGameData = dialog.showAndWait();
-
-                if (editedGameData != null) {
-                    saveGameDataWithChoice(editedGameData);
+                GameData gameData = dialog.showAndWait();
+                if (gameData != null) {
+                    saveGameDataWithChoice(gameData);
                 }
-
+                // После сохранения - сбрасываем игру
                 boardView.resetGame();
                 if (notationView != null) {
                     notationView.clearGameData();
                 }
                 startBodyHash = 0;
                 loadedFullHash = 0;
-
             } else if (response == noSaveButton) {
                 boardView.resetGame();
                 if (notationView != null) {
@@ -1273,6 +1361,7 @@ public class MainController {
                 startBodyHash = 0;
                 loadedFullHash = 0;
             }
+            // Если cancel - ничего не делаем
         });
     }
 
@@ -1298,6 +1387,14 @@ public class MainController {
     }
 
     private void saveToPgnFile(GameData gameData) {
+        // ========== БЛОКИРУЕМ СОХРАНЕНИЕ В РЕЖИМЕ КНИГИ ==========
+        MoveNavigationController navController = boardView.getNavController();
+        if (navController != null && navController.getNavigationMode() == NavigationMode.BOOK) {
+            showNotification(lang.get(BOOK_MODE_NO_SAVE));
+            return;
+        }
+
+        log.info(">>> saveToPgnFile called");
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(lang.get(LanguageKeys.MAIN_SAVE_PGN_FILE_TITLE));
         fileChooser.getExtensionFilters().add(
@@ -1307,13 +1404,23 @@ public class MainController {
         PgnBrowserManager manager = PgnBrowserManager.getInstance();
         PgnFileBrowser activeBrowser = manager.getActiveBrowser();
 
-        if (activeBrowser != null && activeBrowser.isShowing()) {
-            Path currentPath = activeBrowser.getPgnPath();
-            if (currentPath != null) {
-                File defaultFile = currentPath.toFile();
-                if (defaultFile.exists()) {
-                    fileChooser.setInitialDirectory(defaultFile.getParentFile());
-                    fileChooser.setInitialFileName(defaultFile.getName());
+        // ========== ИСПОЛЬЗУЕМ ПОСЛЕДНЮЮ ПАПКУ ==========
+        String lastDir = AppPreferences.getLastSaveDirectory();
+        if (lastDir != null && !lastDir.isEmpty()) {
+            File dir = new File(lastDir);
+            if (dir.exists() && dir.isDirectory()) {
+                fileChooser.setInitialDirectory(dir);
+            }
+        } else {
+            // Если нет последней папки - используем bases
+            if (activeBrowser != null && activeBrowser.isShowing()) {
+                Path currentPath = activeBrowser.getPgnPath();
+                if (currentPath != null) {
+                    File defaultFile = currentPath.toFile();
+                    if (defaultFile.exists()) {
+                        fileChooser.setInitialDirectory(defaultFile.getParentFile());
+                        fileChooser.setInitialFileName(defaultFile.getName());
+                    }
                 }
             }
         }
@@ -1333,6 +1440,8 @@ public class MainController {
             return;
         }
 
+        // ========== СОХРАНЯЕМ ПАПКУ ==========
+        AppPreferences.saveLastSaveDirectory(selectedFile.getParent());
         AppPreferences.saveSaveDirectory(selectedFile.getParent());
 
         try {
@@ -1399,6 +1508,12 @@ public class MainController {
     }
 
     private void saveToDatabase(GameData gameData) {
+        // ========== БЛОКИРУЕМ СОХРАНЕНИЕ В РЕЖИМЕ КНИГИ ==========
+        MoveNavigationController navController = boardView.getNavController();
+        if (navController != null && navController.getNavigationMode() == NavigationMode.BOOK) {
+            showNotification(lang.get(BOOK_MODE_NO_SAVE));
+            return;
+        }
         if (pgnService == null) {
             showNotification(lang.get(LanguageKeys.MAIN_DB_NOT_INITIALIZED_MSG));
             return;
@@ -1445,15 +1560,21 @@ public class MainController {
     }
 
     private boolean hasBodyChanges() {
-        if (notationView == null) return false;
+        if (notationView == null) {
+            log.debug("hasBodyChanges: notationView is null");
+            return false;
+        }
 
         GameData currentData = notationView.getCurrentGameData();
-        if (currentData == null) return false;
+        if (currentData == null) {
+            log.debug("hasBodyChanges: currentData is null");
+            return false;
+        }
 
         int currentBodyHash = HashUtils.calculateBodyHash(currentData);
         boolean hasChanges = currentBodyHash != startBodyHash;
 
-        log.trace("hasBodyChanges: startBodyHash={}, currentBodyHash={}, hasChanges={}",
+        log.debug("hasBodyChanges: startBodyHash={}, currentBodyHash={}, hasChanges={}",
                 startBodyHash, currentBodyHash, hasChanges);
 
         return hasChanges;
@@ -1477,6 +1598,16 @@ public class MainController {
     }
 
     public void setupPosition() {
+
+        // ========== ОСТАНАВЛИВАЕМ АНАЛИЗ ПЕРЕД РАССТАНОВКОЙ ==========
+        if (boardView.getAnalysisPanel() != null) {
+            if (boardView.getAnalysisPanel().isAnalyzingActive()) {
+                boardView.getAnalysisPanel().stopAnalysis();
+            }
+            // Очищаем оценку
+            boardView.getAnalysisPanel().clearAnalysis();
+        }
+
         PositionSetupDialog dialog = new PositionSetupDialog(primaryStage, boardView.getCurrentBoard());
         Board newBoard = dialog.showAndWait();
 
@@ -1527,6 +1658,11 @@ public class MainController {
             alert.setContentText(lang.get(POSITION_SET_SUCCESS,
                     startWithBlack ? lang.get(GAME_BLACK).toLowerCase() : lang.get(GAME_WHITE).toLowerCase()));
             alert.showAndWait();
+
+            // ========== ОБНОВЛЯЕМ ПОЗИЦИЮ В ПАНЕЛИ АНАЛИЗА ==========
+            if (boardView.getAnalysisPanel() != null) {
+                boardView.getAnalysisPanel().onPositionChanged();
+            }
         }
     }
 
@@ -1627,6 +1763,12 @@ public class MainController {
             return;
         }
 
+        // ========== ПРОВЕРКА ЛЕГАЛЬНОСТИ ==========
+        if (boardView.isPositionIlLegal()) {
+            showNotification(lang.get(ENGINE_ILLEGAL_POSITION_CONTENT));
+            return;
+        }
+
         Board currentBoard = boardView.getCurrentBoard();
         engineManager.sendPosition(currentBoard);
 
@@ -1648,62 +1790,8 @@ public class MainController {
     }
 
     public void showShortcuts() {
-        // Формируем список горячих клавиш с группировкой
-
-                // Файл
-        String shortcuts = "═══════════════════════════════════════\n" +
-                lang.get(SHORTCUT_FILE) + ":\n" +
-                "  " + lang.get(SHORTCUT_NEW_GAME) + "\n" +
-                "  " + lang.get(SHORTCUT_OPEN_PGN) + "\n" +
-                "  " + lang.get(SHORTCUT_SAVE_PGN) + "\n" +
-                "  " + lang.get(SHORTCUT_EXPORT_CURRENT) + "\n" +
-                "  " + lang.get(SHORTCUT_IMPORT_CLIPBOARD) + "\n" +
-                "  " + lang.get(SHORTCUT_SETUP_POSITION) + "\n" +
-                "  " + lang.get(SHORTCUT_EXIT) + "\n" +
-
-                // Вид
-                "\n" + lang.get(SHORTCUT_VIEW) + ":\n" +
-                "  " + lang.get(SHORTCUT_FLIP_BOARD) + "\n" +
-                "  " + lang.get(SHORTCUT_ZOOM_IN) + "\n" +
-                "  " + lang.get(SHORTCUT_ZOOM_OUT) + "\n" +
-                "  " + lang.get(SHORTCUT_ZOOM_RESET) + "\n" +
-                "  " + lang.get(SHORTCUT_TOGGLE_NOTATION) + "\n" +
-
-                // Навигация
-                "\n" + lang.get(SHORTCUT_NAVIGATION) + ":\n" +
-                "  " + lang.get(SHORTCUT_NAV_PREV) + "\n" +
-                "  " + lang.get(SHORTCUT_NAV_NEXT) + "\n" +
-                "  " + lang.get(SHORTCUT_NAV_FIRST) + "\n" +
-                "  " + lang.get(SHORTCUT_NAV_LAST) + "\n" +
-
-                // Движок
-                "\n" + lang.get(SHORTCUT_ENGINE) + ":\n" +
-                "  " + lang.get(SHORTCUT_ENGINE_MOVE) + "\n" +
-                "  " + lang.get(SHORTCUT_ENGINE_ANALYZE) + "\n" +
-                "  " + lang.get(SHORTCUT_ENGINE_CONFIGURE) + "\n" +
-
-                // PGN/Браузер
-                "\n" + lang.get(SHORTCUT_PGN) + ":\n" +
-                "  " + lang.get(SHORTCUT_OPEN_BROWSER) + "\n" +
-                "  " + lang.get(SHORTCUT_REFRESH_BROWSER) + "\n" +
-                "  " + lang.get(SHORTCUT_NEXT_GAME) + "\n" +
-                "  " + lang.get(SHORTCUT_PREV_GAME) + "\n" +
-                "  " + lang.get(SHORTCUT_NEXT_BROWSER) + "\n" +
-                "  " + lang.get(SHORTCUT_PREV_BROWSER) + "\n" +
-                "  " + lang.get(SHORTCUT_CLOSE_BROWSER) + "\n" +
-
-                // База данных
-                "\n" + lang.get(SHORTCUT_DATABASE) + ":\n" +
-                "  " + lang.get(SHORTCUT_CONNECT_DB) + "\n" +
-                "  " + lang.get(SHORTCUT_IMPORT_DB) + "\n" +
-                "  " + lang.get(SHORTCUT_SEARCH_DB) + "\n" +
-
-                // Окна
-                "\n" + lang.get(SHORTCUT_WINDOWS) + ":\n" +
-                "  " + lang.get(SHORTCUT_CLOSE_ALL_BROWSERS) + "\n" +
-                "\n═══════════════════════════════════════";
-
-        // Показываем диалог с информацией
+        // Берем готовую строку из языковых файлов (уже содержит все разделы)
+        String shortcuts = lang.get(SHORTCUTS_CONTENT);
         showInfo(lang.get(SHORTCUTS_TITLE), shortcuts);
     }
 
@@ -1718,7 +1806,10 @@ public class MainController {
         Group logo = LogoGenerator.createLogo(300, 225);
         content.getChildren().add(logo);
 
-        Label infoLabel = new Label(lang.get(ABOUT_CONTENT));
+        String version = getVersion();
+        String aboutText = String.format(lang.get(ABOUT_CONTENT), version);
+
+        Label infoLabel = new Label(aboutText);
         infoLabel.setWrapText(true);
         infoLabel.setStyle("-fx-font-size: 12px;");
         content.getChildren().add(infoLabel);
@@ -1726,6 +1817,190 @@ public class MainController {
         dialog.getDialogPane().setContent(content);
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
         dialog.showAndWait();
+    }
+
+    /**
+     * Открывает диалог выбора Polyglot книги
+     */
+    public void openPolyglotBook() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle(lang.get(LanguageKeys.MENU_BOOKS_LOAD));
+        fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Polyglot Book", "*.bin")
+        );
+
+        // Устанавливаем начальную директорию
+        String bookDir = AppPreferences.getBookDirectory();
+        if (bookDir != null && !bookDir.isEmpty()) {
+            File dir = new File(bookDir);
+            if (dir.exists() && dir.isDirectory()) {
+                fileChooser.setInitialDirectory(dir);
+            }
+        }
+
+        File file = fileChooser.showOpenDialog(primaryStage);
+        if (file != null) {
+            // Сохраняем директорию
+            AppPreferences.saveBookDirectory(file.getParent());
+            loadPolyglotBook(file);
+        }
+    }
+
+    /**
+     * Загружает Polyglot книгу
+     */
+    public void loadPolyglotBook(File bookFile) {
+        if (bookFile == null) {
+            return;
+        }
+
+        try {
+            // Проверяем изменения в текущей партии
+            if (hasBodyChanges()) {
+                boolean shouldContinue = showSaveDialogBeforeLoading();
+                if (!shouldContinue) {
+                    return;
+                }
+            }
+
+            // ===== ЗАГРУЖАЕМ КНИГУ ЧЕРЕЗ BookManager =====
+            BookManager bookManager = BookManager.getInstance();
+            boolean loaded = bookManager.loadBook(bookFile.toPath());
+
+            if (!loaded) {
+                showNotification(lang.get(LanguageKeys.BOOK_LOAD_ERROR));
+                return;
+            }
+
+            bookManager.addToRecent(bookFile.getPath());
+            AppPreferences.saveRecentBook(bookFile.getPath());
+
+            if (menuFactory != null) {
+                menuFactory.updateBooksMenu();
+            }
+
+            // Получаем дерево и парсер из BookManager
+            GameTree bookTree = bookManager.getCurrentBookTree();
+            PolyglotBookParser parser = bookManager.getCurrentParser();
+
+            if (bookTree == null || bookTree.isEmpty()) {
+                showNotification(lang.get(LanguageKeys.BOOK_LOAD_ERROR));
+                return;
+            }
+
+            // ===== ПЕРЕДАЁМ ПАРСЕР В НАВИГАТОР =====
+            boardView.getNavController().setBookParser(parser);
+            bookManager.setCurrentBookPath(bookFile.toPath());
+            bookManager.setCurrentBookTree(bookTree);
+            bookManager.setBookLoaded(true);
+            bookManager.addToRecent(bookFile.getPath());
+            AppPreferences.saveRecentBook(bookFile.getPath());
+
+            // Загружаем дерево в навигатор
+            boardView.getNavController().loadGameTree(
+                    bookTree.getRootNode(),
+                    bookTree.getMainLine(),
+                    bookTree.getRootVariation(),
+                    bookTree.getInitialBoard()
+            );
+
+            // Устанавливаем режим книги
+            boardView.getNavController().setNavigationMode(NavigationMode.BOOK);
+
+            boardView.requestFocusOnScene();
+
+            // Обновляем отображение
+            boardView.refreshBoard();
+            notationView.refreshFromMainLine();
+            notationView.updateNotationDisplayWithVisitor();
+
+            // Обновляем заголовок
+            String bookName = bookFile.getName();
+            primaryStage.setTitle(lang.get(APP_TITLE) + " - " + bookName + " " + lang.get(LanguageKeys.BOOK_MODE));
+
+            // Показываем уведомление
+            String message = String.format(
+                    lang.get(LanguageKeys.BOOK_LOADED),
+                    bookName,
+                    parser.getTotalEntries()
+            );
+            showNotification(message);
+
+            // Обновляем индикатор режима
+            boardView.updateNavigationModeIndicator(NavigationMode.BOOK);
+
+            // Останавливаем анализ
+            if (boardView.getAnalysisPanel() != null &&
+                    boardView.getAnalysisPanel().isAnalyzingActive()) {
+                boardView.getAnalysisPanel().stopAnalysis();
+            }
+
+        } catch (Exception e) {
+            log.error("Failed to load Polyglot book", e);
+            showError(lang.get(LanguageKeys.BOOK_LOAD_ERROR), e.getMessage());
+        }
+    }
+
+    /**
+     * Очищает загруженную книгу и возвращается в PGN режим
+     */
+    public void clearBook() {
+        // 1. Останавливаем анализ
+        if (boardView.getAnalysisPanel() != null &&
+                boardView.getAnalysisPanel().isAnalyzingActive()) {
+            boardView.getAnalysisPanel().stopAnalysis();
+        }
+
+        // 2. Очищаем книгу из менеджера
+        BookManager.getInstance().clearBook();
+
+        if (menuFactory != null) {
+            menuFactory.updateBooksMenu();
+        }
+
+        // 3. Переключаем режим на PGN
+        if (boardView.getNavController() != null) {
+            boardView.getNavController().setNavigationMode(NavigationMode.PGN);
+            boardView.getNavController().setBookParser(null); // ← Убираем парсер
+            boardView.updateNavigationModeIndicator(NavigationMode.PGN);
+        }
+
+        // 4. Сбрасываем доску в начальную позицию
+        resetGame();
+
+        // 5. Очищаем нотацию
+        if (notationView != null) {
+            notationView.clearGameData();
+            notationView.refreshDisplay();
+        }
+
+        // 6. Восстанавливаем заголовок
+        primaryStage.setTitle(lang.get(APP_TITLE));
+
+        // 7. Обновляем индикатор режима
+        boardView.updateNavigationModeIndicator(NavigationMode.PGN);
+
+        // 8. Показываем уведомление
+        showNotification(lang.get(LanguageKeys.BOOK_CLEARED));
+    }
+
+    /**
+     * Получает версию программы из version.properties
+     */
+    private String getVersion() {
+        try {
+            java.util.Properties props = new java.util.Properties();
+            java.io.InputStream is = getClass().getResourceAsStream("/version.properties");
+            if (is != null) {
+                props.load(is);
+                String version = props.getProperty("version", "1.1.0");
+                log.debug("Version loaded: {}", version);
+                return version;
+            }
+        } catch (Exception e) {
+            log.warn("Failed to load version.properties: {}", e.getMessage());
+        }
+        return "1.1.0";
     }
 
     private void showInfo(String title, String content) {

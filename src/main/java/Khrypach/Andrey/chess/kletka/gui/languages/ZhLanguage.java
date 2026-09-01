@@ -176,13 +176,50 @@ public class ZhLanguage implements Language {
         // ========== HELP MENU ==========
         strings.put(LanguageKeys.MENU_HELP_SHORTCUTS, "快捷键");
         strings.put(LanguageKeys.MENU_HELP_ABOUT, "关于");
+        strings.put(LanguageKeys.MENU_HELP_GITHUB, "GitHub");
+        strings.put(LanguageKeys.MENU_HELP_CHECK_UPDATES, "检查更新");
+        strings.put(LanguageKeys.MENU_HELP_GITHUB_ERROR, "无法打开 GitHub 页面");
+        strings.put(LanguageKeys.MENU_HELP_CHECKING_UPDATES, "正在检查更新...");
+        strings.put(LanguageKeys.MENU_HELP_CHECKING_UPDATES_MSG, "正在检查新版本...");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_AVAILABLE, "有更新！");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_AVAILABLE_HEADER, "新版本 %s 可用");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_AVAILABLE_MSG, "前往下载页面？");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_DOWNLOAD, "下载");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_LATER, "稍后");
+        strings.put(LanguageKeys.MENU_HELP_NO_UPDATES, "没有更新");
+        strings.put(LanguageKeys.MENU_HELP_NO_UPDATES_MSG, "您已安装最新版本的 Kletka。");
+        strings.put(LanguageKeys.MENU_HELP_UPDATE_CHECK_ERROR, "检查更新失败");
 
         // ========== EDIT MENU ==========
         strings.put(LanguageKeys.MENU_EDIT, "编辑");
-        strings.put(LanguageKeys.MENU_EDIT_UNDO, "撤销");
-        strings.put(LanguageKeys.MENU_EDIT_REDO, "重做");
+        strings.put(LanguageKeys.MENU_EDIT_UNDO_MARKER, "撤消标记");
+        strings.put(LanguageKeys.MENU_EDIT_REDO_MARKER, "恢复标记");
         strings.put(LanguageKeys.MENU_EDIT_PREFERENCES, "偏好设置");
         strings.put(LanguageKeys.PREFERENCES_TITLE, "偏好设置");
+
+        // ========== SETTINGS ==========
+        strings.put(LanguageKeys.PREFERENCES_HEADER, "程序设置");
+        strings.put(LanguageKeys.PREFERENCES_SAVE, "保存");
+        strings.put(LanguageKeys.PREFERENCES_CANCEL, "取消");
+        strings.put(LanguageKeys.PREFERENCES_RESET, "重置");
+        strings.put(LanguageKeys.PREFERENCES_RESET_TITLE, "重置设置");
+        strings.put(LanguageKeys.PREFERENCES_RESET_HEADER, "重置所有设置？");
+        strings.put(LanguageKeys.PREFERENCES_RESET_CONTENT, "所有设置将恢复为默认值。继续？");
+        strings.put(LanguageKeys.PREFERENCES_RESET_SUCCESS, "设置已重置为默认值");
+        strings.put(LanguageKeys.PREFERENCES_SAVED, "设置已保存");
+        strings.put(LanguageKeys.PREFERENCES_LANGUAGE, "语言");
+        strings.put(LanguageKeys.PREFERENCES_BOARD_THEME, "棋盘主题");
+        strings.put(LanguageKeys.PREFERENCES_BOARD_SIZE, "棋盘大小");
+        strings.put(LanguageKeys.PREFERENCES_COORDINATES, "显示坐标");
+        strings.put(LanguageKeys.PREFERENCES_FLIP_BOARD, "翻转棋盘");
+        strings.put(LanguageKeys.PREFERENCES_SAVE_DIRECTORY, "保存目录");
+        strings.put(LanguageKeys.PREFERENCES_ENGINE, "引擎路径");
+        strings.put(LanguageKeys.PREFERENCES_BROWSE, "浏览...");
+        strings.put(LanguageKeys.PREFERENCES_SELECT_SAVE_DIR, "选择保存目录");
+        strings.put(LanguageKeys.PREFERENCES_SELECT_ENGINE, "选择国际象棋引擎文件");
+        strings.put(LanguageKeys.PREFERENCES_CONFIG_PATH, "配置文件路径");
+        strings.put(LanguageKeys.PREFERENCES_OPEN_FOLDER, "打开文件夹");
+        strings.put(LanguageKeys.PREFERENCES_OPEN_FOLDER_ERROR, "无法打开设置文件夹");
 
         // ========== VIEW MENU ==========
         strings.put(LanguageKeys.MENU_VIEW, "视图");
@@ -197,6 +234,10 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.MENU_ENGINE, "引擎");
         strings.put(LanguageKeys.MENU_ENGINE_CONFIGURE, "配置引擎");
         strings.put(LanguageKeys.MENU_ENGINE_ANALYZE, "显示最佳着法");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_TITLE, "非法局面");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_HEADER, "引擎无法分析非法局面");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_CONTENT, "位置不合法：一个或两个王缺失，\n" +
+                "或者它们被将军，或者王相邻。");
 
         // ========== VARIATION DIALOGS ==========
         strings.put(LanguageKeys.DIALOG_VARIATION_TITLE, "选择变着");
@@ -220,6 +261,13 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.NOTATION_TOGGLE_HIDE, "隐藏对局记录");
         strings.put(LanguageKeys.NOTATION_NO_MOVES, "没有着法");
         strings.put(LanguageKeys.NOTATION_NO_DATA, "没有数据");
+        strings.put(LanguageKeys.NOTATION_NO_PGN_EXPORT,
+                "PGN复制在开局库模式下不可用。\n" +
+                        "开局库包含统计数据，而非PGN格式的变例树。");
+
+        strings.put(LanguageKeys.NOTATION_NO_PGN_EXPORT_UNICODE,
+                "Unicode PGN复制在开局库模式下不可用。\n" +
+                        "开局库包含统计数据，而非PGN格式的变例树。");
 
         // ========== GAME MESSAGES ==========
         strings.put(LanguageKeys.GAME_CHECKMATE, "将杀! %s获胜");
@@ -279,6 +327,37 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.NAV_TOOLTIP_PREV, "上一步 (←)");
         strings.put(LanguageKeys.NAV_TOOLTIP_NEXT, "下一步 (→)");
         strings.put(LanguageKeys.NAV_TOOLTIP_LAST, "最后一步 (↓)");
+
+        strings.put(LanguageKeys.NAVIGATION_MODE, "导航模式");
+        strings.put(LanguageKeys.NAVIGATION_MODE_PGN, "PGN");
+        strings.put(LanguageKeys.NAVIGATION_MODE_BOOK, "书籍");
+        strings.put(LanguageKeys.BOOK_MODE, "\uD83D\uDCD6 书籍");
+        strings.put(LanguageKeys.BOOK_LOADED, "书籍已加载");
+        strings.put(LanguageKeys.BOOK_NO_BOOK, "未加载书籍");
+        strings.put(LanguageKeys.BOOK_STATS, "统计");
+        strings.put(LanguageKeys.BOOK_ENTRIES, "条目");
+        strings.put(LanguageKeys.BOOK_LOAD_ERROR, "加载书籍失败");
+        strings.put(LanguageKeys.BOOK_CLEARED, "书籍已清除");
+
+        //Меню книги
+        strings.put(LanguageKeys.MENU_BOOKS, "书籍");
+        strings.put(LanguageKeys.MENU_BOOKS_LOAD, "加载书籍...");
+        strings.put(LanguageKeys.MENU_BOOKS_CLEAR, "清除书籍");
+        strings.put(LanguageKeys.MENU_BOOKS_RECENT, "最近书籍");
+        strings.put(LanguageKeys.MENU_BOOKS_AVAILABLE, "可用书籍");
+        strings.put(LanguageKeys.MENU_BOOKS_EXPORT, "导出为 PGN");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO, "书籍信息");
+        strings.put(LanguageKeys.MENU_BOOKS_NO_RECENT, "没有最近的书籍");
+        strings.put(LanguageKeys.MENU_BOOKS_NO_AVAILABLE, "没有可用的书籍");
+        strings.put(LanguageKeys.MENU_BOOKS_NO_BOOK_LOADED, "未加载书籍");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_TITLE, "书籍信息");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_NAME, "名称");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_MOVES, "主线路步数");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_STATUS, "状态");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_LOADED, "已加载");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_SIZE, "大小");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_ENTRIES, "条目数");
+        strings.put(LanguageKeys.MENU_BOOKS_INFO_VARIATIONS, "变例数");
 
         // ========== NOTIFICATIONS ==========
         strings.put(LanguageKeys.NOTIFICATION_INFO, "信息");
@@ -354,18 +433,6 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.ROOT, "根");
         strings.put(LanguageKeys.VARIATION_DEFAULT_NAME, "变着");
 
-        // ========== SHORTCUTS ==========
-        strings.put(LanguageKeys.SHORTCUTS_CONTENT,
-                """
-                        快捷键:
-                        Ctrl+N - 新对局
-                        Ctrl+O - 打开PGN
-                        Ctrl+S - 保存PGN
-                        Ctrl+F - 翻转棋盘
-                        Ctrl+D - 搜索数据库
-                        F1 - 帮助
-                        Ctrl+Q - 退出""");
-
         // ========== ENGINE MESSAGES ==========
         strings.put(LanguageKeys.ENGINE_SEND_POSITION_ERROR, "发送局面失败");
         strings.put(LanguageKeys.ENGINE_TIMEOUT_ERROR, "引擎在限定时间内未响应");
@@ -380,6 +447,8 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.ENGINE_NOT_ANALYZED, "引擎尚未分析此局面");
         strings.put(LanguageKeys.ENGINE_ILLEGAL_MOVE, "引擎建议非法着法");
         strings.put(LanguageKeys.ENGINE_MOVE_ERROR, "执行着法错误");
+        strings.put(LanguageKeys.ENGINE_BOOK_MODE_NO_ANALYSIS, "在棋谱模式下引擎不能走棋");
+        strings.put(LanguageKeys.ENGINE_BOOK_MODE_NO_MOVE, "在棋谱模式下分析被禁用");
 
         // ========== ANALYSIS PANEL ==========
         strings.put(LanguageKeys.ANALYSIS_TITLE, "引擎分析");
@@ -433,6 +502,7 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.SAVE_GAME_DIALOG_TITLE, "保存对局");
         strings.put(LanguageKeys.SAVE_GAME_DIALOG_HEADER, "输入对局信息");
         strings.put(LanguageKeys.SAVE_GAME_DIALOG_SAVE, "保存");
+        strings.put(LanguageKeys.BOOK_MODE_NO_SAVE, "在棋谱模式下无法保存");
 
         strings.put(LanguageKeys.SAVE_GAME_PROMPT_WHITE, "白方");
         strings.put(LanguageKeys.SAVE_GAME_PROMPT_BLACK, "黑方");
@@ -489,8 +559,8 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.ABOUT_TITLE, "关于 Kletka");
         strings.put(LanguageKeys.ABOUT_CONTENT,
                 """
-                    ♔ Kletka Chess ♔
-                    版本: 1.0
+                    ♔ Kletka 国际象棋分析器 ♔
+                    版本: %s
                     平台: Java 17, OpenJFX
                     库: chesslib 1.3.6 (GPL v3)
                     
@@ -624,6 +694,8 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.SAVE_DIALOG_TITLE_SAVE, "💾 保存对局");
         strings.put(LanguageKeys.SAVE_DIALOG_HEADER_EDIT, "编辑对局信息");
         strings.put(LanguageKeys.SAVE_DIALOG_HEADER_SAVE, "输入对局信息");
+        strings.put(LanguageKeys.SAVE_GAME_LOAD_HEADER, "当前对局未保存");
+        strings.put(LanguageKeys.SAVE_GAME_LOAD_CONTENT, "加载新对局前是否保存当前对局？");
 
         strings.put(LanguageKeys.SAVE_TAB_PLAYERS, "棋手与结果");
         strings.put(LanguageKeys.SAVE_TAB_TOURNAMENT, "赛事");
@@ -864,6 +936,8 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_ERROR, "粘贴错误: %s");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_GAMES, "📋 粘贴对局");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_START, "开始粘贴...");
+        strings.put(LanguageKeys.PGN_BROWSER_REFRESH_COMPLETE, "浏览器已刷新");
+
         strings.put(LanguageKeys.PGN_BROWSER_PASTE_PARTIAL, "已粘贴对局: 成功 - %d, 总计 - %d, 失败 - %d");
         strings.put(LanguageKeys.PGN_BROWSER_PASTE_WRITING, "正在粘贴对局...");
         strings.put(LanguageKeys.PGN_BROWSER_PASTE_READING_PROGRESS,  "正在读取对局以粘贴: %d, %d");
@@ -1065,6 +1139,12 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.SHORTCUT_IMPORT_DB, "Ctrl+I - 导入数据库");
         strings.put(LanguageKeys.SHORTCUT_SEARCH_DB, "Ctrl+Shift+F - 搜索数据库");
 
+        // ========== 快捷键 - 编辑 ==========
+        strings.put(LanguageKeys.SHORTCUT_EDIT, "编辑");
+        strings.put(LanguageKeys.SHORTCUT_UNDO_MARKER, "Ctrl+Z - 撤消标记");
+        strings.put(LanguageKeys.SHORTCUT_REDO_MARKER, "Ctrl+Y - 恢复标记");
+        strings.put(LanguageKeys.SHORTCUT_PREFERENCES, "Ctrl+Shift+O - 设置");
+
         strings.put(LanguageKeys.SHORTCUT_CLOSE_ALL_BROWSERS, "Ctrl+Shift+W - 关闭所有浏览器");
         strings.put(LanguageKeys.SHORTCUT_MINIMIZE_BROWSER, "最小化浏览器");
         strings.put(LanguageKeys.SHORTCUT_MAXIMIZE_BROWSER, "最大化浏览器");
@@ -1086,36 +1166,48 @@ public class ZhLanguage implements Language {
 
     private static StringBuilder createShortcutsContent() {
         StringBuilder shortcutsContent = new StringBuilder();
+
+        // 📁 文件
         shortcutsContent.append("═══════════════════════════════════════\n");
         shortcutsContent.append("📁 文件:\n");
-        shortcutsContent.append("  Ctrl+N - 新对局\n");
-        shortcutsContent.append("  Ctrl+O - 打开PGN\n");
-        shortcutsContent.append("  Ctrl+S - 保存PGN\n");
+        shortcutsContent.append("  Ctrl+N - 新建对局\n");
+        shortcutsContent.append("  Ctrl+O - 打开 PGN\n");
+        shortcutsContent.append("  Ctrl+S - 保存 PGN\n");
         shortcutsContent.append("  Ctrl+E - 导出当前对局\n");
         shortcutsContent.append("  Ctrl+Shift+V - 从剪贴板导入\n");
-        shortcutsContent.append("  Ctrl+P - 设置局面\n");
+        shortcutsContent.append("  Ctrl+P - 摆盘\n");
         shortcutsContent.append("  Alt+F4 - 退出\n");
 
+        // 📝 编辑
+        shortcutsContent.append("\n📝 编辑:\n");
+        shortcutsContent.append("  Ctrl+Z - 撤销标记\n");
+        shortcutsContent.append("  Ctrl+Y - 重做标记\n");
+        shortcutsContent.append("  Ctrl+Shift+O - 偏好设置\n");
+
+        // 👁️ 视图
         shortcutsContent.append("\n👁️ 视图:\n");
         shortcutsContent.append("  Ctrl+F - 翻转棋盘\n");
         shortcutsContent.append("  Ctrl+= - 放大\n");
         shortcutsContent.append("  Ctrl+- - 缩小\n");
         shortcutsContent.append("  Ctrl+0 - 重置缩放\n");
-        shortcutsContent.append("  H - 切换记谱\n");
+        shortcutsContent.append("  H - 显示/隐藏记谱\n");
 
+        // 🧭 导航
         shortcutsContent.append("\n🧭 导航:\n");
         shortcutsContent.append("  ← - 上一步\n");
         shortcutsContent.append("  → - 下一步\n");
         shortcutsContent.append("  ↑ - 第一步\n");
         shortcutsContent.append("  ↓ - 最后一步\n");
 
+        // ⚙️ 引擎
         shortcutsContent.append("\n⚙️ 引擎:\n");
-        shortcutsContent.append("  Space - 引擎走棋\n");
+        shortcutsContent.append("  Space - 引擎走法\n");
         shortcutsContent.append("  Shift+Enter - 切换分析\n");
         shortcutsContent.append("  Ctrl+Shift+E - 配置引擎\n");
 
+        // 📚 PGN/浏览器
         shortcutsContent.append("\n📚 PGN/浏览器:\n");
-        shortcutsContent.append("  Ctrl+B - 打开PGN浏览器\n");
+        shortcutsContent.append("  Ctrl+B - 打开 PGN 浏览器\n");
         shortcutsContent.append("  Ctrl+R - 刷新浏览器\n");
         shortcutsContent.append("  F11 - 下一局\n");
         shortcutsContent.append("  Ctrl+F11 - 上一局\n");
@@ -1123,11 +1215,18 @@ public class ZhLanguage implements Language {
         shortcutsContent.append("  Ctrl+Shift+Tab - 上一个浏览器\n");
         shortcutsContent.append("  Ctrl+W - 关闭浏览器\n");
 
+        // 📖 开局库
+        shortcutsContent.append("\n📖 开局库:\n");
+        shortcutsContent.append("  Ctrl+B - 加载开局库\n");
+        shortcutsContent.append("  Ctrl+Shift+B - 清除开局库\n");
+
+        // 🗄️ 数据库
         shortcutsContent.append("\n🗄️ 数据库:\n");
         shortcutsContent.append("  Ctrl+D - 连接数据库\n");
-        shortcutsContent.append("  Ctrl+I - 导入数据库\n");
+        shortcutsContent.append("  Ctrl+I - 导入到数据库\n");
         shortcutsContent.append("  Ctrl+Shift+F - 搜索数据库\n");
 
+        // 🪟 窗口
         shortcutsContent.append("\n🪟 窗口:\n");
         shortcutsContent.append("  Ctrl+Shift+W - 关闭所有浏览器\n");
 

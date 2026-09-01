@@ -232,7 +232,7 @@ public class SanGenerator {
     /**
      * Подсчитывает количество фигур, атакующих короля, используя рефлексию
      */
-    private static int countAttackersViaReflection(Board board, Square kingSquare, Side attackerSide) {
+    public static int countAttackersViaReflection(Board board, Square kingSquare, Side attackerSide) {
         try {
             java.lang.reflect.Method method = Board.class.getDeclaredMethod(
                     "squareAttackedBy",
