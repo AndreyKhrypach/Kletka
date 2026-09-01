@@ -131,7 +131,6 @@ public class ChessBoardView extends Application {
     @Setter
     private GridPane currentBoardGrid;
     private final Map<String, StackPane> squareMap = new HashMap<>();
-    private final Map<String, Pane> crossMap = new HashMap<>();
     private Square highlightedSquare = null;
 
     /**
@@ -231,32 +230,9 @@ public class ChessBoardView extends Application {
         primaryStage.setResizable(true);
 
         sizeController.tileSizeProperty().addListener((obs, oldVal, newVal) -> {
-            int newSize = newVal.intValue();
 
             // Обновляем tileSize в самом BoardView
-            tileSize = newSize;
-
-            // Обновляем крестики
-            for (Map.Entry<String, Pane> entry : crossMap.entrySet()) {
-                Pane container = entry.getValue();
-                if (container != null) {
-                    container.setTranslateX(newSize / 2.0);
-                    container.setTranslateY(newSize / 2.0);
-                    if (container.getChildren().size() >= 2) {
-                        double halfSize = newSize * 0.35;
-                        javafx.scene.shape.Line line1 = (javafx.scene.shape.Line) container.getChildren().get(0);
-                        javafx.scene.shape.Line line2 = (javafx.scene.shape.Line) container.getChildren().get(1);
-                        line1.setStartX(-halfSize);
-                        line1.setStartY(-halfSize);
-                        line1.setEndX(halfSize);
-                        line1.setEndY(halfSize);
-                        line2.setStartX(halfSize);
-                        line2.setStartY(-halfSize);
-                        line2.setEndX(-halfSize);
-                        line2.setEndY(halfSize);
-                    }
-                }
-            }
+            tileSize = newVal.intValue();
 
             // ========== ГЛАВНОЕ: обновить доску ==========
             Platform.runLater(() -> {
@@ -737,10 +713,15 @@ public class ChessBoardView extends Application {
             markerOverlay = new MarkerOverlay(coachTools);
         }
         markerOverlay.setBoardContainer(boardAndNav);
+
+        // ========== ДОБАВЛЯЕМ ОВЕРЛЕЙ ПОВЕРХ ВСЕГО ==========
         boardStack.getChildren().add(markerOverlay);
         StackPane.setAlignment(markerOverlay, Pos.TOP_LEFT);
         markerOverlay.prefWidthProperty().bind(boardAndNav.widthProperty());
         markerOverlay.prefHeightProperty().bind(boardAndNav.heightProperty());
+
+        // ========== ВАЖНО: ПОДНИМАЕМ ОВЕРЛЕЙ НАВЕРХ ==========
+        markerOverlay.toFront();
 
         anchorPane = new AnchorPane();
         anchorPane.getChildren().add(coachTools);
@@ -1392,9 +1373,9 @@ public class ChessBoardView extends Application {
     public boolean isPositionIlLegal() {
         if (chessBoard == null) return true;
 
-        // 1. Проверяем наличие обоих королей
-        boolean hasWhiteKing = false;
-        boolean hasBlackKing = false;
+        // 1. Проверяем наличие королей (ровно по одному каждого цвета)
+        int whiteKingCount = 0;
+        int blackKingCount = 0;
         Square whiteKingSquare = null;
         Square blackKingSquare = null;
 
@@ -1403,18 +1384,20 @@ public class ChessBoardView extends Application {
                 Square square = Square.squareAt(rank * 8 + file);
                 Piece piece = chessBoard.getPiece(square);
                 if (piece == Piece.WHITE_KING) {
-                    hasWhiteKing = true;
+                    whiteKingCount++;
                     whiteKingSquare = square;
                 }
                 if (piece == Piece.BLACK_KING) {
-                    hasBlackKing = true;
+                    blackKingCount++;
                     blackKingSquare = square;
                 }
             }
         }
 
-        if (!hasWhiteKing || !hasBlackKing) {
-            log.debug("Position illegal: missing a king");
+        // ========== ПРОВЕРКА: РОВНО ПО ОДНОМУ КОРОЛЮ ==========
+        if (whiteKingCount != 1 || blackKingCount != 1) {
+            log.debug("Position illegal: incorrect king count - white={}, black={}",
+                    whiteKingCount, blackKingCount);
             return true;
         }
 
@@ -1428,7 +1411,27 @@ public class ChessBoardView extends Application {
             }
         }
 
-        // 3. Проверяем шахи с учетом стороны хода
+        // 3. Проверяем пешки на первой и последней линиях
+        for (int file = 0; file < 8; file++) {
+            Square rank1 = Square.squareAt(file);  // 1-я линия (rank 0)
+            Square rank8 = Square.squareAt(7 * 8 + file);  // 8-я линия (rank 7)
+
+            Piece piece1 = chessBoard.getPiece(rank1);
+            Piece piece8 = chessBoard.getPiece(rank8);
+
+            // Белые пешки не могут быть на 8-й линии
+            if (piece1 == Piece.WHITE_PAWN || piece8 == Piece.WHITE_PAWN) {
+                log.debug("Position illegal: white pawn on 1st or 8th rank");
+                return true;
+            }
+            // Черные пешки не могут быть на 1-й линии
+            if (piece1 == Piece.BLACK_PAWN || piece8 == Piece.BLACK_PAWN) {
+                log.debug("Position illegal: black pawn on 1st or 8th rank");
+                return true;
+            }
+        }
+
+        // 4. Проверяем шахи с учетом стороны хода
         try {
             Side sideToMove = chessBoard.getSideToMove();
             int whiteAttackers = 0;
@@ -1442,32 +1445,27 @@ public class ChessBoardView extends Application {
                 blackAttackers = countAttackersViaReflection(chessBoard, blackKingSquare, Side.WHITE);
             }
 
-            // Если оба короля под шахом - позиция нелегальна (это уже покрыто предыдущей проверкой,
-            // но оставляем для надежности)
+            // Если оба короля под шахом - позиция нелегальна
             if (whiteAttackers > 0 && blackAttackers > 0) {
                 log.debug("Position illegal: both kings are in check");
                 return true;
             }
 
-            // ========== ПРОВЕРКА НА ТРОЙНОЙ ШАХ ==========
+            // Проверка на тройной шах
             if (whiteAttackers > 2 || blackAttackers > 2) {
                 log.debug("Position illegal: triple+ check detected! whiteAttackers={}, blackAttackers={}",
                         whiteAttackers, blackAttackers);
                 return true;
             }
 
-            // ========== ГЛАВНОЕ: ПРОВЕРКА С УЧЕТОМ СТОРОНЫ ХОДА ==========
-            // Если ход белых - черный король НЕ должен быть под шахом
-            // Если ход черных - белый король НЕ должен быть под шахом
+            // Проверка с учетом стороны хода
             if (sideToMove == Side.WHITE) {
-                // Ходят белые - проверяем, что черный король не под шахом
                 if (blackAttackers > 0) {
                     log.debug("Position illegal: white to move, but black king is in check (attackers={})",
                             blackAttackers);
                     return true;
                 }
-            } else { // sideToMove == Side.BLACK
-                // Ходят черные - проверяем, что белый король не под шахом
+            } else {
                 if (whiteAttackers > 0) {
                     log.debug("Position illegal: black to move, but white king is in check (attackers={})",
                             whiteAttackers);
@@ -1717,73 +1715,6 @@ public class ChessBoardView extends Application {
 
     public StackPane getSquarePane(String squareName) {
         return squareMap.get(squareName);
-    }
-
-    public void addCrossToSquare(String squareName, Color color) {
-        if (crossMap.containsKey(squareName)) {
-            updateCrossColor(squareName, color);
-            return;
-        }
-
-        StackPane cell = squareMap.get(squareName);
-        if (cell == null) return;
-
-        Pane crossContainer = new Pane();
-        crossContainer.setMouseTransparent(true);
-
-        // Устанавливаем размеры контейнера
-        crossContainer.setPrefSize(tileSize, tileSize);
-        crossContainer.setMaxSize(tileSize, tileSize);
-        crossContainer.setMinSize(tileSize, tileSize);
-
-        // Смещаем в центр клетки
-        crossContainer.setTranslateX(tileSize / 2.0);
-        crossContainer.setTranslateY(tileSize / 2.0);
-
-        // Создаем линии
-        double halfSize = tileSize * 0.25;
-        javafx.scene.shape.Line line1 = new javafx.scene.shape.Line(
-                -halfSize, -halfSize, halfSize, halfSize
-        );
-        javafx.scene.shape.Line line2 = new javafx.scene.shape.Line(
-                halfSize, -halfSize, -halfSize, halfSize
-        );
-
-        line1.setStroke(color);
-        line2.setStroke(color);
-        line1.setStrokeWidth(Math.max(3, tileSize * 0.08));
-        line2.setStrokeWidth(Math.max(3, tileSize * 0.08));
-        line1.setStrokeLineCap(javafx.scene.shape.StrokeLineCap.ROUND);
-        line2.setStrokeLineCap(javafx.scene.shape.StrokeLineCap.ROUND);
-
-        crossContainer.getChildren().addAll(line1, line2);
-        cell.getChildren().add(crossContainer);
-        crossMap.put(squareName, crossContainer);
-    }
-
-    public void removeCrossFromSquare(String squareName) {
-        Pane cross = crossMap.remove(squareName);
-        if (cross != null) {
-            StackPane cell = squareMap.get(squareName);
-            if (cell != null) cell.getChildren().remove(cross);
-        }
-    }
-
-    public void clearAllCrosses() {
-        for (String squareName : new ArrayList<>(crossMap.keySet())) {
-            removeCrossFromSquare(squareName);
-        }
-        crossMap.clear();
-    }
-
-    public void updateCrossColor(String squareName, Color color) {
-        Pane cross = crossMap.get(squareName);
-        if (cross != null && cross.getChildren().size() >= 2) {
-            javafx.scene.shape.Line line1 = (javafx.scene.shape.Line) cross.getChildren().get(0);
-            javafx.scene.shape.Line line2 = (javafx.scene.shape.Line) cross.getChildren().get(1);
-            line1.setStroke(color);
-            line2.setStroke(color);
-        }
     }
 
     public ImageView getWhiteKingIcon() {

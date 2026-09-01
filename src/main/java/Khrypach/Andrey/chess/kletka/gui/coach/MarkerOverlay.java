@@ -22,6 +22,7 @@ package Khrypach.Andrey.chess.kletka.gui.coach;
 
 import Khrypach.Andrey.chess.kletka.gui.board.ChessBoardView;
 import Khrypach.Andrey.chess.kletka.gui.coach.tools.ArrowData;
+import Khrypach.Andrey.chess.kletka.gui.coach.tools.CrossData;
 import com.github.bhlangonijr.chesslib.Square;
 import javafx.geometry.Point2D;
 import javafx.scene.canvas.Canvas;
@@ -65,8 +66,9 @@ public class MarkerOverlay extends Pane {
     public void redraw() {
         boolean hasArrows = !coachTools.getArrows().isEmpty();
         boolean hasTempArrow = coachTools.getTempArrow() != null;
+        boolean hasCrosses = !coachTools.getCrosses().isEmpty();
 
-        if (boardContainer == null || (!hasArrows && !hasTempArrow)) {
+        if (boardContainer == null || (!hasArrows && !hasTempArrow && !hasCrosses)) {
             canvas.setVisible(false);
             return;
         }
@@ -80,9 +82,8 @@ public class MarkerOverlay extends Pane {
             return;
         }
 
-        // ========== ИНИЦИАЛИЗИРУЕМ КООРДИНАТЫ, ЕСЛИ НУЖНО ==========
-        ChessBoardView boardView = coachTools.getBoardView();
-        if (!isInitialized || boardView.getTileSize() != tileSize) {
+        if (!isInitialized || (coachTools.getBoardView() != null &&
+                coachTools.getBoardView().getTileSize() != tileSize)) {
             initSquareCenters();
         }
 
@@ -94,7 +95,12 @@ public class MarkerOverlay extends Pane {
         GraphicsContext gc = canvas.getGraphicsContext2D();
         gc.clearRect(0, 0, width, height);
 
-        // Рисуем все сохраненные стрелки (используя кэшированные координаты)
+        // ========== РИСУЕМ КРЕСТИКИ ==========
+        for (CrossData cross : coachTools.getCrosses().values()) {
+            drawCross(gc, cross.getSquare(), cross.getColor().getColor());
+        }
+
+        // Рисуем все сохраненные стрелки
         for (ArrowData arrow : coachTools.getArrows().values()) {
             drawArrowWithCache(gc, arrow.getFromSquare(), arrow.getToSquare(), arrow.getColor().getColor());
         }
@@ -105,6 +111,25 @@ public class MarkerOverlay extends Pane {
             drawArrowWithCache(gc, tempArrow.getFromSquare(), tempArrow.getToSquare(),
                     tempArrow.getColor().getColor().brighter());
         }
+    }
+
+    /**
+     * Рисует крестик на клетке
+     */
+    private void drawCross(GraphicsContext gc, String squareName, Color color) {
+        Point2D center = squareCenters.get(squareName);
+        if (center == null) return;
+
+        double x = center.getX();
+        double y = center.getY();
+        double size = tileSize * 0.3;
+
+        gc.setStroke(color);
+        gc.setLineWidth(Math.max(3, tileSize * 0.08));
+        gc.setLineCap(StrokeLineCap.ROUND);
+
+        gc.strokeLine(x - size, y - size, x + size, y + size);
+        gc.strokeLine(x + size, y - size, x - size, y + size);
     }
 
     private void drawArrowWithCache(GraphicsContext gc, String fromSquareName, String toSquareName, Color color) {

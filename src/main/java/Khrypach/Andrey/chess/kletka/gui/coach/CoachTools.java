@@ -90,6 +90,7 @@ public class CoachTools extends VBox {
     private boolean panelExpanded = false;
 
     // Хранилища маркеров
+    @Getter
     private final Map<String, CrossData> crosses = new HashMap<>();
     private final Map<String, ArrowData> arrows = new HashMap<>();
 
@@ -387,22 +388,15 @@ public class CoachTools extends VBox {
                 log.trace("Cross already exists with same color, skipping: {}", square);
                 return;
             }
-            // Сохраняем действие в историю (обновление цвета)
             pushAction(MarkerAction.updateCross(existing, square, existing.getColor(), currentColor));
             existing.setColor(currentColor);
-            if (boardView != null) {
-                boardView.updateCrossColor(square, currentColor.getColor());
-            }
+            notifyMarkersChanged();
         } else {
-            // Сохраняем действие в историю (создание)
             CrossData newCross = new CrossData(square, currentColor);
             pushAction(MarkerAction.createCross(newCross));
             crosses.put(square, newCross);
-            if (boardView != null) {
-                boardView.addCrossToSquare(square, currentColor.getColor());
-            }
+            notifyMarkersChanged();
         }
-        notifyMarkersChanged();
         updateEraseButtonState();
     }
 
@@ -446,16 +440,12 @@ public class CoachTools extends VBox {
         crosses.clear();
         arrows.clear();
         actionHistory.clear();
-        // ========== ОЧИЩАЕМ REDO СТЕК ==========
         redoHistory.clear();
         tempArrow = null;
         isDraggingArrow = false;
         dragStartSquare = null;
         cancelPendingArrow();
 
-        if (boardView != null) {
-            boardView.clearAllCrosses();
-        }
         notifyMarkersChanged();
         updateEraseButtonState();
         updateMenuState();
@@ -552,18 +542,14 @@ public class CoachTools extends VBox {
             case CREATE_CROSS -> {
                 CrossData cross = action.getCrossData();
                 crosses.remove(cross.getSquare());
-                if (boardView != null) {
-                    boardView.removeCrossFromSquare(cross.getSquare());
-                }
+                notifyMarkersChanged();
                 log.trace("Undo: removed cross at {}", cross.getSquare());
             }
             case UPDATE_CROSS -> {
                 CrossData cross = crosses.get(action.getSquare());
                 if (cross != null) {
                     cross.setColor(action.getOldColor());
-                    if (boardView != null) {
-                        boardView.updateCrossColor(action.getSquare(), action.getOldColor().getColor());
-                    }
+                    notifyMarkersChanged();
                     log.trace("Undo: restored cross color at {}", action.getSquare());
                 }
             }
@@ -677,9 +663,8 @@ public class CoachTools extends VBox {
                 CrossData cross = action.getCrossData();
                 if (cross != null) {
                     crosses.put(cross.getSquare(), cross);
-                    if (boardView != null) {
-                        boardView.addCrossToSquare(cross.getSquare(), cross.getColor().getColor());
-                    }
+                    // ========== ВСЕГДА ПЕРЕРИСОВЫВАЕМ ОВЕРЛЕЙ ==========
+                    notifyMarkersChanged();
                     log.trace("Redo: restored cross at {}", cross.getSquare());
                 }
             }
@@ -687,9 +672,8 @@ public class CoachTools extends VBox {
                 CrossData cross = crosses.get(action.getSquare());
                 if (cross != null) {
                     cross.setColor(action.getNewColor());
-                    if (boardView != null) {
-                        boardView.updateCrossColor(action.getSquare(), action.getNewColor().getColor());
-                    }
+                    // ========== ВСЕГДА ПЕРЕРИСОВЫВАЕМ ОВЕРЛЕЙ ==========
+                    notifyMarkersChanged();
                     log.trace("Redo: restored cross color at {}", action.getSquare());
                 }
             }
@@ -698,6 +682,8 @@ public class CoachTools extends VBox {
                 if (arrow != null) {
                     String key = arrow.getFromSquare() + "->" + arrow.getToSquare();
                     arrows.put(key, arrow);
+                    // ========== ВСЕГДА ПЕРЕРИСОВЫВАЕМ ОВЕРЛЕЙ ==========
+                    notifyMarkersChanged();
                     log.trace("Redo: restored arrow from {} to {}", arrow.getFromSquare(), arrow.getToSquare());
                 }
             }
@@ -706,6 +692,8 @@ public class CoachTools extends VBox {
                 ArrowData arrow = arrows.get(key);
                 if (arrow != null) {
                     arrow.setColor(action.getNewColor());
+                    // ========== ВСЕГДА ПЕРЕРИСОВЫВАЕМ ОВЕРЛЕЙ ==========
+                    notifyMarkersChanged();
                     log.trace("Redo: restored arrow color from {} to {}", action.getFromSquare(), action.getToSquare());
                 }
             }

@@ -588,6 +588,7 @@ public class LanguageKeys {
     public static final String SAVE_GAME_DIALOG_TITLE = "main.saveGame.dialog.title";
     public static final String SAVE_GAME_DIALOG_HEADER = "main.saveGame.dialog.header";
     public static final String SAVE_GAME_DIALOG_SAVE = "main.saveGame.dialog.save";
+    public static final String BOOK_MODE_NO_SAVE = "main.saveGame.dialog.book.mode.no.save";
 
     public static final String SAVE_GAME_PROMPT_WHITE = "main.saveGame.prompt.white";
     public static final String SAVE_GAME_PROMPT_BLACK = "main.saveGame.prompt.black";

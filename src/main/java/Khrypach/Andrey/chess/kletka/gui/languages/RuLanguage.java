@@ -509,6 +509,7 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.SAVE_GAME_DIALOG_TITLE, "Сохранение партии");
         strings.put(LanguageKeys.SAVE_GAME_DIALOG_HEADER, "Введите информацию о партии");
         strings.put(LanguageKeys.SAVE_GAME_DIALOG_SAVE, "Сохранить");
+        strings.put(LanguageKeys.BOOK_MODE_NO_SAVE, "В режиме книги сохранение недоступно");
 
         strings.put(LanguageKeys.SAVE_GAME_PROMPT_WHITE, "Белые");
         strings.put(LanguageKeys.SAVE_GAME_PROMPT_BLACK, "Черные");

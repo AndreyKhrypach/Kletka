@@ -510,6 +510,7 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.SAVE_GAME_DIALOG_TITLE, "Save Game");
         strings.put(LanguageKeys.SAVE_GAME_DIALOG_HEADER, "Enter game information");
         strings.put(LanguageKeys.SAVE_GAME_DIALOG_SAVE, "Save");
+        strings.put(LanguageKeys.BOOK_MODE_NO_SAVE, "Saving is not available in book mode");
 
         strings.put(LanguageKeys.SAVE_GAME_PROMPT_WHITE, "White");
         strings.put(LanguageKeys.SAVE_GAME_PROMPT_BLACK, "Black");

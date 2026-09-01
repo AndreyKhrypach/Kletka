@@ -502,6 +502,7 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.SAVE_GAME_DIALOG_TITLE, "保存对局");
         strings.put(LanguageKeys.SAVE_GAME_DIALOG_HEADER, "输入对局信息");
         strings.put(LanguageKeys.SAVE_GAME_DIALOG_SAVE, "保存");
+        strings.put(LanguageKeys.BOOK_MODE_NO_SAVE, "在棋谱模式下无法保存");
 
         strings.put(LanguageKeys.SAVE_GAME_PROMPT_WHITE, "白方");
         strings.put(LanguageKeys.SAVE_GAME_PROMPT_BLACK, "黑方");

@@ -1137,6 +1137,12 @@ public class MainController {
     }
 
     public void savePgnFile(File file) {
+        // ========== БЛОКИРУЕМ СОХРАНЕНИЕ В РЕЖИМЕ КНИГИ ==========
+        MoveNavigationController navController = boardView.getNavController();
+        if (navController != null && navController.getNavigationMode() == NavigationMode.BOOK) {
+            showNotification(lang.get(BOOK_MODE_NO_SAVE));
+            return;
+        }
         log.info(">>> savePgnFile called with file: {}", file);
 
         if (file == null) {
@@ -1381,6 +1387,13 @@ public class MainController {
     }
 
     private void saveToPgnFile(GameData gameData) {
+        // ========== БЛОКИРУЕМ СОХРАНЕНИЕ В РЕЖИМЕ КНИГИ ==========
+        MoveNavigationController navController = boardView.getNavController();
+        if (navController != null && navController.getNavigationMode() == NavigationMode.BOOK) {
+            showNotification(lang.get(BOOK_MODE_NO_SAVE));
+            return;
+        }
+
         log.info(">>> saveToPgnFile called");
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(lang.get(LanguageKeys.MAIN_SAVE_PGN_FILE_TITLE));
@@ -1495,6 +1508,12 @@ public class MainController {
     }
 
     private void saveToDatabase(GameData gameData) {
+        // ========== БЛОКИРУЕМ СОХРАНЕНИЕ В РЕЖИМЕ КНИГИ ==========
+        MoveNavigationController navController = boardView.getNavController();
+        if (navController != null && navController.getNavigationMode() == NavigationMode.BOOK) {
+            showNotification(lang.get(BOOK_MODE_NO_SAVE));
+            return;
+        }
         if (pgnService == null) {
             showNotification(lang.get(LanguageKeys.MAIN_DB_NOT_INITIALIZED_MSG));
             return;
