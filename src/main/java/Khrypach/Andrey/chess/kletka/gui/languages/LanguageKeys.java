@@ -199,6 +199,14 @@ public class LanguageKeys {
     public static final String PREFERENCES_OPEN_FOLDER = "preferences.open.folder";
     public static final String PREFERENCES_OPEN_FOLDER_ERROR = "preferences.open.folder.error";
 
+    public static final String PREFERENCES_PATHS = "preferences.paths";
+    public static final String PREFERENCES_BOOKS_PATH = "preferences.books.path";
+    public static final String PREFERENCES_SELECT_BOOKS_PATH = "preferences.select.books.path";
+    public static final String PREFERENCES_LAST_OPEN = "preferences.last.open";
+    public static final String PREFERENCES_SELECT_LAST_OPEN = "preferences.select.last.open";
+    public static final String PREFERENCES_LAST_SAVE = "preferences.last.save";
+    public static final String PREFERENCES_SELECT_LAST_SAVE = "preferences.select.last.save";
+
     // === Меню Вид ===
     public static final String MENU_VIEW = "menu.view";
     public static final String MENU_VIEW_FLIP_BOARD = "menu.view.flipBoard";
@@ -913,6 +921,8 @@ public class LanguageKeys {
     public static final String PGN_BROWSER_SEARCH_LABEL = "pgn.browser.search.label";
     public static final String PGN_BROWSER_SEARCH_PROMPT = "pgn.browser.search.prompt";
     public static final String PGN_BROWSER_SEARCH_CLEAR = "pgn.browser.search.clear";
+    public static final String PGN_BROWSER_SORTING = "pgn.browser.sorting";
+    public static final String PGN_BROWSER_SORTED = "pgn.browser.sorted";
 
     // PGN Browser - Status
     public static final String PGN_BROWSER_STATUS_LOADING = "pgn.browser.status.loading";
@@ -931,6 +941,16 @@ public class LanguageKeys {
     public static final String PGN_BROWSER_STATUS_LOADING_GAME =  "pgn.browser.status.loading.game";
     public static final String PGN_BROWSER_STATUS_READY_WITH_COUNT = "pgn.browser.status.ready_with_count";
     public static final String PGN_BROWSER_STATUS_ALL_LOADED_WITH_COUNT = "pgn.browser.status.all.loaded_with_count";
+    public static final String PGN_BROWSER_STATUS_LOADING_BODIES = "pgn.browser.status.loading.bodies";
+    public static final String PGN_BROWSER_STATUS_LOADING_BODIES_PROGRESS = "pgn.browser.status.loading.bodies.progress";
+    public static final String PGN_BROWSER_STATUS_GAME_DELETED = "pgn.browser.status.game.deleted";
+    public static final String PGN_BROWSER_MSG_GAME_DELETED = "gn.browser.msg.game.deleted";
+    public static final String PGN_BROWSER_MSG_LOAD_ERROR = "pgn.browser.msg.load.error";
+    public static final String PGN_BROWSER_MSG_COPY_SKIPPED_DELETED = "pgn.browser.msg.copy.skipped.deleted";
+    public static final String PGN_BROWSER_MSG_COPY_SKIPPED_DELETED_WARNING = "pgn.browser.msg.copy.skipped.deleted.warning";
+    public static final String PGN_BROWSER_MSG_NO_GAMES_TO_COPY = "pgn.browser.msg.no.games.to.copy";
+    public static final String PGN_BROWSER_MSG_FAILED_TO_LOAD_INDEX = "pgn.browser.msg.failed.to.load.index";
+    public static final String PGN_BROWSER_MSG_INVALID_PGN_FORMAT_NO_HEADERS = "pgn.browser.msg.invalid.pgn.format.no.headers";
 
     // PGN Browser - Buttons
     public static final String PGN_BROWSER_BUTTON_EDIT = "pgn.browser.button.edit";
@@ -978,11 +998,19 @@ public class LanguageKeys {
     public static final String PGN_BROWSER_MSG_PASTE_GAMES = "pgn.browser.msg.paste.games";
     public static final String PGN_BROWSER_MSG_PASTE_START = "pgn.browser.msg.paste.start";
     public static final String PGN_BROWSER_REFRESH_COMPLETE = "pgn.browser.refresh.complete";
+    public static final String PGN_BROWSER_GAME_NOT_FOUND_OR_DELETED = "pgn.browser.game.not.foundOrDeleted:";
 
     // PGN Browser - Progress
     public static final String PGN_BROWSER_DELETING = "pgn.browser.deleting";
     public static final String PGN_BROWSER_DELETING_PROCEED = "pgn.browser.deleting.poe";
     public static final String PGN_BROWSER_DELETED = "pgn.browser.deleted";
+
+    public static final String PGN_BROWSER_STATUS_NO_GAMES_DELETED = "pgn.browser.status.no.games.deleted";
+    public static final String PGN_BROWSER_MSG_DELETE_FAILED  = "pgn.browser.msg.delete.failed";
+    public static final String PGN_BROWSER_UPDATING_INDEX  = "pgn.browser.updating.index";
+    public static final String PGN_BROWSER_UPDATING_TABLE  = "pgn.browser.updating.table";
+    public static final String PGN_BROWSER_MSG_DELETE_SUCCESS_TIME  = "pgn.browser.msg.delete.success.time";
+
     public static final String PGN_BROWSER_DUPLICATING = "pgn.browser.duplicating";
     public static final String PGN_BROWSER_COPYING = "pgn.browser.copying";
     public static final String PGN_BROWSER_PASTING = "pgn.browser.pasting";
@@ -1120,4 +1148,5 @@ public class LanguageKeys {
     //batch
     public static final String PGN_BATCH_EXCEPTION_LIMIT = "pgn.batch.exception.limit";
     public static final String PGN_BATCH_EXCEPTION_ALREADY_DELETED = "pgn.batch.exception.already.deleted";
+    public static final String PGN_BATCH_EXCEPTION_NOT_FOUND_IN_INDEX= "pgn.batch.exception.not.found.in.index";
 }

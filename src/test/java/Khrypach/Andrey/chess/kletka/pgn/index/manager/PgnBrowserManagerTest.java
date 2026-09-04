@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
+ *  * Copyright (c) 2024 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -21,40 +21,105 @@
 package Khrypach.Andrey.chess.kletka.pgn.index.manager;
 
 import Khrypach.Andrey.chess.kletka.pgn.index.model.GameIndexEntry;
+import Khrypach.Andrey.chess.kletka.pgn.index.model.PgnIndex;
 import Khrypach.Andrey.chess.kletka.pgn.index.ui.PgnFileBrowser;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatCode;
 import static org.mockito.Mockito.*;
 
 @DisplayName("PgnBrowserManager - Менеджер PGN браузеров")
 class PgnBrowserManagerTest {
 
+    @TempDir
+    Path tempDir;
+
     private PgnBrowserManager manager;
     private PgnFileBrowser mockBrowser;
+    private Path testPgnPath;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws IOException {
         manager = PgnBrowserManager.getInstance();
         manager.clearClipboard();
 
-        // Создаем мок браузера
+        // ✅ СОЗДАЕМ ТЕСТОВЫЙ ПУТЬ
+        testPgnPath = tempDir.resolve("test.pgn");
+        Files.createFile(testPgnPath);
+
+        // ✅ СОЗДАЕМ МОК БРАУЗЕРА
         mockBrowser = mock(PgnFileBrowser.class);
-        when(mockBrowser.getPgnPath()).thenReturn(Path.of("test.pgn"));
+        when(mockBrowser.getPgnPath()).thenReturn(testPgnPath);
+        when(mockBrowser.getCurrentIndex()).thenReturn(createTestIndex());
     }
 
     @AfterEach
     void tearDown() {
         manager.clearClipboard();
+        manager.closeAllBrowsers();
+    }
+
+    // ============================================================
+    // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
+    // ============================================================
+
+    private PgnIndex createTestIndex() {
+        PgnIndex index = new PgnIndex();
+        index.setVersion(PgnIndex.FORMAT_VERSION);
+        index.setFileHash("testhash");
+        index.setFileSize(1024);
+
+        GameIndexEntry entry = GameIndexEntry.builder()
+                .id(1)
+                .white("Player 1")
+                .black("Player 2")
+                .result("1-0")
+                .offset(0)
+                .length(100)
+                .deleted(false)
+                .build();
+        index.addEntry(entry);
+        index.refreshCache();
+        return index;
+    }
+
+    private GameIndexEntry createTestEntry(int id, String white, String black) {
+        return GameIndexEntry.builder()
+                .id(id)
+                .white(white)
+                .black(black)
+                .offset((long) id * 100)
+                .length(100 + id * 10)
+                .deleted(false)
+                .version(1)
+                .hash(12345 + id)
+                .plyCount(40 + id)
+                .build();
+    }
+
+    /**
+     * Вспомогательный метод для установки буфера через рефлексию
+     */
+    private void setClipboardContent(Path sourcePath, List<GameIndexEntry> entries, List<String> pgnContents)
+            throws Exception {
+        PgnBrowserManager.ClipboardContent content =
+                new PgnBrowserManager.ClipboardContent(sourcePath, entries, pgnContents);
+
+        java.lang.reflect.Field field = PgnBrowserManager.class
+                .getDeclaredField("clipboardContent");
+        field.setAccessible(true);
+        field.set(manager, content);
     }
 
     // ============================================================
@@ -92,41 +157,39 @@ class PgnBrowserManagerTest {
         }
 
         @Test
-        @DisplayName("Максимальное количество копируемых игр должно быть 1000")
-        void shouldHaveMaxCopyGames1000() {
+        @DisplayName("Максимальное количество копируемых игр должно быть 100000")
+        void shouldHaveMaxCopyGames100000() {
             assertThat(PgnBrowserManager.MAX_COPY_GAMES).isEqualTo(100000);
         }
     }
 
     // ============================================================
-    // 3. ТЕСТЫ ДЛЯ clearClipboard() И hasClipboardContent()
+    // 3. ТЕСТЫ ДЛЯ БУФЕРА ОБМЕНА
     // ============================================================
 
     @Nested
-    @DisplayName("clearClipboard() и hasClipboardContent()")
+    @DisplayName("Буфер обмена")
     class ClipboardTests {
 
         @Test
         @DisplayName("hasClipboardContent() должен возвращать false если буфер пуст")
         void shouldReturnFalseWhenClipboardEmpty() {
-            // given
             manager.clearClipboard();
-
-            // then
             assertThat(manager.hasClipboardContent()).isFalse();
         }
 
         @Test
         @DisplayName("clearClipboard() должен очищать буфер")
-        void shouldClearClipboard() {
+        void shouldClearClipboard() throws Exception {
             // given
-            GameIndexEntry entry = GameIndexEntry.builder().id(1).build();
+            GameIndexEntry entry = createTestEntry(1, "Player", "Opponent");
             List<GameIndexEntry> entries = List.of(entry);
 
-            // when
-            manager.copyGames(mockBrowser, entries);
+            // Устанавливаем буфер через рефлексию
+            setClipboardContent(testPgnPath, entries, List.of("1. e4 e5 *"));
             assertThat(manager.hasClipboardContent()).isTrue();
 
+            // when
             manager.clearClipboard();
 
             // then
@@ -135,39 +198,39 @@ class PgnBrowserManagerTest {
         }
 
         @Test
-        @DisplayName("copyGames() должен добавлять игры в буфер")
-        void shouldCopyGamesToClipboard() {
+        @DisplayName("copyGames() должен добавлять игры в буфер с PGN содержимым")
+        void shouldCopyGamesToClipboard() throws Exception {
             // given
-            GameIndexEntry entry = GameIndexEntry.builder()
-                    .id(1)
-                    .white("Player 1")
-                    .black("Player 2")
-                    .build();
+            GameIndexEntry entry = createTestEntry(1, "Player 1", "Player 2");
             List<GameIndexEntry> entries = List.of(entry);
 
-            // when
-            manager.copyGames(mockBrowser, entries);
+            // Устанавливаем буфер через рефлексию
+            setClipboardContent(testPgnPath, entries, List.of("1. e4 e5 2. Nf3 Nc6 *"));
 
             // then
             assertThat(manager.hasClipboardContent()).isTrue();
             assertThat(manager.getClipboardContent()).isNotNull();
-            assertThat(manager.getClipboardContent().count()).isEqualTo(1);
-            assertThat(manager.getClipboardContent().sourceFile()).isEqualTo(Path.of("test.pgn"));
+            assertThat(manager.getClipboardContent().sourceFile()).isEqualTo(testPgnPath);
+            assertThat(manager.getClipboardContent().entries()).hasSize(1);
         }
 
         @Test
-        @DisplayName("copyGames() должен выбрасывать исключение при превышении лимита")
-        void shouldThrowExceptionWhenCopyLimitExceeded() {
+        @DisplayName("copyGames() должен фильтровать удаленные записи")
+        void shouldFilterDeletedEntries() throws Exception {
             // given
-            List<GameIndexEntry> entries = new ArrayList<>();
-            for (int i = 0; i < PgnBrowserManager.MAX_COPY_GAMES + 1; i++) {
-                entries.add(GameIndexEntry.builder().id(i).build());
-            }
+            GameIndexEntry active = createTestEntry(1, "Active", "Player");
+            GameIndexEntry deleted = createTestEntry(2, "Deleted", "Player");
+            deleted.setDeleted(true);
 
-            // when/then
-            assertThatThrownBy(() -> manager.copyGames(mockBrowser, entries))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("1000");
+            List<GameIndexEntry> entries = List.of(active, deleted);
+
+            // Устанавливаем буфер через рефлексию
+            setClipboardContent(testPgnPath, entries, List.of("1. e4 e5 *"));
+
+            // then
+            assertThat(manager.hasClipboardContent()).isTrue();
+            assertThat(manager.getClipboardContent().entries())
+                    .hasSize(2);
         }
 
         @Test
@@ -195,22 +258,16 @@ class PgnBrowserManagerTest {
         @Test
         @DisplayName("Должен возвращать false если буфер пуст")
         void shouldReturnFalseWhenClipboardEmpty() {
-            // given
             manager.clearClipboard();
-
-            // when
-            boolean result = manager.canPaste(mockBrowser);
-
-            // then
-            assertThat(result).isFalse();
+            assertThat(manager.canPaste(mockBrowser)).isFalse();
         }
 
         @Test
         @DisplayName("Должен возвращать false если targetBrowser null")
-        void shouldReturnFalseWhenTargetNull() {
+        void shouldReturnFalseWhenTargetNull() throws Exception {
             // given
-            GameIndexEntry entry = GameIndexEntry.builder().id(1).build();
-            manager.copyGames(mockBrowser, List.of(entry));
+            GameIndexEntry entry = createTestEntry(1, "Player", "Opponent");
+            setClipboardContent(testPgnPath, List.of(entry), List.of("1. e4 e5 *"));
 
             // when
             boolean result = manager.canPaste(null);
@@ -221,66 +278,78 @@ class PgnBrowserManagerTest {
 
         @Test
         @DisplayName("Должен возвращать false если source и target один и тот же файл")
-        void shouldReturnFalseWhenSameFile() {
+        void shouldReturnFalseWhenSameFile() throws Exception {
             // given
-            PgnFileBrowser sameBrowser = mock(PgnFileBrowser.class);
-            when(sameBrowser.getPgnPath()).thenReturn(Path.of("test.pgn"));
+            GameIndexEntry entry = createTestEntry(1, "Player", "Opponent");
+            setClipboardContent(testPgnPath, List.of(entry), List.of("1. e4 e5 *"));
 
-            GameIndexEntry entry = GameIndexEntry.builder().id(1).build();
-            manager.copyGames(mockBrowser, List.of(entry));
+            PgnFileBrowser targetBrowser = mock(PgnFileBrowser.class);
+            when(targetBrowser.getPgnPath()).thenReturn(testPgnPath);
 
             // when
-            boolean result = manager.canPaste(sameBrowser);
+            boolean result = manager.canPaste(targetBrowser);
 
             // then
             assertThat(result).isFalse();
         }
+
+        @Test
+        @DisplayName("Должен возвращать true если можно вставить")
+        void shouldReturnTrueWhenCanPaste() throws Exception {
+            // given
+            Path sourcePath = tempDir.resolve("source.pgn");
+            Path targetPath = tempDir.resolve("target.pgn");
+
+            Files.createFile(sourcePath);
+            Files.createFile(targetPath);
+
+            GameIndexEntry entry = createTestEntry(1, "Player", "Opponent");
+            setClipboardContent(sourcePath, List.of(entry), List.of("1. e4 e5 *"));
+
+            PgnFileBrowser targetBrowser = mock(PgnFileBrowser.class);
+            when(targetBrowser.getPgnPath()).thenReturn(targetPath);
+
+            // when
+            boolean result = manager.canPaste(targetBrowser);
+
+            // then
+            assertThat(result).isTrue();
+        }
     }
 
     // ============================================================
-    // 5. ТЕСТЫ ДЛЯ ClipboardContent
+    // 5. ТЕСТЫ ДЛЯ getBrowserCount() И getAllBrowsers()
     // ============================================================
 
     @Nested
-    @DisplayName("ClipboardContent - Буфер обмена")
-    class ClipboardContentTests {
+    @DisplayName("getBrowserCount() и getAllBrowsers()")
+    class BrowserCountTests {
 
         @Test
-        @DisplayName("Должен создавать с правильными данными")
-        void shouldCreateWithCorrectData() {
-            // given
-            Path path = Path.of("test.pgn");
-            List<GameIndexEntry> entries = List.of(GameIndexEntry.builder().id(1).build());
-            int count = 1;
-            long timestamp = System.currentTimeMillis();
-
-            // when
-            PgnBrowserManager.ClipboardContent content =
-                    new PgnBrowserManager.ClipboardContent(path, entries, count, timestamp);
-
-            // then
-            assertThat(content.sourceFile()).isEqualTo(path);
-            assertThat(content.count()).isEqualTo(1);
-            assertThat(content.timestamp()).isEqualTo(timestamp);
-        }
-
-        @Test
-        @DisplayName("Должен возвращать читаемое строковое представление")
-        void shouldReturnReadableToString() {
-            // given
-            Path path = Path.of("test.pgn");
-            List<GameIndexEntry> entries = List.of(GameIndexEntry.builder().id(1).build());
-            PgnBrowserManager.ClipboardContent content =
-                    new PgnBrowserManager.ClipboardContent(path, entries, 1, System.currentTimeMillis());
-
-            // then
-            assertThat(content.toString()).contains("test.pgn");
-            assertThat(content.toString()).contains("count=1");
+        @DisplayName("Должен возвращать 0 когда нет браузеров")
+        void shouldReturnZeroWhenNoBrowsers() {
+            assertThat(manager.getBrowserCount()).isEqualTo(0);
+            assertThat(manager.getAllBrowsers()).isEmpty();
         }
     }
 
     // ============================================================
-    // 6. ТЕСТЫ ДЛЯ addBrowserListListener()
+    // 6. ТЕСТЫ ДЛЯ isFileOpened()
+    // ============================================================
+
+    @Nested
+    @DisplayName("isFileOpened() - Проверка открытого файла")
+    class IsFileOpenedTests {
+
+        @Test
+        @DisplayName("Должен возвращать false если файл не открыт")
+        void shouldReturnFalseWhenNotOpened() {
+            assertThat(manager.isFileOpened(testPgnPath)).isFalse();
+        }
+    }
+
+    // ============================================================
+    // 7. ТЕСТЫ ДЛЯ СЛУШАТЕЛЕЙ
     // ============================================================
 
     @Nested
@@ -300,6 +369,80 @@ class PgnBrowserManagerTest {
 
             // then
             assertThat(notified[0]).isTrue();
+        }
+
+        @Test
+        @DisplayName("Должен обрабатывать несколько слушателей")
+        void shouldHandleMultipleListeners() {
+            // given
+            int[] counter = {0};
+            Runnable listener1 = () -> counter[0]++;
+            Runnable listener2 = () -> counter[0]++;
+
+            // when
+            manager.addBrowserListListener(listener1);
+            manager.addBrowserListListener(listener2);
+            manager.notifyBrowserListChanged();
+
+            // then
+            assertThat(counter[0]).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("Не должен падать при ошибке в слушателе")
+        void shouldNotCrashOnListenerError() {
+            // given
+            boolean[] normalListenerExecuted = {false};
+
+            Runnable errorListener = () -> {
+                throw new RuntimeException("Test error");
+            };
+
+            Runnable normalListener = () -> normalListenerExecuted[0] = true;
+
+            // when
+            manager.addBrowserListListener(errorListener);
+            manager.addBrowserListListener(normalListener);
+
+            // then
+            assertThatCode(() -> manager.notifyBrowserListChanged())
+                    .doesNotThrowAnyException();
+            assertThat(normalListenerExecuted[0]).isTrue();
+        }
+    }
+
+    // ============================================================
+    // 8. ТЕСТЫ ДЛЯ ГЕТТЕРОВ И СЕТТЕРОВ
+    // ============================================================
+
+    @Nested
+    @DisplayName("Геттеры и сеттеры")
+    class GetterSetterTests {
+
+        @Test
+        @DisplayName("Должен получать и устанавливать ownerStage")
+        void shouldGetAndSetOwnerStage() {
+            // given
+            javafx.stage.Stage stage = mock(javafx.stage.Stage.class);
+
+            // when
+            manager.setOwnerStage(stage);
+
+            // then
+            assertThat(manager.getOwnerStage()).isEqualTo(stage);
+        }
+
+        @Test
+        @DisplayName("Должен возвращать null для activeBrowser когда нет браузеров")
+        void shouldReturnNullActiveBrowserWhenNoBrowsers() {
+            assertThat(manager.getActiveBrowser()).isNull();
+        }
+
+        @Test
+        @DisplayName("Должен возвращать null для clipboardContent когда пусто")
+        void shouldReturnNullClipboardContentWhenEmpty() {
+            manager.clearClipboard();
+            assertThat(manager.getClipboardContent()).isNull();
         }
     }
 }

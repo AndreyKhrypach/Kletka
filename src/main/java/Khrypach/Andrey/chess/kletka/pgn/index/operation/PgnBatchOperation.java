@@ -27,6 +27,8 @@ import Khrypach.Andrey.chess.kletka.pgn.index.PgnIndexManager;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.GameIndexEntry;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.PgnIndex;
 import Khrypach.Andrey.chess.kletka.pgn.index.util.HashUtils;
+import lombok.Getter;
+import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,17 +39,19 @@ import java.util.List;
 import java.util.function.Consumer;
 
 public class PgnBatchOperation {
+    // Константы для пакетной обработки
+    public static final int BATCH_SIZE = 500;
+    public static final int MAX_BATCH_GAMES = 100000;
+
     private static final Logger log = LoggerFactory.getLogger(PgnBatchOperation.class);
     private final LanguageManager lang = LanguageManager.getInstance();
 
     private final Path pgnPath;
-    private final PgnIndex index;
+    @Getter
+    @Setter
+    private PgnIndex index;
     private final PgnFileEditor editor;
     private final PgnIndexManager indexManager;
-
-    // Константы для пакетной обработки
-    public static final int BATCH_SIZE = 500;
-    public static final int MAX_BATCH_GAMES = 100000;
 
     public PgnBatchOperation(Path pgnPath, PgnIndex index) {
         this.pgnPath = pgnPath;
@@ -61,48 +65,78 @@ public class PgnBatchOperation {
      */
     public BatchOperationResult deleteGamesBatch(List<GameIndexEntry> entries,
                                                  Consumer<Integer> progressCallback) throws IOException {
-        log.info("Batch deleting {} games", entries.size());
+        log.debug("Batch deleting {} games", entries.size());
 
         if (entries.size() > MAX_BATCH_GAMES) {
             throw new IllegalArgumentException(String.format(lang.get(LanguageKeys.PGN_BATCH_EXCEPTION_LIMIT), entries.size()));
         }
 
+        // ========== ЗАГРУЖАЕМ АКТУАЛЬНЫЙ ИНДЕКС ==========
+        this.index = indexManager.loadIndex(pgnPath);
+        log.debug("deleteGamesBatch: Loaded index with {} entries", index.getGameCount());
+
         int successful = 0;
         int failed = 0;
         List<Integer> failedIds = new ArrayList<>();
+        int total = entries.size();
 
-        // Разбиваем на чанки для производительности
-        for (int i = 0; i < entries.size(); i += BATCH_SIZE) {
-            int end = Math.min(i + BATCH_SIZE, entries.size());
-            List<GameIndexEntry> chunk = entries.subList(i, end);
+        // ========== ДЛЯ МАЛЫХ ОПЕРАЦИЙ - СОХРАНЯЕМ ТОЛЬКО В КОНЦЕ ==========
+        boolean isSmallOperation = total <= BATCH_SIZE;
 
-            for (GameIndexEntry entry : chunk) {
-                try {
-                    deleteGameInternal(entry);
-                    successful++;
-                } catch (Exception e) {
-                    log.error("Failed to delete game {}: {}", entry.getId(), e.getMessage());
+        for (int i = 0; i < entries.size(); i++) {
+            GameIndexEntry entry = entries.get(i);
+            try {
+                GameIndexEntry currentEntry = index.getEntryById(entry.getId());
+                if (currentEntry == null) {
+                    log.warn("Game {} not found in index", entry.getId());
                     failed++;
                     failedIds.add(entry.getId());
+                    if (progressCallback != null) {
+                        progressCallback.accept((i + 1) * 100 / total);
+                    }
+                    continue;
                 }
-                if (progressCallback != null) {
-                    progressCallback.accept(successful + failed);
+                if (currentEntry.isDeleted()) {
+                    log.warn("Game {} is already deleted", entry.getId());
+                    failed++;
+                    failedIds.add(entry.getId());
+                    if (progressCallback != null) {
+                        progressCallback.accept((i + 1) * 100 / total);
+                    }
+                    continue;
                 }
+
+                deleteGameInternal(currentEntry);
+                successful++;
+            } catch (Exception e) {
+                log.error("Failed to delete game {}: {}", entry.getId(), e.getMessage());
+                failed++;
+                failedIds.add(entry.getId());
             }
 
-            // Сохраняем индекс после каждого чанка
-            if (!chunk.isEmpty()) {
+            // ========== ОБНОВЛЯЕМ ПРОГРЕСС ==========
+            if (progressCallback != null) {
+                int progress = (i + 1) * 100 / total;
+                progressCallback.accept(progress);
+            }
+
+            // ========== СОХРАНЯЕМ ИНДЕКС ТОЛЬКО ДЛЯ БОЛЬШИХ ОПЕРАЦИЙ ==========
+            if (!isSmallOperation && (i + 1) % BATCH_SIZE == 0) {
                 indexManager.saveIndex(pgnPath, index);
                 index.refreshCache();
-                log.info("Saved index after processing {} games", successful + failed);
             }
         }
 
-        // Финальное сохранение
-        indexManager.saveIndex(pgnPath, index);
-        index.refreshCache();
+        // ========== СОХРАНЯЕМ ИНДЕКС (ДЛЯ МАЛЫХ - ОДИН РАЗ, ДЛЯ БОЛЬШИХ - ФИНАЛЬНО) ==========
+        if (successful > 0 || failed > 0) {
+            indexManager.saveIndex(pgnPath, index);
+            index.refreshCache();
+        } else {
+            log.debug("No changes to save (all games already deleted or not found)");
+        }
 
-        String message = String.format(lang.get(LanguageKeys.PGN_BROWSER_PASTE_PARTIAL), successful, entries.size(), failed);
+        String message = String.format(lang.get(LanguageKeys.PGN_BROWSER_PASTE_PARTIAL),
+                successful, entries.size(), failed);
         return new BatchOperationResult(entries.size(), successful, failed, failedIds, message);
     }
 
@@ -114,27 +148,37 @@ public class PgnBatchOperation {
             throw new IllegalArgumentException(String.format(lang.get(LanguageKeys.PGN_BATCH_EXCEPTION_ALREADY_DELETED), entry.getId()));
         }
 
-        // ========== ПРОВЕРЯЕМ, ЧТО ЗАПИСЬ СУЩЕСТВУЕТ В ИНДЕКСЕ ==========
+        // ========== ИСПОЛЬЗУЕМ АКТУАЛЬНУЮ ЗАПИСЬ ИЗ ИНДЕКСА ==========
         GameIndexEntry existingEntry = index.getEntryById(entry.getId());
         if (existingEntry == null) {
-            throw new IllegalArgumentException(String.format("Game with ID %d not found in index", entry.getId()));
+            throw new IllegalArgumentException(String.format(lang.get(LanguageKeys.PGN_BATCH_EXCEPTION_NOT_FOUND_IN_INDEX), entry.getId()));
         }
 
-        // Используем существующую запись из индекса, а не переданную
+        // ========== ПРОВЕРЯЕМ, НЕ УДАЛЕНА ЛИ УЖЕ ==========
+        if (existingEntry.isDeleted()) {
+            throw new IllegalArgumentException(String.format(lang.get(LanguageKeys.PGN_BATCH_EXCEPTION_ALREADY_DELETED), entry.getId()));
+        }
+
         String pgnContent = editor.readGame(existingEntry);
+
+        // ========== ЗАМЕНЯЕМ ТЕГ [Deleted] ==========
         String updatedPgnContent = replaceDeletedTag(pgnContent);
 
+        // ========== ПЫТАЕМСЯ ЗАМЕНИТЬ НА МЕСТЕ ==========
         boolean replaced = editor.replaceGameInPlace(existingEntry, updatedPgnContent);
 
         GameIndexEntry deletedEntry;
         if (replaced) {
+            // Помечаем как удалённую
             deletedEntry = existingEntry.markDeleted();
             deletedEntry.setHash(HashUtils.hashString(updatedPgnContent));
         } else {
+            // Если не удалось заменить на месте - добавляем новую версию
             GameIndexEntry newVersion = editor.updateGame(existingEntry.getId(), updatedPgnContent);
             deletedEntry = newVersion.markDeleted();
         }
 
+        // ========== ОБНОВЛЯЕМ ЗАПИСЬ В ИНДЕКСЕ ==========
         index.updateEntry(deletedEntry);
         index.refreshCache();
     }
@@ -144,10 +188,16 @@ public class PgnBatchOperation {
      */
     public BatchOperationResult pasteGamesBatch(List<String> pgnContents,
                                                 Consumer<Integer> progressCallback) throws IOException {
-        log.info("Batch pasting {} games", pgnContents.size());
-
         if (pgnContents.size() > MAX_BATCH_GAMES) {
             throw new IllegalArgumentException(String.format(lang.get(LanguageKeys.PGN_BATCH_EXCEPTION_LIMIT), pgnContents.size()));
+        }
+
+        // ========== ЗАГРУЖАЕМ АКТУАЛЬНЫЙ ИНДЕКС ==========
+        try {
+            this.index = indexManager.loadIndex(pgnPath);
+        } catch (IOException e) {
+            log.error("Failed to load index", e);
+            return new BatchOperationResult(0, 0, 0, new ArrayList<>(), lang.get(LanguageKeys.PGN_BROWSER_MSG_FAILED_TO_LOAD_INDEX));
         }
 
         int successful = 0;
@@ -160,10 +210,11 @@ public class PgnBatchOperation {
 
                 // ========== ПРОВЕРКА ВАЛИДНОСТИ PGN ==========
                 if (!isValidPgn(pgnContent)) {
-                    throw new IllegalArgumentException("Invalid PGN format - missing required headers");
+                    throw new IllegalArgumentException(lang.get(LanguageKeys.PGN_BROWSER_MSG_INVALID_PGN_FORMAT_NO_HEADERS));
                 }
 
                 int newId = index.getNextId();
+
                 GameIndexEntry newEntry = editor.appendGame(pgnContent, newId);
                 updateHeaders(newEntry, pgnContent);
                 index.addEntry(newEntry);
@@ -181,7 +232,6 @@ public class PgnBatchOperation {
             if ((i + 1) % BATCH_SIZE == 0) {
                 indexManager.saveIndex(pgnPath, index);
                 index.refreshCache();
-                log.info("Saved index after {} games", i + 1);
             }
         }
 

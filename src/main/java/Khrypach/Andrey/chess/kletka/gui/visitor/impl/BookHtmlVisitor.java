@@ -77,6 +77,7 @@ public class BookHtmlVisitor implements LevelAwareVisitor<String> {
         html.append("</style>\n");
         html.append("</head>\n");
         html.append("<body>\n");
+        html.append("<input type=\"text\" id=\"hidden-focus\" style=\"position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none;\">\n");
         html.append("<div class=\"book-container\">\n");
     }
 
@@ -242,6 +243,19 @@ public class BookHtmlVisitor implements LevelAwareVisitor<String> {
         }
 
         html.append("</div>\n");
+
+        html.append("<script>\n");
+        html.append("  (function() {\n");
+        html.append("    const items = document.querySelectorAll('.variation-item');\n");
+        html.append("    const activeIndex = ").append(selectedIndex).append(";\n");
+        html.append("    items.forEach((el, i) => {\n");
+        html.append("      el.classList.toggle('active', i === activeIndex);\n");
+        html.append("      if (i === activeIndex) {\n");
+        html.append("        el.scrollIntoView({ block: 'center', behavior: 'smooth' });\n");
+        html.append("      }\n");
+        html.append("    });\n");
+        html.append("  })();\n");
+        html.append("</script>\n");
     }
 
     @Override
@@ -383,104 +397,106 @@ public class BookHtmlVisitor implements LevelAwareVisitor<String> {
         int infoFontSize = Math.max(10, fontSize - 1);
 
         return """
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-             body {
-                 font-family: 'Segoe UI', 'Consolas', monospace;
-                 background-color: #f8f5f0;
-                 padding: 0;
-                 margin: 0;
-             }
-             .book-container {
-                 font-size: %dpx;
-                 line-height: 1.8;
-                 max-width: 100%%;
-                 padding: 0;
-                 margin: 0;
-             }
-             .book-info {
-                 background-color: #f0e8d8;
-                 padding: 8px 12px;
-                 border-radius: 5px;
-                 margin-bottom: 12px;
-                 border-left: 4px solid #8b5a2b;
-                 display: flex;
-                 flex-wrap: wrap;
-                 gap: 10px;
-                 align-items: center;
-                 font-size: %dpx;
-             }
-             .book-name {
-                 font-weight: bold;
-                 color: #5a3e1b;
-             }
-             .book-entries {
-                 color: #666;
-                 font-size: %dpx;
-             }
-             .book-position {
-                 color: #8b5a2b;
-                 font-size: %dpx;
-                 margin-left: auto;
-             }
-             .level {
-                 margin: 0;
-                 padding: 0;
-             }
-             .variation-item {
-                 display: flex;
-                 align-items: center;
-                 padding: 2px 0px;
-                 border-radius: 4px;
-                 cursor: pointer;
-                 transition: background-color 0.15s ease;
-                 background-color: transparent;
-                 flex-wrap: wrap;
-                 gap: 4px 8px;
-                 font-family: 'Segoe UI', 'Consolas', monospace;
-                 margin: 0;
-                 font-size: %dpx;
-             }
-             .move-number {
-                 color: #888;
-                 font-size: %dpx;
-                 min-width: 24px;
-                 text-align: right;
-                 font-weight: normal;
-             }
-             .variation-move {
-                 font-family: 'Segoe UI', 'Arial', sans-serif;
-                 font-weight: 600;
-                 color: #1a1a1a;
-                 font-size: %dpx;
-                 padding: 0 2px;
-                 min-width: 30px;
-             }
-             .variation-stats {
-                 color: #666;
-                 font-size: %dpx;
-                 font-weight: normal;
-                 padding-left: 50px;
-                 font-family: 'Consolas', monospace;
-             }
-             .variation-item.active {
-                 background-color: #d4c4a8;
-                 border-left: 3px solid #8b5a2b;
-                 font-weight: bold;
-             }
-             .position-info {
-                 color: #666;
-                 font-size: %dpx;
-                 padding: 2px 0 4px 0;
-                 font-style: italic;
-             }
-             .variations-list {
-                 display: flex;
-                 flex-direction: column;
-                 gap: 2px;
-                 padding: 0;
-                 margin: 0;
-             }
-            """.formatted(
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                 body {
+                     font-family: 'Segoe UI', 'Consolas', monospace;
+                     background-color: #f8f5f0;
+                     padding: 0;
+                     margin: 0;
+                 }
+                 .book-container {
+                     font-size: %dpx;
+                     line-height: 1.8;
+                     max-width: 100%%;
+                     padding: 0;
+                     margin: 0;
+                 }
+                 .book-info {
+                     background-color: #f0e8d8;
+                     padding: 8px 12px;
+                     border-radius: 5px;
+                     margin-bottom: 12px;
+                     border-left: 4px solid #8b5a2b;
+                     display: flex;
+                     flex-wrap: wrap;
+                     gap: 10px;
+                     align-items: center;
+                     font-size: %dpx;
+                 }
+                 .book-name {
+                     font-weight: bold;
+                     color: #5a3e1b;
+                 }
+                 .book-entries {
+                     color: #666;
+                     font-size: %dpx;
+                 }
+                 .book-position {
+                     color: #8b5a2b;
+                     font-size: %dpx;
+                     margin-left: auto;
+                 }
+                 .level {
+                     margin: 0;
+                     padding: 0;
+                 }
+                 .variation-item {
+                     display: flex;
+                     align-items: center;
+                     padding: 2px 0px;
+                     border-radius: 4px;
+                     cursor: pointer;
+                     transition: background-color 0.15s ease;
+                     background-color: transparent;
+                     flex-wrap: wrap;
+                     gap: 4px 8px;
+                     font-family: 'Segoe UI', 'Consolas', monospace;
+                     margin: 0;
+                     font-size: %dpx;
+                     outline: none; /* Убираем outline при фокусе */
+                     user-select: none; /* Запрещаем выделение текста */
+                 }
+                 .move-number {
+                     color: #888;
+                     font-size: %dpx;
+                     min-width: 24px;
+                     text-align: right;
+                     font-weight: normal;
+                 }
+                 .variation-move {
+                     font-family: 'Segoe UI', 'Arial', sans-serif;
+                     font-weight: 600;
+                     color: #1a1a1a;
+                     font-size: %dpx;
+                     padding: 0 2px;
+                     min-width: 30px;
+                 }
+                 .variation-stats {
+                     color: #666;
+                     font-size: %dpx;
+                     font-weight: normal;
+                     padding-left: 50px;
+                     font-family: 'Consolas', monospace;
+                 }
+                 .variation-item.active {
+                     background-color: #d4c4a8;
+                     border-left: 3px solid #8b5a2b;
+                     font-weight: bold;
+                 }
+                 .position-info {
+                     color: #666;
+                     font-size: %dpx;
+                     padding: 2px 0 4px 0;
+                     font-style: italic;
+                 }
+                 .variations-list {
+                     display: flex;
+                     flex-direction: column;
+                     gap: 2px;
+                     padding: 0;
+                     margin: 0;
+                 }
+                """.formatted(
                 fontSize,          // .book-container
                 infoFontSize,      // .book-info
                 statsFontSize,     // .book-entries
@@ -497,108 +513,140 @@ public class BookHtmlVisitor implements LevelAwareVisitor<String> {
 
     private String getJavaScript() {
         return """
-                 console.log('BookHtmlVisitor JavaScript loaded!');
-                \s
-                 // Переменные для навигации
-                 let currentLevel = 0;
-                 let selectedIndex = 0;
-                 let moveItems = [];
-                 let activeItem = null;
-                \s
-                 // Функция для обновления выделения
-                 function updateSelection() {
-                     const items = document.querySelectorAll('.variation-item');
-                     items.forEach((el, i) => {
-                         el.classList.toggle('active', i === selectedIndex);
-                         if (i === selectedIndex) {
-                             el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-                             activeItem = el;
-                         }
-                     });
-                 }
-                \s
-                 // Обработка клавиш
-                 document.addEventListener('keydown', function(e) {
-                     const items = document.querySelectorAll('.variation-item');
-                     if (items.length === 0) return;
-                    \s
-                     switch(e.key) {
-                         case 'ArrowUp':
-                             e.preventDefault();
-                             selectedIndex = Math.max(0, selectedIndex - 1);
-                             updateSelection();
-                             break;
-                         case 'ArrowDown':
-                             e.preventDefault();
-                             selectedIndex = Math.min(items.length - 1, selectedIndex + 1);
-                             updateSelection();
-                             break;
-                         case 'ArrowRight':
-                         case 'Enter':
-                             e.preventDefault();
-                             if (activeItem) {
-                                 const nodeUuid = activeItem.dataset.nodeUuid;
-                                 if (nodeUuid && window.javaBridge) {
-                                     window.javaBridge.onMoveSelected(nodeUuid);
-                                 }
-                             }
-                             break;
-                         case 'ArrowLeft':
-                             e.preventDefault();
-                             if (window.javaBridge) {
-                                 window.javaBridge.onMoveLeft();
-                             }
-                             break;
-                         case 'Home':
-                             e.preventDefault();
-                             if (window.javaBridge) {
-                                 window.javaBridge.onHomePressed();
-                             }
-                             break;
-                         case 'End':
-                             e.preventDefault();
-                             if (window.javaBridge) {
-                                 window.javaBridge.onEndPressed();
-                             }
-                             break;
-                     }
-                 });
-                \s
-                 // Обновляем список при загрузке
-                 document.addEventListener('DOMContentLoaded', function() {
-                     moveItems = document.querySelectorAll('.variation-item');
-                     if (moveItems.length > 0) {
-                         // Находим активный элемент
-                         let found = false;
-                         moveItems.forEach((el, i) => {
-                             if (el.classList.contains('active')) {
-                                 selectedIndex = i;
-                                 activeItem = el;
-                                 found = true;
-                             }
-                         });
-                         if (!found) {
-                             selectedIndex = 0;
-                             moveItems[0].classList.add('active');
-                             activeItem = moveItems[0];
-                         }
-                         activeItem.scrollIntoView({ block: 'center' });
-                     }
-                 });
-                \s
-                 // Обновляем при клике
-                 document.querySelectorAll('.variation-item').forEach(el => {
-                     el.addEventListener('click', function() {
-                         const items = document.querySelectorAll('.variation-item');
-                         items.forEach((item, i) => {
-                             if (item === this) {
-                                 selectedIndex = i;
-                             }
-                         });
-                         updateSelection();
-                     });
-                 });
-                \s""";
+        console.log('BookHtmlVisitor JavaScript loaded!');
+
+        // ========== ПЕРЕМЕННЫЕ ==========
+        let selectedIndex = 0;
+        let activeItem = null;
+
+        // ========== ФУНКЦИЯ ОБНОВЛЕНИЯ ВЫДЕЛЕНИЯ ==========
+        function updateSelection() {
+            const items = document.querySelectorAll('.variation-item');
+            items.forEach((el, i) => {
+                el.classList.toggle('active', i === selectedIndex);
+                if (i === selectedIndex) {
+                    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    activeItem = el;
+                }
+            });
+        }
+
+        // ========== СНИМАЕМ ФОКУС ==========
+        function removeFocus() {
+            const hiddenInput = document.getElementById('hidden-focus');
+            if (hiddenInput) {
+                hiddenInput.focus();
+            } else {
+                document.body.focus();
+            }
+        }
+
+        // ========== ОБРАБОТКА КЛИКОВ МЫШКИ ==========
+        document.addEventListener('click', function(e) {
+            const item = e.target.closest('.variation-item');
+            if (item) {
+                removeFocus();
+                const nodeUuid = item.dataset.nodeUuid;
+                if (nodeUuid && window.javaBridge) {
+                    window.javaBridge.onMoveSelected(nodeUuid);
+                }
+            }
+        });
+
+        // ========== ОБРАБОТКА КЛАВИАТУРЫ ==========
+        document.addEventListener('keydown', function(e) {
+            const items = document.querySelectorAll('.variation-item');
+            if (items.length === 0) return;
+
+            removeFocus();
+
+            switch(e.key) {
+                case 'ArrowUp':
+                    e.preventDefault();
+                    selectedIndex = Math.max(0, selectedIndex - 1);
+                    updateSelection();
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    selectedIndex = Math.min(items.length - 1, selectedIndex + 1);
+                    updateSelection();
+                    break;
+                case 'ArrowRight':
+                case 'Enter':
+                    e.preventDefault();
+                    if (activeItem) {
+                        const nodeUuid = activeItem.dataset.nodeUuid;
+                        if (nodeUuid && window.javaBridge) {
+                            window.javaBridge.onMoveSelected(nodeUuid);
+                        }
+                    }
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    if (window.javaBridge) {
+                        window.javaBridge.onMoveLeft();
+                    }
+                    break;
+                case 'Home':
+                    e.preventDefault();
+                    if (window.javaBridge) {
+                        window.javaBridge.onHomePressed();
+                    }
+                    break;
+                case 'End':
+                    e.preventDefault();
+                    if (window.javaBridge) {
+                        window.javaBridge.onEndPressed();
+                    }
+                    break;
+            }
+        });
+
+        // ========== ИНИЦИАЛИЗАЦИЯ ==========
+        document.addEventListener('DOMContentLoaded', function() {
+            const items = document.querySelectorAll('.variation-item');
+            if (items.length > 0) {
+                let found = false;
+                items.forEach((el, i) => {
+                    if (el.classList.contains('active')) {
+                        selectedIndex = i;
+                        activeItem = el;
+                        found = true;
+                    }
+                });
+                if (!found) {
+                    selectedIndex = 0;
+                    items[0].classList.add('active');
+                    activeItem = items[0];
+                }
+                activeItem.scrollIntoView({ block: 'center' });
+            }
+
+            removeFocus();
+        });
+
+        // ========== ОБНОВЛЕНИЕ ПОСЛЕ НАВИГАЦИИ ==========
+        window.updateNavigationState = function() {
+            const items = document.querySelectorAll('.variation-item');
+            if (items.length > 0) {
+                let found = false;
+                items.forEach((el, i) => {
+                    if (el.classList.contains('active')) {
+                        selectedIndex = i;
+                        activeItem = el;
+                        found = true;
+                    }
+                });
+                if (!found) {
+                    selectedIndex = 0;
+                    items[0].classList.add('active');
+                    activeItem = items[0];
+                }
+                activeItem.scrollIntoView({ block: 'center' });
+            }
+            removeFocus();
+        };
+    """;
     }
 
     private int getMoveNumber(ParentNode node) {

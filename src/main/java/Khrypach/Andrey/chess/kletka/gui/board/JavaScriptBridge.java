@@ -20,10 +20,7 @@
 
 package Khrypach.Andrey.chess.kletka.gui.board;
 
-import Khrypach.Andrey.chess.kletka.gui.model.MoveNode;
-import Khrypach.Andrey.chess.kletka.gui.model.ParentNode;
-import Khrypach.Andrey.chess.kletka.gui.model.RootNode;
-import Khrypach.Andrey.chess.kletka.gui.model.Variation;
+import Khrypach.Andrey.chess.kletka.gui.model.*;
 import javafx.application.Platform;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -78,10 +75,24 @@ public class JavaScriptBridge {
             log.debug("[JS Bridge] Navigating to: variation={}, index={}, move={}",
                     targetVariation.getName(), moveIndex, targetNode.getSan());
 
+            // ========== ВЫПОЛНЯЕМ НАВИГАЦИЮ ==========
             navController.navigateToMoveInVariation(targetVariation, moveIndex);
 
+            // ========== ЯВНО ОБНОВЛЯЕМ НОТАЦИЮ ==========
             if (notationView != null) {
-                notationView.refreshDisplay();
+                Platform.runLater(() -> {
+                    notationView.refreshFromMainLine();
+                    notationView.updateNotationDisplayWithVisitor();
+                    log.debug("[JS Bridge] Notation refreshed after navigation");
+                });
+            }
+
+            // ========== ОБНОВЛЯЕМ ВЫДЕЛЕНИЕ В BOOK VISITOR ==========
+            // Передаем новый индекс в BookHtmlVisitor через navController
+            if (navController.getNavigationMode() == NavigationMode.BOOK) {
+                int selectedIndex = navController.getSelectedVariationIndex();
+                // JavaScript обновит выделение через DOM
+                log.debug("[JS Bridge] BOOK mode - selected index: {}", selectedIndex);
             }
         });
     }

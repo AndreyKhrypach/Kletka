@@ -221,6 +221,14 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.PREFERENCES_OPEN_FOLDER, "打开文件夹");
         strings.put(LanguageKeys.PREFERENCES_OPEN_FOLDER_ERROR, "无法打开设置文件夹");
 
+        strings.put(LanguageKeys.PREFERENCES_PATHS, "路径");
+        strings.put(LanguageKeys.PREFERENCES_BOOKS_PATH, "开局库文件夹");
+        strings.put(LanguageKeys.PREFERENCES_SELECT_BOOKS_PATH, "选择开局库文件夹");
+        strings.put(LanguageKeys.PREFERENCES_LAST_OPEN, "上次打开文件夹");
+        strings.put(LanguageKeys.PREFERENCES_SELECT_LAST_OPEN, "选择上次打开文件夹");
+        strings.put(LanguageKeys.PREFERENCES_LAST_SAVE, "上次保存文件夹");
+        strings.put(LanguageKeys.PREFERENCES_SELECT_LAST_SAVE, "选择上次保存文件夹");
+
         // ========== VIEW MENU ==========
         strings.put(LanguageKeys.MENU_VIEW, "视图");
         strings.put(LanguageKeys.MENU_VIEW_FLIP_BOARD, "翻转棋盘");
@@ -872,6 +880,8 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.PGN_BROWSER_SEARCH_LABEL, "🔍 搜索:");
         strings.put(LanguageKeys.PGN_BROWSER_SEARCH_PROMPT, "输入棋手名、开局或ECO...");
         strings.put(LanguageKeys.PGN_BROWSER_SEARCH_CLEAR, "清除");
+        strings.put(LanguageKeys.PGN_BROWSER_SORTING, "排序中...");
+        strings.put(LanguageKeys.PGN_BROWSER_SORTED, "已排序: %d 条记录");
 
         // ========== PGN BROWSER - STATUS ==========
         strings.put(LanguageKeys.PGN_BROWSER_STATUS_LOADING, "加载中...");
@@ -890,6 +900,16 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.PGN_BROWSER_STATUS_LOADING_GAME, "加载对局...");
         strings.put(LanguageKeys.PGN_BROWSER_STATUS_READY_WITH_COUNT, "就绪 (%d 局)");
         strings.put(LanguageKeys.PGN_BROWSER_STATUS_ALL_LOADED_WITH_COUNT, "所有对局已加载 (%d)");
+        strings.put(LanguageKeys.PGN_BROWSER_STATUS_LOADING_BODIES , "正在加载棋谱...");
+        strings.put(LanguageKeys.PGN_BROWSER_STATUS_LOADING_BODIES_PROGRESS , "已加载  {%d}/{%d} 个棋谱");
+        strings.put(LanguageKeys.PGN_BROWSER_STATUS_GAME_DELETED , "棋局已删除");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_GAME_DELETED , "棋局 ID: {%d} 已被删除，无法加载");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_LOAD_ERROR , "加载棋局错误: {%d}");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_COPY_SKIPPED_DELETED , "已跳过已删除棋局: {%d}");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_COPY_SKIPPED_DELETED_WARNING , "已跳过 {%d} 个已删除棋局，已复制 {%d}");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_NO_GAMES_TO_COPY , "没有可复制的棋局（所有选定棋局已删除）");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_FAILED_TO_LOAD_INDEX , "无法加载索引");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_INVALID_PGN_FORMAT_NO_HEADERS , "无效的 PGN 格式 - 缺少必要的标头");
 
         // ========== PGN BROWSER - BUTTONS ==========
         strings.put(LanguageKeys.PGN_BROWSER_BUTTON_EDIT, "✏️ 编辑");
@@ -937,6 +957,7 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_GAMES, "📋 粘贴对局");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_START, "开始粘贴...");
         strings.put(LanguageKeys.PGN_BROWSER_REFRESH_COMPLETE, "浏览器已刷新");
+        strings.put(LanguageKeys.PGN_BROWSER_GAME_NOT_FOUND_OR_DELETED, "=未找到棋局或已被删除: %d");
 
         strings.put(LanguageKeys.PGN_BROWSER_PASTE_PARTIAL, "已粘贴对局: 成功 - %d, 总计 - %d, 失败 - %d");
         strings.put(LanguageKeys.PGN_BROWSER_PASTE_WRITING, "正在粘贴对局...");
@@ -947,6 +968,13 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.PGN_BROWSER_DELETING, "删除 %d 局...");
         strings.put(LanguageKeys.PGN_BROWSER_DELETING_PROCEED, "删除中: %d / %d 局");
         strings.put(LanguageKeys.PGN_BROWSER_DELETED, "已删除 %d 局");
+
+        strings.put(LanguageKeys.PGN_BROWSER_STATUS_NO_GAMES_DELETED, "没有删除任何棋局");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_DELETE_FAILED , "删除棋局失败。可能已经被删除");
+        strings.put(LanguageKeys.PGN_BROWSER_UPDATING_INDEX , "正在更新索引...");
+        strings.put(LanguageKeys.PGN_BROWSER_UPDATING_TABLE , "正在更新表格...");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_DELETE_SUCCESS_TIME , "已删除 {%d} 个棋局，用时 {%d} 秒");
+
         strings.put(LanguageKeys.PGN_BROWSER_DUPLICATING, "复制对局中...");
         strings.put(LanguageKeys.PGN_BROWSER_COPYING, "复制 %d 局...");
         strings.put(LanguageKeys.PGN_BROWSER_PASTING, "粘贴 %d 局...");
@@ -1162,6 +1190,7 @@ public class ZhLanguage implements Language {
         //BATCH
         strings.put(LanguageKeys.PGN_BATCH_EXCEPTION_LIMIT, "批量删除对局过多: %d");
         strings.put(LanguageKeys.PGN_BATCH_EXCEPTION_ALREADY_DELETED, "对局已删除: %d");
+        strings.put(LanguageKeys.PGN_BATCH_EXCEPTION_NOT_FOUND_IN_INDEX, "索引中未找到 ID 为 %d 的棋局");
     }
 
     private static StringBuilder createShortcutsContent() {

@@ -199,7 +199,6 @@ public class PgnRepacker {
 
         try {
             indexManager.saveIndex(tempPath, newIndex);
-            log.info("Saved index to temp file");
         } catch (IOException e) {
             log.error("Failed to save temp index", e);
             try { Files.deleteIfExists(tempPath); } catch (IOException ignored) {}
@@ -215,8 +214,10 @@ public class PgnRepacker {
         }
 
         Path oldIndexPath = indexManager.getIndexPath(pgnPath);
+
+        // ========== ИСПРАВЛЕНО: ИСПОЛЬЗУЕМ .klt ДЛЯ БЭКАПОВ ==========
         Path backupPgnPath = pgnPath.getParent().resolve(pgnPath.getFileName() + ".repack.bak.pgn");
-        Path backupIndexPath = pgnPath.getParent().resolve(pgnPath.getFileName() + ".repack.bak.idx");
+        Path backupIndexPath = pgnPath.getParent().resolve(pgnPath.getFileName() + ".repack.bak.klt");  // было .idx
 
         try {
             log.info("Creating backups...");
@@ -335,7 +336,7 @@ public class PgnRepacker {
 
     public boolean hasDeletedGames(PgnIndex index) {
         if (index == null) return false;
-        return index.getDeletedEntries() != null && !index.getDeletedEntries().isEmpty();
+        return index.hasDeletedGames(index);
     }
 
     public double getGrowthRatio(PgnIndex index) {

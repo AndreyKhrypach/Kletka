@@ -47,7 +47,6 @@ import Khrypach.Andrey.chess.kletka.pgn.index.manager.PgnBrowserManager;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.GameIndexEntry;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.IndexStatus;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.PgnIndex;
-import Khrypach.Andrey.chess.kletka.pgn.index.operation.PgnGameOperation;
 import Khrypach.Andrey.chess.kletka.pgn.index.ui.IndexingProgressDialog;
 import Khrypach.Andrey.chess.kletka.pgn.index.ui.PgnFileBrowser;
 import Khrypach.Andrey.chess.kletka.pgn.index.util.HashUtils;
@@ -58,10 +57,13 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Group;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import lombok.Getter;
@@ -708,6 +710,11 @@ public class MainController {
     public void loadPgnFile(File file) {
         if (file == null) return;
 
+        // ========== СОХРАНЯЕМ ПОСЛЕДНЮЮ ПАПКУ ОТКРЫТИЯ ==========
+        if (file.getParent() != null) {
+            AppPreferences.saveLastOpenDirectory(file.getParent());
+        }
+
         log.info("Opening PGN file: {}", file.getAbsolutePath());
 
         // Переключаем режим навигации на PGN
@@ -1200,23 +1207,22 @@ public class MainController {
                 return;
             }
 
+            //  1. Конвертируем Unicode → ASCII
             String plainPgn = convertUnicodeToPlain(currentPgn);
 
+            //  2. Обновляем GameData с конвертированным PGN
+            GameData updatedGameData = updateGameDataWithPgn(gameData, plainPgn);
+
             Path path = file.toPath();
-            String content = plainPgn;
 
-            if (Files.exists(path)) {
-                content = "\n\n" + plainPgn;
+            //  3. Передаем plainPgn в updateIndexAfterSave
+            updateIndexAfterSave(path, updatedGameData, plainPgn);
+            updateStateAfterSave(updatedGameData);
+
+            //  4. Сохраняем последнюю директорию
+            if (file.getParent() != null) {
+                AppPreferences.saveLastSaveDirectory(file.getParent());
             }
-
-            Files.writeString(
-                    path,
-                    content,
-                    java.nio.file.StandardOpenOption.CREATE,
-                    java.nio.file.StandardOpenOption.APPEND
-            );
-
-            updateGameHashes(gameData);
 
             String fileName = file.getName();
             showNotification(lang.get(LanguageKeys.PGN_SAVE_SUCCESS) + fileName);
@@ -1225,6 +1231,8 @@ public class MainController {
             showError(lang.get(PGN_SAVE_ERROR), e.getMessage());
         }
     }
+
+
 
     private String convertUnicodeToPlain(String pgn) {
         if (pgn == null || pgn.isEmpty()) return pgn;
@@ -1248,6 +1256,130 @@ public class MainController {
             result = result.replace(entry.getKey(), entry.getValue());
         }
         return result;
+    }
+
+    /**
+     * Обновляет GameData с конвертированным PGN
+     */
+    private GameData updateGameDataWithPgn(GameData original, String plainPgn) {
+        if (original == null) return null;
+
+        return new GameData(
+                original.whitePlayer(),
+                original.blackPlayer(),
+                original.result(),
+                original.whiteElo(),
+                original.blackElo(),
+                original.event(),
+                original.site(),
+                original.round(),
+                original.subround(),
+                original.date(),
+                original.eco(),
+                original.opening(),
+                original.variation(),
+                original.annotator(),
+                original.whiteTeam(),
+                original.blackTeam(),
+                original.source(),
+                original.whiteFideId(),
+                original.blackFideId(),
+                original.timeControl(),
+                original.plyCount(),
+                plainPgn,  // ← обновленный PGN
+                original.fen(),
+                original.isSetUp(),
+                original.positionType(),
+                original.deleted()
+        );
+    }
+
+    /**
+     * Обновляет индекс после сохранения партии
+     * @param pgnPath путь к PGN файлу
+     * @param gameData данные партии
+     * @param plainPgn конвертированный PGN (ASCII)
+     */
+    private void updateIndexAfterSave(Path pgnPath, GameData gameData, String plainPgn) {
+        try {
+            PgnIndexManager indexManager = new PgnIndexManager();
+            Path indexPath = indexManager.getIndexPath(pgnPath);
+
+            // Если файла нет — создаем его
+            if (!Files.exists(pgnPath)) {
+                Files.createFile(pgnPath);
+                log.debug("Created new PGN file: {}", pgnPath);
+            }
+
+            String year = gameData.date() != null ? String.valueOf(gameData.date().getYear()) : "";
+
+            // Проверяем существование ИНДЕКСА
+            if (Files.exists(indexPath)) {
+                PgnIndex index = indexManager.loadIndex(pgnPath);
+
+                //  ВСЕГДА добавляем новую запись
+                int newId = index.getNextId();
+                PgnFileEditor editor = new PgnFileEditor(pgnPath, index);
+                GameIndexEntry newEntry = editor.appendGame(plainPgn, newId);
+
+                // Обновляем заголовки
+                newEntry.setWhite(gameData.whitePlayer());
+                newEntry.setBlack(gameData.blackPlayer());
+                newEntry.setEco(gameData.eco());
+                newEntry.setResult(gameData.result());
+                newEntry.setYear(year);
+                newEntry.setEvent(gameData.event());
+                newEntry.setSite(gameData.site());
+                newEntry.setOpening(gameData.opening());
+                newEntry.setVariation(gameData.variation());
+                newEntry.setPlyCount(parsePlyCount(gameData.plyCount()));
+                newEntry.setHash(HashUtils.hashString(plainPgn));
+
+                index.addEntry(newEntry);
+                indexManager.saveIndex(pgnPath, index);
+
+                log.info("Index updated: added game ID {}", newId);
+
+            } else {
+                // ========== НОВЫЙ ИНДЕКС ==========
+                PgnFileEditor editor = new PgnFileEditor(pgnPath, null);
+                GameIndexEntry newEntry = editor.appendGame(plainPgn, 1);
+
+                newEntry.setWhite(gameData.whitePlayer());
+                newEntry.setBlack(gameData.blackPlayer());
+                newEntry.setEco(gameData.eco());
+                newEntry.setResult(gameData.result());
+                newEntry.setYear(year);
+                newEntry.setEvent(gameData.event());
+                newEntry.setSite(gameData.site());
+                newEntry.setOpening(gameData.opening());
+                newEntry.setVariation(gameData.variation());
+                newEntry.setPlyCount(parsePlyCount(gameData.plyCount()));
+                newEntry.setHash(HashUtils.hashString(plainPgn));
+
+                PgnIndex newIndex = PgnIndex.builder()
+                        .version(PgnIndex.FORMAT_VERSION)
+                        .fileHash(indexManager.computeFileHash(pgnPath))
+                        .fileSize(Files.size(pgnPath))
+                        .gameCount(1)
+                        .activeCount(1)
+                        .entries(new java.util.ArrayList<>(List.of(newEntry)))
+                        .build();
+
+                indexManager.saveIndex(pgnPath, newIndex);
+                log.info("Created new index with game");
+            }
+
+            // ========== ОБНОВЛЯЕМ БРАУЗЕР ==========
+            PgnBrowserManager browserManager = PgnBrowserManager.getInstance();
+            PgnFileBrowser browser = browserManager.getBrowser(pgnPath);
+            if (browser != null && browser.isShowing()) {
+                browser.refresh(false);
+            }
+
+        } catch (Exception e) {
+            log.error("Failed to update index after save: {}", pgnPath, e);
+        }
     }
 
     public void loadNextGameFromBrowser() {
@@ -1282,38 +1414,75 @@ public class MainController {
             return;
         }
 
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle(lang.get(SAVE_GAME_TITLE));
-        alert.setHeaderText(lang.get(SAVE_GAME_HEADER));
-        alert.setContentText(lang.get(SAVE_GAME_CONTENT));
+        // ========== ПЕРВЫЙ ДИАЛОГ (Stage) ==========
+        Stage dialogStage = new Stage();
+        dialogStage.initModality(Modality.WINDOW_MODAL);
+        dialogStage.initOwner(primaryStage);
+        dialogStage.setTitle(lang.get(SAVE_GAME_TITLE));
+        dialogStage.setResizable(false);
 
-        ButtonType saveButton = new ButtonType(lang.get(SAVE_GAME_SAVE));
-        ButtonType noSaveButton = new ButtonType(lang.get(SAVE_GAME_DONT_SAVE));
-        ButtonType cancelButton = new ButtonType(lang.get(SAVE_GAME_CANCEL), ButtonBar.ButtonData.CANCEL_CLOSE);
+        VBox content = new VBox(15);
+        content.setPadding(new Insets(20));
+        content.setAlignment(Pos.CENTER);
 
-        alert.getButtonTypes().setAll(saveButton, noSaveButton, cancelButton);
+        Label header = new Label(lang.get(SAVE_GAME_HEADER));
+        header.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
 
-        alert.showAndWait().ifPresent(response -> {
-            if (response == saveButton) {
-                // ========== ИСПОЛЬЗУЕМ saveGameDataWithChoice() ==========
+        Label message = new Label(lang.get(SAVE_GAME_CONTENT));
+        message.setWrapText(true);
+
+        Button saveButton = new Button(lang.get(SAVE_GAME_SAVE));
+        saveButton.setStyle("-fx-background-color: #2e8b57; -fx-text-fill: white;");
+        saveButton.setOnAction(e -> {
+            // ========== ЗАКРЫВАЕМ ПЕРВЫЙ ДИАЛОГ ==========
+            dialogStage.close();
+
+            // ========== ПОКАЗЫВАЕМ ВТОРОЙ ДИАЛОГ ==========
+            Platform.runLater(() -> {
                 SaveGameDialog dialog = new SaveGameDialog(primaryStage, boardView, notationView);
                 GameData gameData = dialog.showAndWait();
                 if (gameData != null) {
                     saveGameDataWithChoice(gameData);
+                    startBodyHash = 0;
+                    loadedFullHash = 0;
                     if (onComplete != null) {
                         onComplete.run();
                     }
                 }
-                // Если пользователь отменил сохранение - onComplete не вызывается
-            } else if (response == noSaveButton) {
-                startBodyHash = 0;
-                loadedFullHash = 0;
-                if (onComplete != null) {
-                    onComplete.run();
-                }
-            }
-            // Если cancel - ничего не делаем
+                // Если пользователь отменил сохранение — onComplete не вызывается
+            });
         });
+
+        Button noSaveButton = new Button(lang.get(SAVE_GAME_DONT_SAVE));
+        noSaveButton.setStyle("-fx-background-color: #8b0000; -fx-text-fill: white;");
+        noSaveButton.setOnAction(e -> {
+            startBodyHash = 0;
+            loadedFullHash = 0;
+            dialogStage.close();
+            if (onComplete != null) {
+                onComplete.run();
+            }
+        });
+
+        Button cancelButton = new Button(lang.get(SAVE_GAME_CANCEL));
+        cancelButton.setStyle("-fx-background-color: #666; -fx-text-fill: white;");
+        cancelButton.setOnAction(e -> dialogStage.close());
+
+        HBox buttons = new HBox(10);
+        buttons.setAlignment(Pos.CENTER);
+        buttons.getChildren().addAll(saveButton, noSaveButton, cancelButton);
+
+        content.getChildren().addAll(header, message, buttons);
+        Scene scene = new Scene(content);
+        dialogStage.setScene(scene);
+
+        // ========== ПРИНУДИТЕЛЬНЫЙ ПОКАЗ ПОВЕРХ ==========
+        dialogStage.setOnShown(e -> {
+            dialogStage.toFront();
+            dialogStage.requestFocus();
+        });
+
+        dialogStage.showAndWait();
     }
 
     private void showSaveDialogBeforeNewGame() {
@@ -1404,7 +1573,6 @@ public class MainController {
         PgnBrowserManager manager = PgnBrowserManager.getInstance();
         PgnFileBrowser activeBrowser = manager.getActiveBrowser();
 
-        // ========== ИСПОЛЬЗУЕМ ПОСЛЕДНЮЮ ПАПКУ ==========
         String lastDir = AppPreferences.getLastSaveDirectory();
         if (lastDir != null && !lastDir.isEmpty()) {
             File dir = new File(lastDir);
@@ -1412,7 +1580,6 @@ public class MainController {
                 fileChooser.setInitialDirectory(dir);
             }
         } else {
-            // Если нет последней папки - используем bases
             if (activeBrowser != null && activeBrowser.isShowing()) {
                 Path currentPath = activeBrowser.getPgnPath();
                 if (currentPath != null) {
@@ -1440,71 +1607,77 @@ public class MainController {
             return;
         }
 
-        // ========== СОХРАНЯЕМ ПАПКУ ==========
         AppPreferences.saveLastSaveDirectory(selectedFile.getParent());
         AppPreferences.saveSaveDirectory(selectedFile.getParent());
 
         try {
             Path pgnPath = selectedFile.toPath();
-            boolean fileExists = Files.exists(pgnPath);
 
-            PgnIndexManager indexManager = new PgnIndexManager();
-            PgnIndex index = null;
+            // ========== ПОЛУЧАЕМ PGN И КОНВЕРТИРУЕМ ==========
+            // Проверяем, есть ли уже конвертированный PGN в GameData
+            String pgnContent = gameData.pgn();
 
-            if (fileExists) {
-                Path indexPath = indexManager.getIndexPath(pgnPath);
-                if (Files.exists(indexPath)) {
-                    try {
-                        index = indexManager.loadIndex(pgnPath);
-                    } catch (IOException e) {
-                        log.warn("Failed to load index, will create new: {}", e.getMessage());
+            // Если pgn в GameData уже конвертирован - используем его
+            // Иначе берем из NotationView
+            if (pgnContent == null || pgnContent.isEmpty() || containsUnicode(pgnContent)) {
+                NotationView nv = getNotationView();
+                if (nv != null) {
+                    String currentPgn = nv.getCurrentPGN(gameData);
+                    if (currentPgn != null && !currentPgn.isEmpty()) {
+                        pgnContent = currentPgn;
                     }
                 }
             }
 
-            if (index == null) {
-                PgnFileEditor editor = new PgnFileEditor(pgnPath, null);
-                GameIndexEntry newEntry = editor.appendGame(gameData.pgn(), 1);
+            // Конвертируем Unicode → ASCII
+            String plainPgn = convertUnicodeToPlain(pgnContent);
 
-                newEntry.setWhite(gameData.whitePlayer());
-                newEntry.setBlack(gameData.blackPlayer());
-                newEntry.setEco(gameData.eco());
-                newEntry.setResult(gameData.result());
-                newEntry.setYear(gameData.date() != null ? String.valueOf(gameData.date().getYear()) : "");
-                newEntry.setEvent(gameData.event());
-                newEntry.setSite(gameData.site());
-                newEntry.setOpening(gameData.opening());
-                newEntry.setVariation(gameData.variation());
-                newEntry.setPlyCount(parsePlyCount(gameData.plyCount()));
-                newEntry.setHash(HashUtils.calculateContentHash(gameData));
+            // Обновляем GameData с конвертированным PGN
+            GameData updatedGameData = updateGameDataWithPgn(gameData, plainPgn);
 
-                PgnIndex newIndex = PgnIndex.builder()
-                        .version(PgnIndex.FORMAT_VERSION)
-                        .fileHash(indexManager.computeFileHash(pgnPath))
-                        .fileSize(Files.size(pgnPath))
-                        .gameCount(1)
-                        .activeCount(1)
-                        .entries(new java.util.ArrayList<>(List.of(newEntry)))
-                        .build();
+            // ========== ЕДИНЫЙ МЕТОД ОБНОВЛЕНИЯ ИНДЕКСА ==========
+            updateIndexAfterSave(pgnPath, updatedGameData, plainPgn);
 
-                indexManager.saveIndex(pgnPath, newIndex);
-                showNotification(String.format(lang.get(LanguageKeys.MAIN_GAME_SAVED_FILE), selectedFile.getName()));
-            } else {
-                PgnGameOperation operation = new PgnGameOperation(pgnPath, index);
-                operation.addGame(gameData.pgn());
+            // ОБНОВЛЯЕМ ХЕШИ ПОСЛЕ СОХРАНЕНИЯ!
+            updateStateAfterSave(updatedGameData);
 
-                if (activeBrowser != null && activeBrowser.isShowing() &&
-                        activeBrowser.getPgnPath().equals(pgnPath)) {
-                    activeBrowser.refresh();
-                }
-
-                showNotification(String.format(lang.get(LanguageKeys.MAIN_GAME_SAVED_FILE), selectedFile.getName()));
-            }
+            showNotification(String.format(lang.get(LanguageKeys.MAIN_GAME_SAVED_FILE), selectedFile.getName()));
 
         } catch (Exception e) {
             log.error("Failed to save to PGN file", e);
             showError(lang.get(LanguageKeys.PGN_SAVE_ERROR), e.getMessage());
         }
+    }
+
+    /**
+     * Обновляет состояние после успешного сохранения партии
+     */
+    private void updateStateAfterSave(GameData gameData) {
+        if (gameData == null) return;
+
+        // Обновляем хеши
+        startBodyHash = HashUtils.calculateBodyHash(gameData);
+        loadedFullHash = HashUtils.calculateContentHash(gameData);
+        loadedGameHash = HashUtils.calculateContentHash(gameData);
+
+        // Обновляем нотацию
+        if (notationView != null) {
+            notationView.updateGameData(gameData);
+        }
+
+        log.debug("State updated after save: startBodyHash={}, loadedFullHash={}",
+                startBodyHash, loadedFullHash);
+    }
+
+    /**
+     * Проверяет, содержит ли строка Unicode шахматные символы
+     */
+    private boolean containsUnicode(String pgn) {
+        if (pgn == null || pgn.isEmpty()) return false;
+        return pgn.contains("♔") || pgn.contains("♕") || pgn.contains("♖") ||
+                pgn.contains("♗") || pgn.contains("♘") || pgn.contains("♙") ||
+                pgn.contains("♚") || pgn.contains("♛") || pgn.contains("♜") ||
+                pgn.contains("♝") || pgn.contains("♞") || pgn.contains("♟");
     }
 
     private void saveToDatabase(GameData gameData) {

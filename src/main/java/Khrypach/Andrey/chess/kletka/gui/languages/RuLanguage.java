@@ -224,6 +224,14 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.PREFERENCES_OPEN_FOLDER, "Открыть папку");
         strings.put(LanguageKeys.PREFERENCES_OPEN_FOLDER_ERROR, "Не удалось открыть папку с настройками");
 
+        strings.put(LanguageKeys.PREFERENCES_PATHS, "Пути");
+        strings.put(LanguageKeys.PREFERENCES_BOOKS_PATH, "Папка дебютных книг");
+        strings.put(LanguageKeys.PREFERENCES_SELECT_BOOKS_PATH, "Выберите папку для дебютных книг");
+        strings.put(LanguageKeys.PREFERENCES_LAST_OPEN, "Последняя папка открытия");
+        strings.put(LanguageKeys.PREFERENCES_SELECT_LAST_OPEN, "Выберите папку последнего открытия");
+        strings.put(LanguageKeys.PREFERENCES_LAST_SAVE, "Последняя папка сохранения");
+        strings.put(LanguageKeys.PREFERENCES_SELECT_LAST_SAVE, "Выберите папку последнего сохранения");
+
         // === Меню Вид ===
         strings.put(LanguageKeys.MENU_VIEW, "Вид");
         strings.put(LanguageKeys.MENU_VIEW_FLIP_BOARD, "Перевернуть доску");
@@ -897,6 +905,8 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.PGN_BROWSER_SEARCH_LABEL, "🔍 Поиск:");
         strings.put(LanguageKeys.PGN_BROWSER_SEARCH_PROMPT, "Введите имя игрока, дебют или ECO...");
         strings.put(LanguageKeys.PGN_BROWSER_SEARCH_CLEAR, "Сброс");
+        strings.put(LanguageKeys.PGN_BROWSER_SORTING, "Сортировка...");
+        strings.put(LanguageKeys.PGN_BROWSER_SORTED, "Отсортировано: %d записей");
 
         // ========== PGN BROWSER - STATUS ==========
         strings.put(LanguageKeys.PGN_BROWSER_STATUS_LOADING, "Загрузка...");
@@ -915,6 +925,16 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.PGN_BROWSER_STATUS_LOADING_GAME, "Загрузка партии...");
         strings.put(LanguageKeys.PGN_BROWSER_STATUS_READY_WITH_COUNT, "Готово (%d партий)");
         strings.put(LanguageKeys.PGN_BROWSER_STATUS_ALL_LOADED_WITH_COUNT, "Все партии загружены (%d)");
+        strings.put(LanguageKeys.PGN_BROWSER_STATUS_LOADING_BODIES , "Загрузка тел партий...");
+        strings.put(LanguageKeys.PGN_BROWSER_STATUS_LOADING_BODIES_PROGRESS , "Загружено тел: {%d} из {%d}");
+        strings.put(LanguageKeys.PGN_BROWSER_STATUS_GAME_DELETED , "Партия удалена");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_GAME_DELETED , "Партия ID: {%d} была удалена и не может быть загружена");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_LOAD_ERROR , "Ошибка загрузки партии: {%d}");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_COPY_SKIPPED_DELETED , "Пропущено удалённых партий: {%d}");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_COPY_SKIPPED_DELETED_WARNING , "Пропущено {%d} удалённых партий, скопировано {%d}");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_NO_GAMES_TO_COPY , "Нет партий для копирования (все выбранные партии удалены)");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_FAILED_TO_LOAD_INDEX , "Не удалось загрузить индекс");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_INVALID_PGN_FORMAT_NO_HEADERS , "Неверный PGN формат - отсутствуют нужные заголовки");
 
         // ========== PGN BROWSER - BUTTONS ==========
         strings.put(LanguageKeys.PGN_BROWSER_BUTTON_EDIT, "✏️ Редактировать");
@@ -962,11 +982,19 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_GAMES, "📋 Вставка партий");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_START, "Начинаем вставку...");
         strings.put(LanguageKeys.PGN_BROWSER_REFRESH_COMPLETE, "Браузер обновлен");
+        strings.put(LanguageKeys.PGN_BROWSER_GAME_NOT_FOUND_OR_DELETED, "Партия не найдена или удалена: %d");
 
         // ========== PGN BROWSER - PROGRESS ==========
         strings.put(LanguageKeys.PGN_BROWSER_DELETING, "Удаление %d партий...");
         strings.put(LanguageKeys.PGN_BROWSER_DELETING_PROCEED, "Удаление: %d из %d партий");
         strings.put(LanguageKeys.PGN_BROWSER_DELETED, "Удалено %d партий");
+
+        strings.put(LanguageKeys.PGN_BROWSER_STATUS_NO_GAMES_DELETED, "Нет удалённых партий");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_DELETE_FAILED , "Не удалось удалить партии. Возможно, они уже были удалены");
+        strings.put(LanguageKeys.PGN_BROWSER_UPDATING_INDEX , "Обновление индекса...");
+        strings.put(LanguageKeys.PGN_BROWSER_UPDATING_TABLE , "Обновление таблицы...");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_DELETE_SUCCESS_TIME , "Удалено {%d} партий за {%d} секунд");
+
         strings.put(LanguageKeys.PGN_BROWSER_DUPLICATING, "Дублирование партии...");
         strings.put(LanguageKeys.PGN_BROWSER_COPYING, "Копирование %d партий...");
         strings.put(LanguageKeys.PGN_BROWSER_PASTING, "Вставка %d партий...");
@@ -1183,6 +1211,7 @@ public class RuLanguage implements Language {
         //BATCH
         strings.put(LanguageKeys.PGN_BATCH_EXCEPTION_LIMIT, "Слишком много партий для пакетного удаления: %d");
         strings.put(LanguageKeys.PGN_BATCH_EXCEPTION_ALREADY_DELETED, "Партия уже удалена:: %d");
+        strings.put(LanguageKeys.PGN_BATCH_EXCEPTION_NOT_FOUND_IN_INDEX, "Партия c ID %d не найдена в индексе");
     }
 
     private static StringBuilder createShortcutsContent() {

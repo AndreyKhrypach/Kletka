@@ -22,6 +22,8 @@ package Khrypach.Andrey.chess.kletka.pgn.index;
 
 import Khrypach.Andrey.chess.kletka.pgn.index.model.GameIndexEntry;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.PgnIndex;
+import lombok.Getter;
+import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,7 +40,9 @@ public class PgnFileEditor {
     private static final Logger log = LoggerFactory.getLogger(PgnFileEditor.class);
 
     private final Path pgnPath;
-    private final PgnIndex index;
+    @Getter
+    @Setter
+    private PgnIndex index;
 
     public PgnFileEditor(Path pgnPath, PgnIndex index) {
         this.pgnPath = pgnPath;
@@ -192,26 +196,34 @@ public class PgnFileEditor {
     }
 
     /**
-     * Заменяет содержимое партии на месте (без изменения offset)
-     * Используется только когда длина содержимого совпадает
+     * Заменяет партию на месте, если длины совпадают
+     * @return true если замена успешна, false если нужно добавить новую версию
      */
-    public boolean replaceGameInPlace(GameIndexEntry entry, String newPgnContent) throws IOException {
-        byte[] contentBytes = newPgnContent.getBytes(StandardCharsets.UTF_8);
-
-        if (contentBytes.length != entry.getLength()) {
-            log.warn("Content length mismatch: {} != {}, cannot replace in place",
-                    contentBytes.length, entry.getLength());
+    public boolean replaceGameInPlace(GameIndexEntry entry, String newContent) {
+        if (entry == null || newContent == null) {
             return false;
         }
 
-        try (RandomAccessFile raf = new RandomAccessFile(pgnPath.toFile(), "rw")) {
-            raf.seek(entry.getOffset());
-            raf.write(contentBytes);
+        byte[] newBytes = newContent.getBytes(StandardCharsets.UTF_8);
+        int newLength = newBytes.length;
+
+        // ========== ПРОВЕРЯЕМ ДЛИНУ ==========
+        if (newLength != entry.getLength()) {
+            log.warn("Length mismatch: old={}, new={}, cannot replace in place",
+                    entry.getLength(), newLength);
+            return false;
         }
 
-        log.info("Replaced game {} in place at offset {}",
-                entry.getId(), entry.getOffset());
-        return true;
+        // ========== ЗАМЕНЯЕМ НА МЕСТЕ ==========
+        try (RandomAccessFile raf = new RandomAccessFile(pgnPath.toFile(), "rw")) {
+            raf.seek(entry.getOffset());
+            raf.write(newBytes);
+            log.debug("Replaced game {} in place at offset {}", entry.getId(), entry.getOffset());
+            return true;
+        } catch (IOException e) {
+            log.error("Failed to replace game in place", e);
+            return false;
+        }
     }
 
 }

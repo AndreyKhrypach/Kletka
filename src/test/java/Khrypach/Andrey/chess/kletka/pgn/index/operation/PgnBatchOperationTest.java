@@ -161,9 +161,12 @@ class PgnBatchOperationTest {
 
             // then
             assertThat(result.successful()).isEqualTo(10);
-            assertThat(progressCount.get()).isEqualTo(10);
+
+            // ✅ ИСПРАВЛЕНО: проверяем проценты (10%, 20%, ..., 100%)
+            assertThat(progressCount.get()).isEqualTo(100);  // последний прогресс = 100%
             assertThat(progressValues).hasSize(10);
-            assertThat(progressValues).contains(1, 5, 10);
+            assertThat(progressValues).contains(10, 50, 100);  // проценты
+            assertThat(progressValues).containsExactly(10, 20, 30, 40, 50, 60, 70, 80, 90, 100);
         }
 
         @Test
