@@ -20,6 +20,7 @@
 
 package Khrypach.Andrey.chess.kletka.gui.menu;
 
+import Khrypach.Andrey.chess.kletka.gui.KletkaGui;
 import Khrypach.Andrey.chess.kletka.gui.board.BoardTheme;
 import Khrypach.Andrey.chess.kletka.gui.board.ChessBoardView;
 import Khrypach.Andrey.chess.kletka.gui.board.NotationView;
@@ -35,10 +36,14 @@ import Khrypach.Andrey.chess.kletka.gui.model.Variation;
 import Khrypach.Andrey.chess.kletka.gui.settings.AppPreferences;
 import Khrypach.Andrey.chess.kletka.pgn.index.manager.PgnBrowserManager;
 import Khrypach.Andrey.chess.kletka.pgn.index.ui.PgnFileBrowser;
+import javafx.application.HostServices;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuItem;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
@@ -55,13 +60,16 @@ import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.List;
 
 import static Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys.*;
 
@@ -1365,11 +1373,16 @@ public class CustomMenuBarFactory {
     }
 
     private void openGitHubPage() {
-        try {
-            String url = "https://github.com/AndreyKhrypach/Kletka";
-            java.awt.Desktop.getDesktop().browse(java.net.URI.create(url));
-        } catch (Exception e) {
-            showError(lang.get(MENU_HELP_GITHUB_ERROR));
+        HostServices hs = KletkaGui.hostServices();
+        if (hs != null) {
+            hs.showDocument("https://github.com/AndreyKhrypach/Kletka");
+        } else {
+            // Fallback
+            try {
+                Desktop.getDesktop().browse(URI.create("https://github.com/AndreyKhrypach/Kletka"));
+            } catch (Exception e) {
+                showError(lang.get(MENU_HELP_GITHUB_ERROR));
+            }
         }
     }
 

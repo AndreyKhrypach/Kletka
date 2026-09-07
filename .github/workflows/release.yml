@@ -24,7 +24,7 @@ jobs:
       - name: Build with Maven
         run: mvn clean package -P windows
       - name: Upload installer as artifact
-        uses: actions/upload-artifact@v4.2.0
+        uses: actions/upload-artifact@v4.4.0
         with:
           name: kletka-windows
           path: target/installer/Kletka-1.3.0.exe
@@ -50,7 +50,7 @@ jobs:
       - name: Build with Maven
         run: mvn clean package -P linux
       - name: Upload installer as artifact
-        uses: actions/upload-artifact@v4.2.0
+        uses: actions/upload-artifact@v4.4.0
         with:
           name: kletka-linux
           path: target/installer/kletka_1.3.0-1_amd64.deb
