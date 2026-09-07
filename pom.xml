@@ -105,7 +105,7 @@
                     --linux-menu-group "Games"
                     --linux-shortcut
                     --icon "src/main/resources/icons/linux/256x256/apps/kletka.png"
-                    --linux-package-deps "libc6, libjpeg-turbo8 | libjpeg-turbo3, libjpeg-turbo3 | libjpeg-turbo8"
+                    --linux-package-deps "libc6"
                 </jpackage.args>
             </properties>
         </profile>

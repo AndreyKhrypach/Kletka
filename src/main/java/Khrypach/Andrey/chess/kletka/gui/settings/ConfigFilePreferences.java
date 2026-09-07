@@ -133,39 +133,22 @@ public class ConfigFilePreferences {
         Path configDir;
 
         if (os.contains("win")) {
-            String programPath = System.getProperty("user.dir");
-
-            if (isProgramInProgramFiles()) {
-                // ========== ПРОГРАММА В PROGRAM FILES ==========
-                // Используем APPDATA
-                String appData = System.getenv("APPDATA");
-                if (appData != null && !appData.isEmpty()) {
-                    configDir = Paths.get(appData, "Kletka");
-                } else {
-                    // fallback: ProgramData
-                    String programData = System.getenv("PROGRAMDATA");
-                    configDir = Paths.get(programData, "Kletka");
-                }
-                log.info("Program in Program Files, using APPDATA: {}", configDir);
+            // ========== ВСЕГДА ИСПОЛЬЗУЕМ APPDATA ==========
+            String appData = System.getenv("APPDATA");
+            if (appData != null && !appData.isEmpty()) {
+                configDir = Paths.get(appData, "Kletka");
             } else {
-                // ========== ПРОГРАММА НЕ В PROGRAM FILES ==========
-                // Настройки рядом с программой
-                configDir = Paths.get(programPath);
-                log.info("Program not in Program Files, using program directory: {}", configDir);
+                // Fallback: ProgramData
+                String programData = System.getenv("PROGRAMDATA");
+                configDir = Paths.get(programData, "Kletka");
             }
+            log.info("Using APPDATA for config: {}", configDir);
         } else if (os.contains("mac")) {
-            // macOS: ~/Library/Application Support/Kletka
             String userHome = System.getProperty("user.home");
             configDir = Paths.get(userHome, "Library", "Application Support", "Kletka");
         } else {
-            // Linux: ~/.config/kletka/
-            String xdgConfig = System.getenv("XDG_CONFIG_HOME");
-            if (xdgConfig != null && !xdgConfig.isEmpty()) {
-                configDir = Paths.get(xdgConfig, "kletka");
-            } else {
-                String userHome = System.getProperty("user.home");
-                configDir = Paths.get(userHome, ".config", "kletka");
-            }
+            String userHome = System.getProperty("user.home");
+            configDir = Paths.get(userHome, ".config", "kletka");
         }
 
         return configDir;
@@ -213,6 +196,10 @@ public class ConfigFilePreferences {
     private void setDefaults() {
         String systemLanguage = detectSystemLanguage();
 
+        Path configDir = getConfigDirectory();
+        Path basesDir = configDir.resolve("bases");
+        Path booksDir = configDir.resolve("books");
+
         properties.setProperty(KEY_LANGUAGE, systemLanguage);
         properties.setProperty(KEY_TILE_SIZE, String.valueOf(DEFAULT_TILE_SIZE));
         properties.setProperty(KEY_BOARD_FLIPPED, String.valueOf(DEFAULT_BOARD_FLIPPED));
@@ -223,23 +210,8 @@ public class ConfigFilePreferences {
         // ========== ПУТИ ПО УМОЛЧАНИЮ ==========
         properties.setProperty(KEY_LAST_OPEN_DIRECTORY, basesDir.toString());  // ← Открытие
         properties.setProperty(KEY_LAST_SAVE_DIRECTORY, basesDir.toString());  // ← Сохранение
-        properties.setProperty(KEY_BOOK_DIRECTORY, basesDir.resolve("book").toString());
+        properties.setProperty(KEY_BOOK_DIRECTORY, booksDir.resolve("book").toString());
 
-        // Если программа в Program Files, используем APPDATA
-        if (isProgramInProgramFiles()) {
-            String appData = System.getenv("APPDATA");
-            if (appData != null && !appData.isEmpty()) {
-                Path appDataPath = Paths.get(appData, "Kletka");
-                properties.setProperty(KEY_LAST_OPEN_DIRECTORY, appDataPath.toString());
-                properties.setProperty(KEY_LAST_SAVE_DIRECTORY, appDataPath.toString());
-                properties.setProperty(KEY_BOOK_DIRECTORY, appDataPath.resolve("book").toString());
-            }
-        } else {
-            // Если не в Program Files — используем basesDir
-            properties.setProperty(KEY_LAST_OPEN_DIRECTORY, basesDir.toString());
-            properties.setProperty(KEY_LAST_SAVE_DIRECTORY, basesDir.toString());
-            properties.setProperty(KEY_BOOK_DIRECTORY, basesDir.resolve("book").toString());
-        }
     }
 
     /**
@@ -409,7 +381,7 @@ public class ConfigFilePreferences {
     }
 
     public Path getBasesDirectory() {
-        return basesDir;
+        return getConfigDirectory().resolve("bases");
     }
 
     /**
@@ -454,7 +426,7 @@ public class ConfigFilePreferences {
         String dir = properties.getProperty(KEY_BOOK_DIRECTORY);
         if (dir == null || dir.isEmpty()) {
             // По умолчанию: bases/book/
-            Path bookDir = basesDir.resolve("book");
+            Path bookDir = getConfigDirectory().resolve("book");
             try {
                 if (!Files.exists(bookDir)) {
                     Files.createDirectories(bookDir);
