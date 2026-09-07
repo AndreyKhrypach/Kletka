@@ -28,6 +28,8 @@ import Khrypach.Andrey.chess.kletka.gui.languages.LanguageManager;
 import Khrypach.Andrey.chess.kletka.pgn.index.PgnFileEditor;
 import Khrypach.Andrey.chess.kletka.pgn.index.PgnIndexManager;
 import Khrypach.Andrey.chess.kletka.pgn.index.PgnRepacker;
+import Khrypach.Andrey.chess.kletka.pgn.index.binary.LazyPgnIndex;
+import Khrypach.Andrey.chess.kletka.pgn.index.binary.LightGameEntry;
 import Khrypach.Andrey.chess.kletka.pgn.index.manager.PgnBrowserManager;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.GameIndexEntry;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.PgnIndex;
@@ -89,7 +91,10 @@ public class PgnFileBrowser {
     private boolean active = false;
 
     @Getter
+    @Setter
     private PgnIndex currentIndex;
+    @Getter
+    @Setter
     private boolean useIndexMode = false;
     private int currentGameIndex = -1;
 
@@ -135,6 +140,13 @@ public class PgnFileBrowser {
     private boolean isLoadingMore = false;
     private boolean allLoaded = false;
 
+    // ========== ДЛЯ СОРТИРОВКИ ==========
+    private List<LightGameEntry> sortedLightEntries = null;  // Отсортированный список лёгких записей
+    private boolean isSorted = false;                         // Флаг, что мы в режиме сортировки
+    private String currentSortColumn = null;                 // Текущая колонка сортировки
+    private boolean sortAscending = true;                    // Направление сортировки
+    private int totalEntriesCount = 0;                       // Общее количество записей (для статуса)
+
     // ========== КОЛБЭКИ ==========
     private Consumer<GameData> onGameSelected;
     @Getter
@@ -152,6 +164,12 @@ public class PgnFileBrowser {
     private RepackProgressDialog repackDialog;
     private boolean isRepacking = false;
     private RepackStatusWidget repackStatusWidget;
+    @Getter
+    @Setter
+    private boolean shouldLoadGameAfterRefresh = true;
+    @Getter
+    @Setter
+    private int restoreSelectionId = -1;
 
     // ========== КОНСТРУКТОР ==========
     public PgnFileBrowser(Path pgnPath, Stage ownerStage) {
@@ -415,6 +433,63 @@ public class PgnFileBrowser {
 
         table.getSelectionModel().getSelectedItems().addListener(
                 (ListChangeListener<GameTableRow>) change -> updateButtonsState()
+        );
+
+
+        // ========== ПЕРЕОПРЕДЕЛЯЕМ ПОЛИТИКУ СОРТИРОВКИ ==========
+        table.setSortPolicy(tv -> {
+            List<TableColumn<GameTableRow, ?>> sortOrder = tv.getSortOrder();
+
+            log.info("setSortPolicy triggered, sortOrder size: {}", sortOrder.size());
+
+            if (sortOrder.isEmpty()) {
+                return true;
+            }
+
+            TableColumn<GameTableRow, ?> column = sortOrder.get(0);
+            log.info("Sort column: {}", column.getText());
+
+            if (column == idColumn) {
+                sortGamesByColumn("id");
+            } else if (column == whiteColumn) {
+                sortGamesByColumn("white");
+            } else if (column == blackColumn) {
+                sortGamesByColumn("black");
+            } else if (column == resultColumn) {
+                sortGamesByColumn("result");
+            } else if (column == yearColumn) {
+                sortGamesByColumn("year");
+            } else if (column == eventColumn) {
+                sortGamesByColumn("event");
+            } else if (column == ecoColumn) {
+                sortGamesByColumn("eco");
+            } else if (column == openingColumn) {
+                sortGamesByColumn("opening");
+            }
+
+            return true;
+        });
+
+        // Убираем автоматическую сортировку (чтобы не конфликтовала)
+        idColumn.setSortable(true);
+        whiteColumn.setSortable(true);
+        blackColumn.setSortable(true);
+        resultColumn.setSortable(true);
+        yearColumn.setSortable(true);
+        eventColumn.setSortable(true);
+        ecoColumn.setSortable(true);
+        openingColumn.setSortable(true);
+        bodyColumn.setSortable(false);
+
+        table.getSelectionModel().getSelectedItems().addListener(
+                (ListChangeListener<GameTableRow>) change -> {
+                    updateButtonsState();
+                    // ========== ОБНОВЛЯЕМ СЧЁТЧИК ВЫБРАННЫХ ==========
+                    int selectedCount = table.getSelectionModel().getSelectedItems().size();
+                    if (selectedLabel != null) {
+                        selectedLabel.setText(String.format(lang.get(PGN_BROWSER_STATUS_SELECTED), selectedCount));
+                    }
+                }
         );
 
         return table;
@@ -920,52 +995,78 @@ public class PgnFileBrowser {
     private void loadFromIndex(PgnIndexManager indexManager) throws IOException {
         long startTime = System.currentTimeMillis();
 
-        Platform.runLater(() -> statusLabel.setText(lang.get(PGN_BROWSER_STATUS_LOADING_INDEX)));
+        Platform.runLater(() -> {
+            statusLabel.setText(lang.get(PGN_BROWSER_STATUS_LOADING_INDEX));
+            progressIndicator.setVisible(true);
+        });
 
-        currentIndex = indexManager.loadIndex(pgnPath);
+        LazyPgnIndex lazyIndex = indexManager.loadLazyIndex(pgnPath);
+        currentIndex = lazyIndex;
 
-        List<GameIndexEntry> entries = currentIndex.getActiveEntries();
+        // ========== ИСПРАВЛЕНО: ИСПОЛЬЗУЕМ НОВЫЙ МЕТОД ==========
+        List<LightGameEntry> allLight = lazyIndex.getActiveLightEntries(); // <-- ТОЛЬКО АКТИВНЫЕ
+        List<GameIndexEntry> initialFullEntries = lazyIndex.loadInitialFullEntries(1000);
+
+        // Создаём карту для быстрого доступа к полным записям по ID
+        Map<Integer, GameIndexEntry> fullEntryMap = new HashMap<>();
+        for (GameIndexEntry entry : initialFullEntries) {
+            fullEntryMap.put(entry.getId(), entry);
+        }
 
         Platform.runLater(() -> {
             allRows.clear();
+            tableView.getItems().clear();
+
             int id = 0;
-            for (GameIndexEntry entry : entries) {
-                allRows.add(new GameTableRow(
+            for (LightGameEntry light : allLight) {
+                // ========== ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА ==========
+                if (light.deleted()) {
+                    continue;
+                }
+
+                String body = "";
+                GameIndexEntry fullEntry = fullEntryMap.get(light.id());
+
+                if (fullEntry != null) {
+                    body = extractBodyForDisplay(fullEntry);
+                }
+
+                GameTableRow row = new GameTableRow(
                         ++id,
-                        entry.getWhite().isEmpty() ? "?" : entry.getWhite(),
-                        entry.getBlack().isEmpty() ? "?" : entry.getBlack(),
-                        entry.getResult(),
-                        entry.getYear().isEmpty() ? "????" : entry.getYear(),
-                        entry.getEvent().isEmpty() ? "?" : entry.getEvent(),
-                        entry.getEco().isEmpty() ? "" : entry.getEco(),
-                        entry.getOpening().isEmpty() ? "" : entry.getOpening(),
-                        "",
-                        entry
-                ));
+                        light,
+                        body,
+                        this
+                );
+                if (fullEntry != null) {
+                    row.setIndexEntry(fullEntry);
+                }
+                allRows.add(row);
             }
 
-            totalLabel.setText(String.format(lang.get(PGN_BROWSER_STATUS_TOTAL), allRows.size()));
-            selectedLabel.setText(String.format(lang.get(PGN_BROWSER_STATUS_SELECTED), 0));
+            // Загружаем первую страницу
+            currentPage = 0;
+            allLoaded = false;
+            isLoadingMore = false;
 
             loadMoreRowsInternal();
 
+            totalLabel.setText(String.format(lang.get(PGN_BROWSER_STATUS_TOTAL), allRows.size()));
+            selectedLabel.setText(String.format(lang.get(PGN_BROWSER_STATUS_SELECTED), 0));
             progressIndicator.setVisible(false);
             statusLabel.setText(lang.get(PGN_BROWSER_STATUS_READY));
             setupPagination();
             updateRepackStatus();
             checkAutoRepack();
             updateTitle();
-
             updateButtonsState();
             updateStatus();
 
-            log.info("Index load completed in {} ms",
-                    System.currentTimeMillis() - startTime);
+            log.info("Lazy index load completed in {} ms with {} active entries (total {})",
+                    System.currentTimeMillis() - startTime, allRows.size(), lazyIndex.getLightEntries().size());
 
             if (onDataLoaded != null) {
                 onDataLoaded.run();
             }
-
             if (onRefreshComplete != null) {
                 Platform.runLater(onRefreshComplete);
             }
@@ -1041,6 +1142,7 @@ public class PgnFileBrowser {
                 int index = tableView.getItems().indexOf(firstRow);
                 if (index >= 0) {
                     currentGameIndex = index;
+                    tableView.getSelectionModel().clearSelection();
                     tableView.getSelectionModel().select(index);
                     tableView.scrollTo(index);
                     loadGame(index);
@@ -1089,63 +1191,114 @@ public class PgnFileBrowser {
     }
 
     private void loadMoreRowsInternal() {
-        int startIndex = currentPage * PAGE_SIZE;
-        int totalSize = allRows.size();
+        log.info("loadMoreRowsInternal: currentPage={}, isSorted={}, allRows.size={}, sortedLightEntries={}",
+                currentPage, isSorted, allRows.size(), sortedLightEntries != null ? sortedLightEntries.size() : "null");
 
-        if (startIndex >= totalSize) {
-            allLoaded = true;
-            isLoadingMore = false;
-            statusLabel.setText(lang.get(PGN_BROWSER_STATUS_ALL_LOADED));
-            return;
+        int startIndex = currentPage * PAGE_SIZE;
+        int totalSize;
+        List<LightGameEntry> entriesToLoad;
+
+        // ========== ЕСЛИ ЕСТЬ ОТСОРТИРОВАННЫЙ СПИСОК - ИСПОЛЬЗУЕМ ЕГО ==========
+        if (isSorted && sortedLightEntries != null) {
+            totalSize = sortedLightEntries.size();
+            if (startIndex >= totalSize) {
+                allLoaded = true;
+                isLoadingMore = false;
+                statusLabel.setText(String.format(lang.get(PGN_BROWSER_STATUS_ALL_LOADED_WITH_COUNT), totalSize));
+                return;
+            }
+
+            int endIndex = Math.min(startIndex + PAGE_SIZE, totalSize);
+            entriesToLoad = new ArrayList<>(sortedLightEntries.subList(startIndex, endIndex));
+
+        } else {
+            // ========== СТАНДАРТНАЯ ЗАГРУЗКА ИЗ ИНДЕКСА ==========
+            if (allRows.isEmpty()) {
+                allLoaded = true;
+                isLoadingMore = false;
+                return;
+            }
+
+            totalSize = allRows.size();
+            if (startIndex >= totalSize) {
+                allLoaded = true;
+                isLoadingMore = false;
+                statusLabel.setText(String.format(lang.get(PGN_BROWSER_STATUS_ALL_LOADED_WITH_COUNT), totalSize));
+                return;
+            }
+
+            int endIndex = Math.min(startIndex + PAGE_SIZE, totalSize);
+            entriesToLoad = new ArrayList<>();
+            for (int i = startIndex; i < endIndex; i++) {
+                GameTableRow row = allRows.get(i);
+                // ИСПРАВЛЕНО: используем lightEntry из строки, если он есть
+                if (row.getLightEntry() != null) {
+                    entriesToLoad.add(row.getLightEntry());
+                } else {
+                    // Fallback для старых данных
+                    LightGameEntry light = createLightFromRow(row);
+                    entriesToLoad.add(light);
+                }
+            }
         }
 
-        int endIndex = Math.min(startIndex + PAGE_SIZE, totalSize);
-        List<GameTableRow> rowsToLoad = new ArrayList<>(allRows.subList(startIndex, endIndex));
-
+        // ========== ЗАГРУЖАЕМ ТЕЛА ДЛЯ ЗАПИСЕЙ ==========
         new Thread(() -> {
             try {
-                PgnFileEditor editor = null;
-                if (useIndexMode && currentIndex != null) {
-                    editor = new PgnFileEditor(pgnPath, currentIndex);
-                }
+                PgnFileEditor editor = new PgnFileEditor(pgnPath, currentIndex);
+                List<GameTableRow> rowsToDisplay = new ArrayList<>();
+                int idOffset = currentPage * PAGE_SIZE;
 
-                for (GameTableRow row : rowsToLoad) {
+                for (int i = 0; i < entriesToLoad.size(); i++) {
+                    LightGameEntry light = entriesToLoad.get(i);
+                    String body = "";
+                    GameIndexEntry fullEntry = null;
+
                     try {
-                        String unicodeBody = "";
-                        if (useIndexMode && row.getIndexEntry() != null) {
-                            GameIndexEntry entry = row.getIndexEntry();
-                            assert editor != null;
-                            String bodyPgn = editor.readBody(entry);
-                            unicodeBody = ChessSymbols.convertToChessSymbols(bodyPgn);
-                            if (unicodeBody.length() > 150) {
-                                unicodeBody = unicodeBody.substring(0, 150) + "...";
-                            }
-                        } else if (!cachedGames.isEmpty()) {
-                            int idx = row.getId() - 1;
-                            if (idx >= 0 && idx < cachedGames.size()) {
-                                GameData game = cachedGames.get(idx);
-                                String bodyPgn = extractBody(game.pgn());
-                                unicodeBody = ChessSymbols.convertToChessSymbols(bodyPgn);
-                                if (unicodeBody.length() > 150) {
-                                    unicodeBody = unicodeBody.substring(0, 150) + "...";
-                                }
+                        // Загружаем полную запись
+                        if (currentIndex instanceof LazyPgnIndex lazyIndex) {
+                            fullEntry = lazyIndex.getFullEntry(light.id());
+                        }
+                        if (fullEntry == null) {
+                            fullEntry = currentIndex.getEntryById(light.id());
+                        }
+                        if (fullEntry != null) {
+                            String bodyPgn = editor.readBody(fullEntry);
+                            body = ChessSymbols.convertToChessSymbols(bodyPgn);
+                            if (body.length() > 150) {
+                                body = body.substring(0, 150) + "...";
                             }
                         }
-                        row.setBody(unicodeBody);
                     } catch (Exception e) {
-                        log.warn("Failed to load body for row {}: {}", row.getId(), e.getMessage());
+                        log.trace("Failed to load body for game {}", light.id());
                     }
+
+                    // ИСПРАВЛЕНО: создаём строку с LightGameEntry и браузером
+                    GameTableRow row = new GameTableRow(
+                            idOffset + i + 1,
+                            light,
+                            body,
+                            this  // Передаём ссылку на браузер
+                    );
+                    // Сохраняем полную запись, если она загружена
+                    if (fullEntry != null) {
+                        row.setIndexEntry(fullEntry);
+                    }
+                    rowsToDisplay.add(row);
                 }
 
                 Platform.runLater(() -> {
-                    tableView.getItems().addAll(rowsToLoad);
+                    log.info("Adding {} rows to table, current table size: {}", rowsToDisplay.size(), tableView.getItems().size());
+                    tableView.getItems().addAll(rowsToDisplay);
                     currentPage++;
                     isLoadingMore = false;
+
                     int loaded = tableView.getItems().size();
-                    statusLabel.setText(String.format(lang.get(PGN_BROWSER_STATUS_LOADED), loaded, allRows.size()));
-                    if (loaded >= allRows.size()) {
+                    statusLabel.setText(String.format(lang.get(PGN_BROWSER_STATUS_LOADED), loaded, totalSize));
+
+                    if (loaded >= totalSize) {
                         allLoaded = true;
-                        statusLabel.setText(String.format(lang.get(PGN_BROWSER_STATUS_ALL_LOADED_WITH_COUNT), allRows.size()));
+                        statusLabel.setText(String.format(lang.get(PGN_BROWSER_STATUS_ALL_LOADED_WITH_COUNT), totalSize));
                     }
                 });
 
@@ -1157,6 +1310,42 @@ public class PgnFileBrowser {
                 });
             }
         }).start();
+    }
+
+    /**
+     * Создаёт LightGameEntry из GameTableRow (для обратной совместимости)
+     */
+    private LightGameEntry createLightFromRow(GameTableRow row) {
+        return new LightGameEntry(
+                row.getId(),
+                row.getWhite().equals("?") ? "" : row.getWhite(),
+                row.getBlack().equals("?") ? "" : row.getBlack(),
+                row.getResult(),
+                row.getYear().equals("????") ? "" : row.getYear(),
+                row.getEvent().equals("?") ? "" : row.getEvent(),
+                row.getEco().isEmpty() ? "" : row.getEco(),
+                row.getOpening().isEmpty() ? "" : row.getOpening(),
+                0,  // offset (не используется для отображения)
+                0,  // length (не используется для отображения)
+                false,
+                0   // hash
+        );
+    }
+
+    private String extractBodyForDisplay(GameIndexEntry fullEntry) {
+        try {
+            if (fullEntry == null) return "";
+            PgnFileEditor editor = new PgnFileEditor(pgnPath, currentIndex);
+            String bodyPgn = editor.readBody(fullEntry);
+            String unicode = ChessSymbols.convertToChessSymbols(bodyPgn);
+            if (unicode.length() > 150) {
+                return unicode.substring(0, 150) + "...";
+            }
+            return unicode;
+        } catch (Exception e) {
+            log.warn("Failed to extract body: {}", e.getMessage());
+            return "";
+        }
     }
 
     // ========== ФИЛЬТРАЦИЯ ==========
@@ -1209,11 +1398,17 @@ public class PgnFileBrowser {
 
     // ========== ЗАГРУЗКА ПАРТИИ ПО СТРОКЕ ==========
     private void loadGame(GameTableRow row) {
-        if (row == null) return;
+        if (row == null) {
+            log.warn("loadGame: row is null");
+            return;
+        }
+
+        log.debug("loadGame: row.id={}, row.lightEntry={}", row.getId(), row.getLightEntry());
 
         int index = tableView.getItems().indexOf(row);
         if (index >= 0) {
             currentGameIndex = index;
+            tableView.getSelectionModel().clearSelection();
             tableView.getSelectionModel().select(index);
             tableView.scrollTo(index);
         }
@@ -1223,24 +1418,56 @@ public class PgnFileBrowser {
 
         new Thread(() -> {
             try {
-                GameData gameData;
-                if (useIndexMode && row.getIndexEntry() != null) {
+                GameData gameData = null;
+
+                if (currentIndex instanceof LazyPgnIndex lazyIndex) {
+                    // ========== ИСПОЛЬЗУЕМ LIGHT ENTRY ИЗ СТРОКИ ==========
+                    LightGameEntry light = row.getLightEntry();
+                    log.debug("loadGame: light={}", light);
+
+                    if (light == null) {
+                        log.error("Light entry is null for row: {}", row.getId());
+                        throw new IOException("Light entry not found for row: " + row.getId());
+                    }
+
+                    log.debug("loadGame: light.id={}, light.deleted={}", light.id(), light.deleted());
+
+                    if (light.deleted()) {
+                        throw new IllegalArgumentException("Game is deleted: " + light.id());
+                    }
+
+                    // Загружаем полную запись
+                    GameIndexEntry fullEntry = lazyIndex.getFullEntry(light.id());
+                    log.debug("loadGame: fullEntry={}", fullEntry);
+
+                    if (fullEntry == null) {
+                        throw new IOException("Failed to load full entry for game: " + light.id());
+                    }
+
+                    if (fullEntry.isDeleted()) {
+                        throw new IllegalArgumentException("Game is deleted: " + light.id());
+                    }
+
+                    // Читаем PGN
                     PgnFileEditor editor = new PgnFileEditor(pgnPath, currentIndex);
-                    String pgnContent = editor.readGame(row.getIndexEntry());
+                    String pgnContent = editor.readGame(fullEntry);
+                    log.debug("loadGame: pgnContent length={}", pgnContent != null ? pgnContent.length() : 0);
+
                     PgnParser parser = new PgnParser();
                     gameData = parser.parse(pgnContent);
-                } else if (!cachedGames.isEmpty()) {
-                    int idx = row.getId() - 1;
-                    if (idx >= 0 && idx < cachedGames.size()) {
-                        gameData = cachedGames.get(idx);
-                    } else {
-                        throw new IOException("Game not found in cache");
-                    }
+                    log.debug("loadGame: gameData={}", gameData);
+
                 } else {
-                    throw new IOException("No data source available");
+                    log.warn("loadGame: currentIndex is not LazyPgnIndex, type={}",
+                            currentIndex != null ? currentIndex.getClass().getSimpleName() : "null");
                 }
 
-                GameData finalGameData = gameData;
+                if (gameData == null) {
+                    log.error("loadGame: gameData is null for row {}", row.getId());
+                    throw new IOException("Failed to parse game data");
+                }
+
+                final GameData finalGameData = gameData;
 
                 Platform.runLater(() -> {
                     progressIndicator.setVisible(false);
@@ -1254,14 +1481,26 @@ public class PgnFileBrowser {
                     updateStatus();
 
                     if (onGameSelected != null) {
+                        log.debug("loadGame: calling onGameSelected with gameData");
                         onGameSelected.accept(finalGameData);
+                    } else {
+                        log.warn("loadGame: onGameSelected is null");
                     }
+                });
+
+            } catch (IllegalArgumentException e) {
+                log.warn("Game is deleted: {}", e.getMessage());
+                Platform.runLater(() -> {
+                    progressIndicator.setVisible(false);
+                    statusLabel.setText(lang.get(PGN_BROWSER_STATUS_GAME_DELETED));
+                    showNotification(String.format(lang.get(PGN_BROWSER_MSG_GAME_DELETED), row.getId()));
                 });
             } catch (Exception e) {
                 log.error("Failed to load game", e);
                 Platform.runLater(() -> {
                     progressIndicator.setVisible(false);
                     statusLabel.setText(String.format(lang.get(PGN_BROWSER_STATUS_ERROR), e.getMessage()));
+                    showNotification(String.format(lang.get(PGN_BROWSER_MSG_LOAD_ERROR), e.getMessage()));
                 });
             }
         }).start();
@@ -1281,8 +1520,17 @@ public class PgnFileBrowser {
             currentGameIndex = (currentGameIndex + 1) % total;
         }
 
+        // ========== ПРОВЕРЯЕМ, ЧТО ПАРТИЯ НЕ УДАЛЕНА ==========
+        GameTableRow row = tableView.getItems().get(currentGameIndex);
+        if (row != null && row.getIndexEntry() != null && row.getIndexEntry().isDeleted()) {
+            // Пропускаем удалённую партию
+            loadNextGame();
+            return;
+        }
+
         log.debug("Loading next game: index={}, total={}", currentGameIndex, total);
 
+        tableView.getSelectionModel().clearSelection();
         tableView.getSelectionModel().select(currentGameIndex);
         tableView.scrollTo(currentGameIndex);
 
@@ -1302,8 +1550,17 @@ public class PgnFileBrowser {
             currentGameIndex = (currentGameIndex - 1 + total) % total;
         }
 
+        // ========== ПРОВЕРЯЕМ, ЧТО ПАРТИЯ НЕ УДАЛЕНА ==========
+        GameTableRow row = tableView.getItems().get(currentGameIndex);
+        if (row != null && row.getIndexEntry() != null && row.getIndexEntry().isDeleted()) {
+            // Пропускаем удалённую партию
+            loadPreviousGame();
+            return;
+        }
+
         log.debug("Loading previous game: index={}, total={}", currentGameIndex, total);
 
+        tableView.getSelectionModel().clearSelection();
         tableView.getSelectionModel().select(currentGameIndex);
         tableView.scrollTo(currentGameIndex);
 
@@ -1394,17 +1651,63 @@ public class PgnFileBrowser {
 
         new Thread(() -> {
             try {
-                // 1. Удаляем старую версию
-                PgnGameOperation operation = new PgnGameOperation(pgnPath, currentIndex);
-                operation.deleteGame(row.getIndexEntry().getId());
-
-                // 2. Добавляем новую версию с обновленными данными
-                String newPgn = updatedGameData.pgn();
-                operation.addGame(newPgn);
-
-                // 3. Перезагружаем индекс
+                // ========== ЗАГРУЖАЕМ СВЕЖИЙ ЛЕНИВЫЙ ИНДЕКС ==========
                 PgnIndexManager indexManager = new PgnIndexManager();
-                currentIndex = indexManager.loadIndex(pgnPath);
+                LazyPgnIndex freshIndex = indexManager.loadLazyIndex(pgnPath);
+                log.info("Loaded LAZY index for editing: {} entries", freshIndex.getGameCount());
+
+                // ========== ПОЛУЧАЕМ РЕАЛЬНЫЙ ID ИЗ СТРОКИ ==========
+                int realGameId;
+                GameIndexEntry oldEntry;
+
+                if (row.getIndexEntry() != null) {
+                    oldEntry = row.getIndexEntry();
+                    realGameId = oldEntry.getId();
+                } else if (row.getLightEntry() != null) {
+                    realGameId = row.getLightEntry().id();
+                    oldEntry = freshIndex.getFullEntry(realGameId);
+                    if (oldEntry == null) {
+                        oldEntry = freshIndex.getEntryById(realGameId);
+                    }
+                } else {
+                    throw new IllegalArgumentException("Cannot determine real game ID for row: " + row.getId());
+                }
+
+                log.info("Real game ID from row: {}", realGameId);
+
+                if (oldEntry == null) {
+                    throw new IllegalArgumentException(String.format(
+                            lang.get(PGN_BROWSER_GAME_NOT_FOUND_OR_DELETED), realGameId
+                    ));
+                }
+
+                if (oldEntry.isDeleted()) {
+                    throw new IllegalArgumentException(String.format(
+                            lang.get(PGN_BROWSER_MSG_GAME_DELETED), realGameId
+                    ));
+                }
+
+                // ========== 1. УДАЛЯЕМ СТАРУЮ ВЕРСИЮ ==========
+                PgnGameOperation operation = new PgnGameOperation(pgnPath, freshIndex);
+                PgnGameOperation.OperationResult deleteResult = operation.deleteGame(realGameId);
+
+                if (deleteResult == null) {
+                    throw new IllegalStateException("Failed to delete old game (result is null)");
+                }
+                log.info("Old game {} marked as deleted: {}", realGameId, deleteResult.message());
+
+                // ========== 2. ДОБАВЛЯЕМ НОВУЮ ВЕРСИЮ ==========
+                String newPgn = updatedGameData.pgn();
+                PgnGameOperation.OperationResult addResult = operation.addGame(newPgn);
+
+                if (addResult == null) {
+                    throw new IllegalStateException("Failed to add new game (result is null)");
+                }
+                log.info("New game added with ID: {}", addResult.newEntry().getId());
+
+                // ========== 3. ОБНОВЛЯЕМ ИНДЕКС ==========
+                this.currentIndex = indexManager.loadLazyIndex(pgnPath);
+                log.info("Index reloaded after edit: {} entries", currentIndex.getGameCount());
 
                 Platform.runLater(() -> {
                     progressIndicator.setVisible(false);
@@ -1413,6 +1716,13 @@ public class PgnFileBrowser {
                     showNotification(lang.get(PGN_BROWSER_MSG_EDIT_SUCCESS));
                 });
 
+            } catch (IllegalArgumentException e) {
+                log.warn("Failed to save edited game: {}", e.getMessage());
+                Platform.runLater(() -> {
+                    progressIndicator.setVisible(false);
+                    statusLabel.setText(String.format(lang.get(PGN_BROWSER_STATUS_ERROR), e.getMessage()));
+                    showNotification(String.format(lang.get(PGN_BROWSER_MSG_EDIT_ERROR), e.getMessage()));
+                });
             } catch (Exception e) {
                 log.error("Failed to save edited game", e);
                 Platform.runLater(() -> {
@@ -1437,23 +1747,30 @@ public class PgnFileBrowser {
             return;
         }
 
-        // Проверяем, что все партии имеют индекс
+        // ========== ПОЛУЧАЕМ ЗАПИСИ ИЗ ИНДЕКСА ==========
+        List<GameIndexEntry> entriesToDelete = new ArrayList<>();
         for (GameTableRow row : selected) {
-            if (row.getIndexEntry() == null) {
-                showNotification(lang.get(PGN_BROWSER_MSG_DELETE_UNAVAILABLE));
+            GameIndexEntry entry = row.getIndexEntry(); // Теперь работает ленивая загрузка!
+            if (entry == null) {
+                // Пытаемся загрузить через currentIndex напрямую
+                if (currentIndex instanceof LazyPgnIndex lazyIndex) {
+                    entry = lazyIndex.getFullEntry(row.getId());
+                }
+                if (entry == null) {
+                    entry = currentIndex.getEntryById(row.getId());
+                }
+            }
+            if (entry == null) {
+                showNotification(String.format(lang.get(PGN_BROWSER_MSG_DELETE_UNAVAILABLE), row.getId()));
                 return;
             }
+            entriesToDelete.add(entry);
         }
 
-        int total = selected.size();
+        int total = entriesToDelete.size();
 
         // ========== НОВЫЙ ДИАЛОГ ПОДТВЕРЖДЕНИЯ ==========
-        List<GameIndexEntry> entries = new ArrayList<>();
-        for (GameTableRow row : selected) {
-            entries.add(row.getIndexEntry());
-        }
-
-        DeleteConfirmDialog dialog = new DeleteConfirmDialog(entries);
+        DeleteConfirmDialog dialog = new DeleteConfirmDialog(entriesToDelete);
         if (!dialog.showAndWait()) {
             return; // Пользователь отменил
         }
@@ -1464,71 +1781,47 @@ public class PgnFileBrowser {
         statusLabel.setText(String.format(lang.get(PGN_BROWSER_DELETING), total));
 
         // ========== ПРОГРЕСС ДЛЯ БОЛЬШИХ ОПЕРАЦИЙ ==========
-        if (total > 100) {
-            ProgressDialog progressDialog = new ProgressDialog(
-                    String.format(lang.get(PGN_BROWSER_DELETING), total),
-                    lang.get(PGN_BROWSER_START_DELETING)
-            );
-            progressDialog.show();
 
-            new Thread(() -> {
-                try {
-                    PgnBatchOperation batchOp = new PgnBatchOperation(pgnPath, currentIndex);
+        ProgressDialog progressDialog = new ProgressDialog(
+                String.format(lang.get(PGN_BROWSER_DELETING), total),
+                lang.get(PGN_BROWSER_START_DELETING)
+        );
+        progressDialog.show();
 
-                    BatchOperationResult result = batchOp.deleteGamesBatch(entries,
-                            processed -> Platform.runLater(() -> progressDialog.updateProgress(
-                                    (double) processed / total,
-                                    String.format(lang.get(PGN_BROWSER_DELETING_PROCEED), processed, total),
-                                    String.format(lang.get(PGN_BROWSER_DELETED), processed)
-                            )));
-
-                    progressDialog.updateProgress(1.0, String.format(lang.get(PGN_BROWSER_DELETED), result.successful()),
-                            lang.get(PGN_BROWSER_STATUS_OPERATION_FINISHED));
-                    Thread.sleep(500);
-                    progressDialog.close();
-
-                    int finalDeletedCount = result.successful();
-                    Platform.runLater(() -> {
-                        progressIndicator.setVisible(false);
-                        statusLabel.setText(String.format(lang.get(PGN_BROWSER_DELETED), finalDeletedCount));
-                        refreshAfterOperation();
-                        showNotification(String.format(lang.get(PGN_BROWSER_MSG_DELETE_SUCCESS), finalDeletedCount));
-                        setOperationsEnabled(true);
-                    });
-                } catch (Exception e) {
-                    log.error("Failed to delete games", e);
-                    Platform.runLater(() -> {
-                        progressIndicator.setVisible(false);
-                        statusLabel.setText(String.format(lang.get(PGN_BROWSER_STATUS_ERROR), e.getMessage()));
-                        progressDialog.close();
-                        showNotification(String.format(lang.get(PGN_BROWSER_MSG_DELETE_ERROR), e.getMessage()));
-                        setOperationsEnabled(true);
-                    });
-                }
-            }).start();
-
-            return;
-        }
-
-        // ========== МАЛЫЕ ОПЕРАЦИИ - БЕЗ ПРОГРЕССА ==========
         new Thread(() -> {
             try {
-                PgnGameOperation operation = new PgnGameOperation(pgnPath, currentIndex);
-                int deletedCount = 0;
+                // ========== ВАЖНО: СОЗДАЁМ НОВЫЙ ЭКЗЕМПЛЯР С АКТУАЛЬНЫМ ИНДЕКСОМ ==========
+                PgnBatchOperation batchOp = new PgnBatchOperation(pgnPath, currentIndex);
 
-                for (GameTableRow row : selected) {
-                    try {
-                        operation.deleteGame(row.getIndexEntry().getId());
-                        deletedCount++;
-                    } catch (Exception e) {
-                        log.warn("Failed to delete game for small operations{}: {}", row.getId(), e.getMessage());
-                    }
+                BatchOperationResult result = batchOp.deleteGamesBatch(entriesToDelete,
+                        processed -> Platform.runLater(() -> progressDialog.updateProgress(
+                                (double) processed / total,
+                                String.format(lang.get(PGN_BROWSER_DELETING_PROCEED),  total, processed),
+                                String.format(lang.get(PGN_BROWSER_DELETED), processed)
+                        )));
+
+                // ========== ВАЖНО: ОБНОВЛЯЕМ currentIndex ПОСЛЕ ОПЕРАЦИИ ==========
+                PgnIndex updatedIndex = batchOp.getIndex();
+                if (updatedIndex != null) {
+                    this.currentIndex = updatedIndex;
+                    log.info("Index updated after batch delete: {} active entries", currentIndex.getActiveCount());
+                } else {
+                    // Fallback: перезагружаем индекс
+                    PgnIndexManager indexManager = new PgnIndexManager();
+                    this.currentIndex = indexManager.loadIndex(pgnPath);
+                    log.info("Index reloaded after batch delete: {} active entries", currentIndex.getActiveCount());
                 }
 
-                int finalDeletedCount = deletedCount;
+                progressDialog.updateProgress(1.0, String.format(lang.get(PGN_BROWSER_DELETED), result.successful()),
+                        lang.get(PGN_BROWSER_STATUS_OPERATION_FINISHED));
+                Thread.sleep(500);
+                progressDialog.close();
+
+                int finalDeletedCount = result.successful();
                 Platform.runLater(() -> {
                     progressIndicator.setVisible(false);
                     statusLabel.setText(String.format(lang.get(PGN_BROWSER_DELETED), finalDeletedCount));
+                    // ========== ВАЖНО: ОБНОВЛЯЕМ ТАБЛИЦУ ==========
                     refreshAfterOperation();
                     showNotification(String.format(lang.get(PGN_BROWSER_MSG_DELETE_SUCCESS), finalDeletedCount));
                     setOperationsEnabled(true);
@@ -1538,6 +1831,7 @@ public class PgnFileBrowser {
                 Platform.runLater(() -> {
                     progressIndicator.setVisible(false);
                     statusLabel.setText(String.format(lang.get(PGN_BROWSER_STATUS_ERROR), e.getMessage()));
+                    progressDialog.close();
                     showNotification(String.format(lang.get(PGN_BROWSER_MSG_DELETE_ERROR), e.getMessage()));
                     setOperationsEnabled(true);
                 });
@@ -1559,8 +1853,28 @@ public class PgnFileBrowser {
         }
 
         GameTableRow selected = tableView.getSelectionModel().getSelectedItem();
-        if (selected == null || selected.getIndexEntry() == null) {
+        if (selected == null) {
             showNotification(lang.get(PGN_BROWSER_MSG_DUPLICATE_UNAVAILABLE));
+            return;
+        }
+
+        // ========== ЗАГРУЖАЕМ СВЕЖИЙ ИНДЕКС ==========
+        PgnIndexManager indexManager = new PgnIndexManager();
+        PgnIndex freshIndex;
+        try {
+            freshIndex = indexManager.loadLazyIndex(pgnPath);
+            log.info("Loaded LAZY index for duplicate: {} entries", freshIndex.getGameCount());
+        } catch (IOException e) {
+            log.error("Failed to load index", e);
+            showNotification(lang.get(PGN_BROWSER_MSG_DUPLICATE_ERROR));
+            return;
+        }
+
+        // ========== ПОЛУЧАЕМ ЗАПИСЬ ==========
+        GameIndexEntry entry = freshIndex.getEntryById(selected.getId());
+        if (entry == null || entry.isDeleted()) {
+            log.warn("Game {} not found or deleted", selected.getId());
+            showNotification(String.format(lang.get(PGN_BROWSER_MSG_GAME_DELETED), selected.getId()));
             return;
         }
 
@@ -1569,14 +1883,21 @@ public class PgnFileBrowser {
 
         new Thread(() -> {
             try {
-                PgnGameOperation operation = new PgnGameOperation(pgnPath, currentIndex);
-                PgnGameOperation.OperationResult result = operation.duplicateGame(
-                        selected.getIndexEntry().getId()
-                );
+                // ========== ДУБЛИРУЕМ ==========
+                PgnGameOperation operation = new PgnGameOperation(pgnPath, freshIndex);
+                PgnGameOperation.OperationResult result = operation.duplicateGame(entry.getId());
+
+                // ========== ВАЖНО: ПЕРЕЗАГРУЖАЕМ ИНДЕКС ПОСЛЕ СОХРАНЕНИЯ ==========
+                // Операция сохранила индекс, но LazyPgnIndex мог закэшировать старые данные
+                // Перезагружаем индекс заново, чтобы получить актуальные данные
+                PgnIndexManager reloadManager = new PgnIndexManager();
+                this.currentIndex = reloadManager.loadLazyIndex(pgnPath);
+                log.info("Index reloaded after duplicate: {} entries", currentIndex.getGameCount());
 
                 Platform.runLater(() -> {
                     progressIndicator.setVisible(false);
                     statusLabel.setText(result.message());
+                    // ========== ПЕРЕЗАГРУЖАЕМ ТАБЛИЦУ ==========
                     refreshAfterOperation();
                     showNotification(result.message());
                 });
@@ -1610,16 +1931,47 @@ public class PgnFileBrowser {
             return;
         }
 
+        // ========== ПОЛУЧАЕМ ЗАПИСИ ИЗ ИНДЕКСА ==========
+        List<GameIndexEntry> entries = new ArrayList<>();
+        List<Integer> skippedIds = new ArrayList<>();
+
         for (GameTableRow row : selected) {
-            if (row.getIndexEntry() == null) {
-                showNotification(lang.get(PGN_BROWSER_MSG_COPY_UNAVAILABLE));
+            // ========== ИСПРАВЛЕНО: ПРОВЕРЯЕМ, ЧТО ЗАПИСЬ НЕ УДАЛЕНА ==========
+            GameIndexEntry entry = row.getIndexEntry();
+            if (entry == null) {
+                if (currentIndex instanceof LazyPgnIndex lazyIndex) {
+                    entry = lazyIndex.getFullEntry(row.getId());
+                }
+                if (entry == null) {
+                    entry = currentIndex.getEntryById(row.getId());
+                }
+            }
+
+            if (entry == null) {
+                showNotification(String.format(lang.get(PGN_BROWSER_MSG_COPY_UNAVAILABLE), row.getId()));
                 return;
             }
+
+            // ========== ПРОВЕРЯЕМ, НЕ УДАЛЕНА ЛИ ПАРТИЯ ==========
+            if (entry.isDeleted()) {
+                log.warn("Skipping deleted game: {}", entry.getId());
+                skippedIds.add(entry.getId());
+                continue;
+            }
+
+            entries.add(entry);
         }
 
-        List<GameIndexEntry> entries = new ArrayList<>();
-        for (GameTableRow row : selected) {
-            entries.add(row.getIndexEntry());
+        // ========== ЕСЛИ ВСЕ ПАРТИИ УДАЛЕНЫ ==========
+        if (entries.isEmpty()) {
+            showNotification(String.format(lang.get(PGN_BROWSER_MSG_COPY_SKIPPED_DELETED), skippedIds.size()));
+            return;
+        }
+
+        // ========== ПРЕДУПРЕЖДАЕМ, ЧТО ЧАСТЬ ПАРТИЙ ПРОПУЩЕНА ==========
+        if (!skippedIds.isEmpty()) {
+            showNotification(String.format(lang.get(PGN_BROWSER_MSG_COPY_SKIPPED_DELETED_WARNING),
+                    skippedIds.size(), entries.size()));
         }
 
         setOperationsEnabled(false);
@@ -1630,8 +1982,7 @@ public class PgnFileBrowser {
                     lang.get(PGN_BROWSER_MSG_COPY_START)
             );
             progressDialog.show();
-            progressDialog.setOnCancel(() -> {
-            });
+            progressDialog.setOnCancel(() -> {});
 
             new Thread(() -> {
                 try {
@@ -1898,12 +2249,16 @@ public class PgnFileBrowser {
                         })
                 );
 
+                // ========== ОБНОВЛЯЕМ ИНДЕКС ==========
                 currentIndex = newIndex;
 
                 Platform.runLater(() -> {
                     isRepacking = false;
                     setOperationsEnabled(true);
+
+                    // ========== ОБНОВЛЯЕМ ТАБЛИЦУ ==========
                     refreshAfterRepack(newIndex);
+
                     showNotification(String.format(lang.get(PGN_BROWSER_REPACK_SUCCESS), newIndex.getActiveCount()));
                 });
 
@@ -1925,53 +2280,175 @@ public class PgnFileBrowser {
     }
 
     private void refreshAfterRepack(PgnIndex newIndex) {
-        updateRepackStatus();
-        refreshAfterOperation();
+        log.info("Refreshing after repack, new index has {} entries", newIndex.getActiveCount());
+
+        // Обновляем индекс
+        this.currentIndex = newIndex;
+
+        // ========== ПОЛНАЯ ПЕРЕЗАГРУЗКА БРАУЗЕРА ==========
+        refresh(true);
+
         totalLabel.setText(String.format(lang.get(PGN_BROWSER_STATUS_TOTAL), newIndex.getActiveCount()));
+        updateRepackStatus();
+        updateTitle();
+
         if (repackButton != null) {
             repackButton.setDisable(false);
         }
-        updateTitle();
     }
 
     private void refreshAfterOperation() {
         try {
-            PgnIndexManager indexManager = new PgnIndexManager();
-            currentIndex = indexManager.loadIndex(pgnPath);
+            long startTime = System.currentTimeMillis();
+            log.info("Starting refresh after operation...");
 
-            List<GameIndexEntry> entries = currentIndex.getActiveEntries();
+            PgnIndexManager indexManager = new PgnIndexManager();
+
+            // ========== ВСЕГДА ЗАГРУЖАЕМ ЛЕНИВЫЙ ИНДЕКС ==========
+            this.currentIndex = indexManager.loadLazyIndex(pgnPath);
+            log.info("Loaded LAZY index after refresh: {} entries", currentIndex.getGameCount());
+
+            if (currentIndex == null) {
+                log.error("Failed to load index after operation");
+                Platform.runLater(() -> statusLabel.setText(lang.get(PGN_BROWSER_STATUS_ERROR_LOADING)));
+                return;
+            }
+
+            LazyPgnIndex lazyIndex = (LazyPgnIndex) currentIndex;
+            List<LightGameEntry> allLight = lazyIndex.getActiveLightEntries();
+
+            log.info("Loaded {} active entries ({} ms)", allLight.size(),
+                    System.currentTimeMillis() - startTime);
 
             Platform.runLater(() -> {
                 allRows.clear();
                 int id = 0;
-                for (GameIndexEntry entry : entries) {
-                    allRows.add(new GameTableRow(
+
+                for (LightGameEntry light : allLight) {
+                    GameTableRow row = new GameTableRow(
                             ++id,
-                            entry.getWhite().isEmpty() ? "?" : entry.getWhite(),
-                            entry.getBlack().isEmpty() ? "?" : entry.getBlack(),
-                            entry.getResult(),
-                            entry.getYear().isEmpty() ? "????" : entry.getYear(),
-                            entry.getEvent().isEmpty() ? "?" : entry.getEvent(),
-                            entry.getEco().isEmpty() ? "" : entry.getEco(),
-                            entry.getOpening().isEmpty() ? "" : entry.getOpening(),
-                            "",
-                            entry
-                    ));
+                            light,
+                            "",  // Пустое тело - будет загружено асинхронно
+                            this
+                    );
+                    allRows.add(row);
                 }
 
+                // Загружаем первую страницу
                 tableView.getItems().clear();
-                currentPage = 0;
-                allLoaded = false;
-                loadMoreRowsInternal();
+                int pageSize = Math.min(PAGE_SIZE, allRows.size());
+                if (pageSize > 0) {
+                    tableView.getItems().addAll(allRows.subList(0, pageSize));
+                }
+
+                currentPage = 1;
+                allLoaded = (allRows.size() <= PAGE_SIZE);
+
                 totalLabel.setText(String.format(lang.get(PGN_BROWSER_FILTER_TOTAL), allRows.size()));
                 updateRepackStatus();
                 checkAutoRepack();
                 updateTitle();
+                updateButtonsState();
+
+                log.info("Table updated without bodies ({} ms)", System.currentTimeMillis() - startTime);
+
+                loadBodiesAsync();
             });
 
         } catch (Exception e) {
             log.error("Failed to refresh after operation", e);
+            Platform.runLater(() -> statusLabel.setText(String.format(lang.get(PGN_BROWSER_STATUS_ERROR), e.getMessage())));
         }
+    }
+
+    /**
+     * Асинхронно загружает тела партий для отображаемых строк
+     */
+    private void loadBodiesAsync() {
+        int visibleCount = Math.min(PAGE_SIZE * 2, tableView.getItems().size());
+        if (visibleCount == 0) return;
+
+        // ========== ПРОВЕРЯЕМ, ЧТО ИНДЕКС - ЛЕНИВЫЙ ==========
+        if (!(currentIndex instanceof LazyPgnIndex lazyIndex)) {
+            log.warn("loadBodiesAsync: currentIndex is not LazyPgnIndex, skipping body loading");
+            return;
+        }
+
+        statusLabel.setText(lang.get(PGN_BROWSER_STATUS_LOADING_BODIES));
+        progressIndicator.setVisible(true);
+
+        List<GameTableRow> visibleRows = new ArrayList<>(tableView.getItems().subList(0, visibleCount));
+
+        new Thread(() -> {
+            try {
+                int loaded = 0;
+                //int total = visibleRows.size();
+                int total = lazyIndex.getEntryCount();
+
+                for (GameTableRow row : visibleRows) {
+                    LightGameEntry light = row.getLightEntry();
+                    if (light == null) continue;
+
+                    GameIndexEntry fullEntry = lazyIndex.getFullEntry(light.id());
+                    if (fullEntry != null && !fullEntry.isDeleted()) {
+                        try {
+                            String body;
+                            PgnFileEditor editor = new PgnFileEditor(pgnPath, currentIndex);
+                            String bodyPgn = editor.readBody(fullEntry);
+                            body = ChessSymbols.convertToChessSymbols(bodyPgn);
+                            if (body.length() > 150) {
+                                body = body.substring(0, 150) + "...";
+                            }
+
+                            final String finalBody = body;
+                            final int rowIndex = allRows.indexOf(row);
+
+                            Platform.runLater(() -> {
+                                if (rowIndex >= 0 && rowIndex < allRows.size()) {
+                                    GameTableRow updatedRow = allRows.get(rowIndex);
+                                    updatedRow.setBody(finalBody);
+                                    updatedRow.setIndexEntry(fullEntry);
+
+                                    int tableIndex = tableView.getItems().indexOf(row);
+                                    if (tableIndex >= 0) {
+                                        tableView.getItems().set(tableIndex, updatedRow);
+                                    }
+                                }
+                            });
+
+                            loaded++;
+                            if (loaded % 10 == 0) {
+                                final int progress = loaded;
+                                Platform.runLater(() -> statusLabel.setText(String.format(
+                                        lang.get(PGN_BROWSER_STATUS_LOADING_BODIES_PROGRESS),
+                                        progress, total
+                                )));
+                            }
+                        } catch (Exception e) {
+                            log.trace(" loadedBodyAsync: Failed to load body for game {}", fullEntry.getId());
+                        }
+                    }
+                }
+
+                Platform.runLater(() -> {
+                    progressIndicator.setVisible(false);
+                    statusLabel.setText(String.format(
+                            lang.get(PGN_BROWSER_STATUS_READY_WITH_COUNT),
+                            allRows.size()
+                    ));
+                });
+
+            } catch (Exception e) {
+                log.error("Failed to load bodies", e);
+                Platform.runLater(() -> {
+                    progressIndicator.setVisible(false);
+                    statusLabel.setText(String.format(
+                            lang.get(PGN_BROWSER_STATUS_ERROR),
+                            e.getMessage()
+                    ));
+                });
+            }
+        }).start();
     }
 
     private void setOperationsEnabled(boolean enabled) {
@@ -2073,15 +2550,159 @@ public class PgnFileBrowser {
         return stage != null && stage.isShowing();
     }
 
-    public void refresh() {
-        log.debug("🔧 [{}] refresh() called", pgnPath.getFileName());
+    /**
+     * Обновляет браузер
+     *
+     * @param loadGame если true — загружает первую партию (или сохраняет текущую)
+     *                 если false — только обновляет таблицу, не трогает доску
+     */
+    public void refresh(boolean loadGame) {
+        log.debug("🔧 [{}] refresh(loadGame={}) called", pgnPath.getFileName(), loadGame);
+
+        // Сохраняем текущее выделение
+        GameTableRow selectedRow = tableView.getSelectionModel().getSelectedItem();
+        int selectedId = selectedRow != null ? selectedRow.getId() : -1;
+
+        // ========== ЗАПОМИНАЕМ, НУЖНО ЛИ ЗАГРУЖАТЬ ==========
+        this.shouldLoadGameAfterRefresh = loadGame;
+        this.restoreSelectionId = selectedId;
 
         if (Platform.isFxApplicationThread()) {
-            log.debug("🔧 [{}] refresh() on FX thread, calling loadGames()", pgnPath.getFileName());
             loadGames();
         } else {
-            log.debug("🔧 [{}] refresh() on non-FX thread, scheduling", pgnPath.getFileName());
             Platform.runLater(this::loadGames);
+        }
+    }
+
+    /**
+     * Обновляет браузер с загрузкой первой партии (старое поведение)
+     */
+    public void refresh() {
+        refresh(true);
+    }
+
+    /**
+     * Сортирует партии по выбранной колонке
+     *
+     * @param columnName имя колонки (white, black, result, year, event, eco, opening, id)
+     */
+    public void sortGamesByColumn(String columnName) {
+        log.debug("🔧 [{}] sortGamesByColumn: column={}", pgnPath.getFileName(), columnName);
+
+        if (currentIndex == null) {
+            log.warn("Current index is null, cannot sort");
+            return;
+        }
+
+        progressIndicator.setVisible(true);
+        statusLabel.setText(lang.get(PGN_BROWSER_SORTING));
+
+        if (columnName.equals(currentSortColumn)) {
+            sortAscending = !sortAscending;
+        } else {
+            currentSortColumn = columnName;
+            sortAscending = true;
+        }
+
+        new Thread(() -> {
+            try {
+                List<LightGameEntry> allLight;
+                if (currentIndex instanceof LazyPgnIndex lazyIndex) {
+                    allLight = new ArrayList<>(lazyIndex.getLightEntries());
+                } else {
+                    List<LightGameEntry> fallback = currentIndex.getActiveEntries().stream()
+                            .map(LightGameEntry::fromFull)
+                            .toList();
+                    allLight = new ArrayList<>(fallback);
+                }
+
+                Comparator<LightGameEntry> comparator = getComparatorForColumn(columnName);
+                if (sortAscending) {
+                    allLight.sort(comparator);
+                } else {
+                    allLight.sort(comparator.reversed());
+                }
+
+                sortedLightEntries = allLight;
+                isSorted = true;
+                currentPage = 0;
+                allLoaded = false;
+                isLoadingMore = false;
+                totalEntriesCount = allLight.size();
+
+                Platform.runLater(() -> {
+                    progressIndicator.setVisible(false);
+                    statusLabel.setText(String.format(lang.get(PGN_BROWSER_SORTED), totalEntriesCount));
+
+                    // ========== ОЧИЩАЕМ ТАБЛИЦУ ПЕРЕД ЗАГРУЗКОЙ ==========
+                    tableView.getItems().clear();
+
+                    // ========== ЗАГРУЖАЕМ ПЕРВУЮ СТРАНИЦУ ==========
+                    loadMoreRowsInternal();
+
+                    updateColumnSortIndicators(columnName, sortAscending);
+                });
+
+            } catch (Exception e) {
+                log.error("Failed to sort games", e);
+                Platform.runLater(() -> {
+                    progressIndicator.setVisible(false);
+                    statusLabel.setText(String.format(lang.get(PGN_BROWSER_STATUS_ERROR), e.getMessage()));
+                    isSorted = false;
+                });
+            }
+        }).start();
+    }
+
+    /**
+     * Возвращает компаратор для указанной колонки
+     */
+    private Comparator<LightGameEntry> getComparatorForColumn(String columnName) {
+        return switch (columnName) {
+            case "white" -> Comparator.comparing(LightGameEntry::white,
+                    Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER));
+            case "black" -> Comparator.comparing(LightGameEntry::black,
+                    Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER));
+            case "result" -> Comparator.comparing(LightGameEntry::result,
+                    Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER));
+            case "year" -> Comparator.comparing(LightGameEntry::year,
+                    Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER));
+            case "event" -> Comparator.comparing(LightGameEntry::event,
+                    Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER));
+            case "eco" -> Comparator.comparing(LightGameEntry::eco,
+                    Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER));
+            case "opening" -> Comparator.comparing(LightGameEntry::opening,
+                    Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER));
+            default -> Comparator.comparingInt(LightGameEntry::id);
+        };
+    }
+
+    /**
+     * Обновляет индикаторы сортировки в заголовках колонок
+     */
+    private void updateColumnSortIndicators(String columnName, boolean ascending) {
+        String indicator = ascending ? " ▲" : " ▼";
+
+        // Сбрасываем все заголовки (без индикаторов)
+        idColumn.setText(lang.get(PGN_BROWSER_COLUMN_ID));
+        whiteColumn.setText(lang.get(PGN_BROWSER_COLUMN_WHITE));
+        blackColumn.setText(lang.get(PGN_BROWSER_COLUMN_BLACK));
+        resultColumn.setText(lang.get(PGN_BROWSER_COLUMN_RESULT));
+        yearColumn.setText(lang.get(PGN_BROWSER_COLUMN_YEAR));
+        eventColumn.setText(lang.get(PGN_BROWSER_COLUMN_EVENT));
+        ecoColumn.setText(lang.get(PGN_BROWSER_COLUMN_ECO));
+        openingColumn.setText(lang.get(PGN_BROWSER_COLUMN_OPENING));
+
+        // Добавляем индикатор к нужной колонке
+        switch (columnName) {
+            case "white" -> whiteColumn.setText(whiteColumn.getText() + indicator);
+            case "black" -> blackColumn.setText(blackColumn.getText() + indicator);
+            case "result" -> resultColumn.setText(resultColumn.getText() + indicator);
+            case "year" -> yearColumn.setText(yearColumn.getText() + indicator);
+            case "event" -> eventColumn.setText(eventColumn.getText() + indicator);
+            case "eco" -> ecoColumn.setText(ecoColumn.getText() + indicator);
+            case "opening" -> openingColumn.setText(openingColumn.getText() + indicator);
+            case "id" -> idColumn.setText(idColumn.getText() + indicator);
         }
     }
 
@@ -2120,8 +2741,27 @@ public class PgnFileBrowser {
         private final String eco;
         private final String opening;
         private String body;
-        private final GameIndexEntry indexEntry;
+        private GameIndexEntry indexEntry;
+        private final LightGameEntry lightEntry; // Добавляем лёгкую запись
+        private final PgnFileBrowser browser;    // Ссылка на браузер для ленивой загрузки
 
+        // Конструктор с LightGameEntry
+        public GameTableRow(int id, LightGameEntry light, String body, PgnFileBrowser browser) {
+            this.id = id;
+            this.white = light.white().isEmpty() ? "?" : light.white();
+            this.black = light.black().isEmpty() ? "?" : light.black();
+            this.result = light.result();
+            this.year = light.year().isEmpty() ? "????" : light.year();
+            this.event = light.event().isEmpty() ? "?" : light.event();
+            this.eco = light.eco().isEmpty() ? "" : light.eco();
+            this.opening = light.opening().isEmpty() ? "" : light.opening();
+            this.body = body;
+            this.lightEntry = light;
+            this.indexEntry = null;
+            this.browser = browser;
+        }
+
+        // Оригинальный конструктор (для обратной совместимости)
         public GameTableRow(int id, String white, String black, String result,
                             String year, String event, String eco, String opening,
                             String body, GameIndexEntry indexEntry) {
@@ -2135,6 +2775,37 @@ public class PgnFileBrowser {
             this.opening = opening;
             this.body = body;
             this.indexEntry = indexEntry;
+            this.lightEntry = null;
+            this.browser = null;
+        }
+
+        /**
+         * Лениво загружает полную запись, если она ещё не загружена
+         */
+        public GameIndexEntry getIndexEntry() {
+            if (indexEntry != null) {
+                return indexEntry;
+            }
+
+            if (lightEntry == null || browser == null) {
+                return null;
+            }
+
+            // Ленивая загрузка через LazyPgnIndex
+            PgnIndex currentIndex = browser.getCurrentIndex();
+            if (currentIndex instanceof LazyPgnIndex lazyIndex) {
+                indexEntry = lazyIndex.getFullEntry(lightEntry.id());
+                if (indexEntry != null) {
+                    return indexEntry;
+                }
+            }
+
+            // Fallback: пытаемся получить через EntryById
+            if (currentIndex != null) {
+                indexEntry = currentIndex.getEntryById(lightEntry.id());
+            }
+
+            return indexEntry;
         }
 
         @Override

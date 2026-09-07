@@ -47,6 +47,7 @@ public class ConfigFilePreferences {
     public static final String KEY_BOOK_DIRECTORY = "book.directory";
     public static final String KEY_NAVIGATION_MODE = "navigation.mode";
     public static final String KEY_LAST_SAVE_DIRECTORY = "save.last.directory";
+    public static final String KEY_LAST_OPEN_DIRECTORY = "open.last.directory";
 
     private static ConfigFilePreferences instance;
     private final Properties properties = new Properties();
@@ -88,35 +89,12 @@ public class ConfigFilePreferences {
      * Инициализация директорий в зависимости от ОС
      */
     private void initDirectories() {
-        String os = System.getProperty("os.name").toLowerCase();
-        Path appDir;
-
-        if (os.contains("win")) {
-            // Windows: папка с программой
-            appDir = Paths.get(System.getProperty("user.dir"));
-            log.info("Windows: using program directory: {}", appDir);
-        } else if (os.contains("mac")) {
-            // macOS: ~/Library/Application Support/Kletka
-            String userHome = System.getProperty("user.home");
-            appDir = Paths.get(userHome, "Library", "Application Support", "Kletka");
-            log.info("macOS: using application support directory: {}", appDir);
-        } else {
-            // Linux и другие Unix: ~/.config/kletka/ (XDG стандарт)
-            String xdgConfig = System.getenv("XDG_CONFIG_HOME");
-            if (xdgConfig != null && !xdgConfig.isEmpty()) {
-                appDir = Paths.get(xdgConfig, "kletka");
-            } else {
-                String userHome = System.getProperty("user.home");
-                appDir = Paths.get(userHome, ".config", "kletka");
-            }
-            log.info("Linux/Unix: using config directory: {}", appDir);
-        }
+        Path appDir = getConfigDirectory();
 
         this.configPath = appDir.resolve(CONFIG_FILE_NAME);
         this.basesDir = appDir.resolve(BASES_DIR_NAME);
 
         try {
-            // Создаем директории если их нет
             if (!Files.exists(appDir)) {
                 Files.createDirectories(appDir);
                 log.info("Created application directory: {}", appDir);
@@ -125,39 +103,55 @@ public class ConfigFilePreferences {
                 Files.createDirectories(basesDir);
                 log.info("Created bases directory: {}", basesDir);
             }
-
-            // Проверяем права на запись (только для Linux/macOS)
-            if (!os.contains("win") && !Files.isWritable(appDir)) {
-                log.warn("Application directory is not writable: {}", appDir);
-                // Пытаемся использовать домашнюю директорию как fallback
-                String userHome = System.getProperty("user.home");
-                Path fallbackDir = Paths.get(userHome, ".kletka");
-                if (!Files.exists(fallbackDir)) {
-                    Files.createDirectories(fallbackDir);
-                }
-                this.configPath = fallbackDir.resolve(CONFIG_FILE_NAME);
-                this.basesDir = fallbackDir.resolve(BASES_DIR_NAME);
-                if (!Files.exists(basesDir)) {
-                    Files.createDirectories(basesDir);
-                }
-                log.info("Using fallback directory: {}", fallbackDir);
-            }
-
         } catch (IOException e) {
             log.error("Failed to create directories: {}", e.getMessage());
-            // Последний fallback - текущая директория
+            // Fallback
+            Path fallbackDir = Paths.get(System.getProperty("user.home"), ".kletka");
+            this.configPath = fallbackDir.resolve(CONFIG_FILE_NAME);
+            this.basesDir = fallbackDir.resolve(BASES_DIR_NAME);
             try {
-                Path fallbackDir = Paths.get(".");
-                this.configPath = fallbackDir.resolve(CONFIG_FILE_NAME);
-                this.basesDir = fallbackDir.resolve(BASES_DIR_NAME);
-                if (!Files.exists(basesDir)) {
-                    Files.createDirectories(basesDir);
-                }
-                log.info("Using current directory as fallback: {}", fallbackDir.toAbsolutePath());
+                Files.createDirectories(basesDir);
             } catch (IOException ex) {
                 log.error("Critical: Cannot create any directory for config", ex);
             }
         }
+    }
+
+    private boolean isProgramInProgramFiles() {
+        String programPath = System.getProperty("user.dir");
+        String programFiles = System.getenv("ProgramFiles");
+        String programFilesX86 = System.getenv("ProgramFiles(x86)");
+
+        if (programFiles != null && programPath.startsWith(programFiles)) {
+            return true;
+        }
+        return programFilesX86 != null && programPath.startsWith(programFilesX86);
+    }
+
+    private Path getConfigDirectory() {
+        String os = System.getProperty("os.name").toLowerCase();
+        Path configDir;
+
+        if (os.contains("win")) {
+            // ========== ВСЕГДА ИСПОЛЬЗУЕМ APPDATA ==========
+            String appData = System.getenv("APPDATA");
+            if (appData != null && !appData.isEmpty()) {
+                configDir = Paths.get(appData, "Kletka");
+            } else {
+                // Fallback: ProgramData
+                String programData = System.getenv("PROGRAMDATA");
+                configDir = Paths.get(programData, "Kletka");
+            }
+            log.info("Using APPDATA for config: {}", configDir);
+        } else if (os.contains("mac")) {
+            String userHome = System.getProperty("user.home");
+            configDir = Paths.get(userHome, "Library", "Application Support", "Kletka");
+        } else {
+            String userHome = System.getProperty("user.home");
+            configDir = Paths.get(userHome, ".config", "kletka");
+        }
+
+        return configDir;
     }
 
     /**
@@ -199,17 +193,25 @@ public class ConfigFilePreferences {
         }
     }
 
-    /**
-     * Установка значений по умолчанию
-     */
     private void setDefaults() {
         String systemLanguage = detectSystemLanguage();
+
+        Path configDir = getConfigDirectory();
+        Path basesDir = configDir.resolve("bases");
+        Path booksDir = configDir.resolve("books");
+
         properties.setProperty(KEY_LANGUAGE, systemLanguage);
         properties.setProperty(KEY_TILE_SIZE, String.valueOf(DEFAULT_TILE_SIZE));
         properties.setProperty(KEY_BOARD_FLIPPED, String.valueOf(DEFAULT_BOARD_FLIPPED));
         properties.setProperty(KEY_SHOW_COORDINATES, String.valueOf(DEFAULT_SHOW_COORDINATES));
         properties.setProperty(KEY_BOARD_THEME, String.valueOf(DEFAULT_BOARD_THEME));
         properties.setProperty(KEY_SAVE_DIRECTORY, basesDir.toString());
+
+        // ========== ПУТИ ПО УМОЛЧАНИЮ ==========
+        properties.setProperty(KEY_LAST_OPEN_DIRECTORY, basesDir.toString());  // ← Открытие
+        properties.setProperty(KEY_LAST_SAVE_DIRECTORY, basesDir.toString());  // ← Сохранение
+        properties.setProperty(KEY_BOOK_DIRECTORY, booksDir.resolve("book").toString());
+
     }
 
     /**
@@ -379,7 +381,7 @@ public class ConfigFilePreferences {
     }
 
     public Path getBasesDirectory() {
-        return basesDir;
+        return getConfigDirectory().resolve("bases");
     }
 
     /**
@@ -424,7 +426,7 @@ public class ConfigFilePreferences {
         String dir = properties.getProperty(KEY_BOOK_DIRECTORY);
         if (dir == null || dir.isEmpty()) {
             // По умолчанию: bases/book/
-            Path bookDir = basesDir.resolve("book");
+            Path bookDir = getConfigDirectory().resolve("book");
             try {
                 if (!Files.exists(bookDir)) {
                     Files.createDirectories(bookDir);
@@ -472,5 +474,18 @@ public class ConfigFilePreferences {
         }
         saveProperties();
         log.info("After save, file exists: {}", Files.exists(configPath));
+    }
+
+    public String getLastOpenDirectory() {
+        return properties.getProperty(KEY_LAST_OPEN_DIRECTORY, null);
+    }
+
+    public void setLastOpenDirectory(String path) {
+        if (path != null && !path.isEmpty()) {
+            properties.setProperty(KEY_LAST_OPEN_DIRECTORY, path);
+        } else {
+            properties.remove(KEY_LAST_OPEN_DIRECTORY);
+        }
+        saveProperties();
     }
 }

@@ -174,6 +174,16 @@ public class AppPreferences {
         return config.getLastSaveDirectory();
     }
 
+    // ========== ПОСЛЕДНЯЯ ПАПКА ОТКРЫТИЯ ==========
+    public static void saveLastOpenDirectory(String path) {
+        log.debug("save last open directory {}", path);
+        config.setLastOpenDirectory(path);
+    }
+
+    public static String getLastOpenDirectory() {
+        return config.getLastOpenDirectory();
+    }
+
     /**
      * @deprecated Будет использоваться в версии 2.0 (SQLite)
      */
@@ -215,9 +225,8 @@ public class AppPreferences {
     }
 
     /**
-     * @deprecated Используйте resetAllPreferences()
+     * Очищает путь к движку
      */
-    @Deprecated
     public static void resetEngineSettings() {
         config.setEnginePath(null);
     }

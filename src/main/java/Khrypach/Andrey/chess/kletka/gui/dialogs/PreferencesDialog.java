@@ -61,6 +61,11 @@ public class PreferencesDialog {
     private CheckBox flipBoardCheck;
     private Label configPathLabel;
 
+    private TextField booksDirectoryField;  // Путь к книгам
+    private TextField lastOpenDirectoryField;  // Путь последнего открытия
+    private TextField lastSaveDirectoryField;  // Путь последнего сохранения
+
+
     public PreferencesDialog(Stage ownerStage) {
         this.ownerStage = ownerStage;
     }
@@ -178,32 +183,48 @@ public class PreferencesDialog {
         flipGrid.add(flipBoardCheck, 1, 0);
         root.getChildren().add(flipGrid);
 
-        // ========== ДИРЕКТОРИЯ СОХРАНЕНИЯ (BASES) ==========
-        GridPane saveGrid = createGridPane();
+        // ========== ПУТИ ДЛЯ ФАЙЛОВ ==========
+        TitledPane pathsPane = new TitledPane();
+        pathsPane.setText(lang.get(PREFERENCES_PATHS));
+        pathsPane.setExpanded(true);
+
+        GridPane pathsGrid = createGridPane();
+        int row = 0;
+
+        // 1. Путь к bases (сохранение)
+        pathsGrid.add(new Label(lang.get(PREFERENCES_SAVE_DIRECTORY) + ":"), 0, row);
         saveDirectoryField = new TextField(AppPreferences.getSaveDirectory());
         saveDirectoryField.setEditable(false);
-        saveDirectoryField.setPrefWidth(350);
+        saveDirectoryField.setPrefWidth(300);
+        HBox saveBox = browseSaveProperties(lang.get(PREFERENCES_SELECT_SAVE_DIR), saveDirectoryField);
+        pathsGrid.add(saveBox, 1, row++);
 
-        Button browseSaveButton = new Button(lang.get(PREFERENCES_BROWSE));
-        browseSaveButton.setOnAction(e -> {
-            DirectoryChooser chooser = new DirectoryChooser();
-            chooser.setTitle(lang.get(PREFERENCES_SELECT_SAVE_DIR));
-            File currentDir = new File(saveDirectoryField.getText());
-            if (currentDir.exists() && currentDir.isDirectory()) {
-                chooser.setInitialDirectory(currentDir);
-            }
-            File selected = chooser.showDialog(ownerStage);
-            if (selected != null) {
-                saveDirectoryField.setText(selected.getAbsolutePath());
-            }
-        });
+        // 2. Путь к дебютным книгам (НОВОЕ)
+        pathsGrid.add(new Label(lang.get(PREFERENCES_BOOKS_PATH) + ":"), 0, row);
+        booksDirectoryField = new TextField(AppPreferences.getBookDirectory());
+        booksDirectoryField.setEditable(false);
+        booksDirectoryField.setPrefWidth(300);
+        HBox booksBox = browseSaveProperties(lang.get(PREFERENCES_SELECT_BOOKS_PATH), booksDirectoryField);
+        pathsGrid.add(booksBox, 1, row++);
 
-        HBox saveBox = new HBox(10);
-        saveBox.getChildren().addAll(saveDirectoryField, browseSaveButton);
+        // 3. Путь последнего открытия (НОВОЕ) — опционально
+        pathsGrid.add(new Label(lang.get(PREFERENCES_LAST_OPEN) + ":"), 0, row);
+        lastOpenDirectoryField = new TextField(AppPreferences.getLastOpenDirectory());
+        lastOpenDirectoryField.setEditable(false);
+        lastOpenDirectoryField.setPrefWidth(300);
+        HBox openBox = browseSaveProperties(lang.get(PREFERENCES_SELECT_LAST_OPEN), lastOpenDirectoryField);
+        pathsGrid.add(openBox, 1, row++);
 
-        saveGrid.add(new Label(lang.get(PREFERENCES_SAVE_DIRECTORY) + ":"), 0, 0);
-        saveGrid.add(saveBox, 1, 0);
-        root.getChildren().add(saveGrid);
+        // 4. Путь последнего сохранения (НОВОЕ) — опционально
+        pathsGrid.add(new Label(lang.get(PREFERENCES_LAST_SAVE) + ":"), 0, row);
+        lastSaveDirectoryField = new TextField(AppPreferences.getLastSaveDirectory());
+        lastSaveDirectoryField.setEditable(false);
+        lastSaveDirectoryField.setPrefWidth(300);
+        HBox saveLastBox = browseSaveProperties(lang.get(PREFERENCES_SELECT_LAST_SAVE), lastSaveDirectoryField);
+        pathsGrid.add(saveLastBox, 1, ++row);
+
+        pathsPane.setContent(pathsGrid);
+        root.getChildren().add(pathsPane);
 
         // ========== ПУТЬ К ДВИЖКУ ==========
         GridPane engineGrid = createGridPane();
@@ -281,6 +302,23 @@ public class PreferencesDialog {
         return root;
     }
 
+    private HBox browseSaveProperties(String lang, TextField saveDirectoryField) {
+        Button browseSaveButton = new Button("...");
+        browseSaveButton.setOnAction(e -> {
+            DirectoryChooser chooser = new DirectoryChooser();
+            chooser.setTitle(lang);
+            File currentDir = new File(saveDirectoryField.getText());
+            if (currentDir.exists() && currentDir.isDirectory()) {
+                chooser.setInitialDirectory(currentDir);
+            }
+            File selected = chooser.showDialog(ownerStage);
+            if (selected != null) {
+                saveDirectoryField.setText(selected.getAbsolutePath());
+            }
+        });
+        return new HBox(5, saveDirectoryField, browseSaveButton);
+    }
+
     private GridPane createGridPane() {
         GridPane grid = new GridPane();
         grid.setHgap(10);
@@ -340,6 +378,24 @@ public class PreferencesDialog {
             AppPreferences.saveSaveDirectory(saveDir);
         }
 
+        // Сохраняем путь к дебютным книгам
+        String booksDir = booksDirectoryField.getText();
+        if (booksDir != null && !booksDir.isEmpty()) {
+            AppPreferences.saveBookDirectory(booksDir);
+        }
+
+        // Сохраняем путь последнего открытия
+        String lastOpenDir = lastOpenDirectoryField.getText();
+        if (lastOpenDir != null && !lastOpenDir.isEmpty()) {
+            AppPreferences.saveLastOpenDirectory(lastOpenDir);
+        }
+
+        // Сохраняем путь последнего сохранения
+        String lastSaveDir = lastSaveDirectoryField.getText();
+        if (lastSaveDir != null && !lastSaveDir.isEmpty()) {
+            AppPreferences.saveLastSaveDirectory(lastSaveDir);
+        }
+
         // Сохраняем путь к движку
         String enginePath = enginePathField.getText();
         if (enginePath != null && !enginePath.isEmpty()) {
@@ -385,6 +441,9 @@ public class PreferencesDialog {
             saveDirectoryField.setText(AppPreferences.getBasesDirectory().toString());
             enginePathField.setText("");
             configPathLabel.setText(lang.get(PREFERENCES_CONFIG_PATH) + ": " + AppPreferences.getConfigFilePath());
+            booksDirectoryField.setText(AppPreferences.getBookDirectory());
+            lastOpenDirectoryField.setText(AppPreferences.getLastOpenDirectory());
+            lastSaveDirectoryField.setText(AppPreferences.getLastSaveDirectory());
 
             log.info("Preferences reset to defaults");
 

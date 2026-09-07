@@ -23,6 +23,7 @@ package Khrypach.Andrey.chess.kletka.gui.dialogs;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageManager;
 import Khrypach.Andrey.chess.kletka.gui.model.Variation;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -111,11 +112,11 @@ public class VariationChoiceDialog {
                 int index = listView.getSelectionModel().getSelectedIndex();
                 if (index >= 0) {
                     selectedChoice = choices.get(index);
-                    dialogStage.close();
+                    Platform.runLater(dialogStage::close);
                 }
                 event.consume();
             } else if (event.getCode() == KeyCode.LEFT || event.getCode() == KeyCode.ESCAPE) {
-                dialogStage.close();
+                Platform.runLater(dialogStage::close);
                 event.consume();
             } else if (event.getCode() == KeyCode.UP) {
                 int index = listView.getSelectionModel().getSelectedIndex();
@@ -137,9 +138,25 @@ public class VariationChoiceDialog {
         listView.addEventFilter(KeyEvent.KEY_PRESSED, event -> scene.getRoot().fireEvent(event));
 
         dialogStage.setScene(scene);
-        dialogStage.setOnShown(e -> listView.requestFocus());
-        dialogStage.showAndWait();
 
+        // ========== ПРИНУДИТЕЛЬНЫЙ ФОКУС ДЛЯ macOS ==========
+        dialogStage.setOnShowing(e -> Platform.runLater(() -> {
+            listView.requestFocus();
+            dialogStage.toFront();
+        }));
+
+        dialogStage.setOnShown(e -> {
+            javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(
+                    javafx.util.Duration.millis(100)
+            );
+            pause.setOnFinished(ev -> {
+                listView.requestFocus();
+                dialogStage.toFront();
+            });
+            pause.play();
+        });
+
+        dialogStage.showAndWait();
         return selectedChoice;
     }
 

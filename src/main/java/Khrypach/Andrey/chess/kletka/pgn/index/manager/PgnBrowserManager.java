@@ -27,7 +27,6 @@ import Khrypach.Andrey.chess.kletka.pgn.index.model.GameIndexEntry;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.PgnIndex;
 import Khrypach.Andrey.chess.kletka.pgn.index.operation.BatchOperationResult;
 import Khrypach.Andrey.chess.kletka.pgn.index.operation.PgnBatchOperation;
-import Khrypach.Andrey.chess.kletka.pgn.index.operation.PgnGameOperation;
 import Khrypach.Andrey.chess.kletka.pgn.index.ui.PgnFileBrowser;
 import Khrypach.Andrey.chess.kletka.pgn.index.ui.ProgressDialog;
 import javafx.application.Platform;
@@ -42,6 +41,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys.*;
 
@@ -293,28 +293,57 @@ public class PgnBrowserManager {
      * Копирует партии в буфер обмена
      */
     public void copyGames(PgnFileBrowser sourceBrowser, List<GameIndexEntry> entries) {
-        if (entries == null || entries.isEmpty()) {
-            log.warn("Cannot copy empty list ");
+        if (sourceBrowser == null || entries == null || entries.isEmpty()) {
+            log.warn("copyGames: invalid parameters");
             return;
         }
 
-        if (entries.size() > MAX_COPY_GAMES) {
-            throw new IllegalArgumentException(
-                    String.format(lang.get(PGN_BROWSER_COPY_LIMIT), MAX_COPY_GAMES)
+        try {
+            // ========== ФИЛЬТРУЕМ УДАЛЁННЫЕ ==========
+            List<GameIndexEntry> activeEntries = entries.stream()
+                    .filter(entry -> !entry.isDeleted())
+                    .collect(Collectors.toList());
+
+            if (activeEntries.isEmpty()) {
+                log.warn("No active games to copy (all selected are deleted)");
+                return;
+            }
+
+            List<String> pgnContents = new ArrayList<>();
+            PgnFileEditor editor = new PgnFileEditor(sourceBrowser.getPgnPath(), sourceBrowser.getCurrentIndex());
+
+            for (GameIndexEntry entry : activeEntries) {
+                try {
+                    String pgn = editor.readGame(entry);
+                    if (pgn != null && !pgn.isEmpty()) {
+                        pgnContents.add(pgn);
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to read game {}: {}", entry.getId(), e.getMessage());
+                }
+            }
+
+            if (pgnContents.isEmpty()) {
+                log.warn("No PGN content read for copying");
+                return;
+            }
+
+            // ========== СОХРАНЯЕМ В БУФЕР С PGN СОДЕРЖИМЫМ ==========
+            clipboardContent = new ClipboardContent(
+                    sourceBrowser.getPgnPath(),
+                    activeEntries,
+                    pgnContents  // <-- ТЕПЕРЬ ПЕРЕДАЁМ PGN СОДЕРЖИМОЕ
             );
+
+            log.info("Copied {} games to clipboard", pgnContents.size());
+
+            // Обновляем состояние кнопок
+            updateAllPasteButtons();
+
+        } catch (Exception e) {
+            log.error("Failed to copy games", e);
+            throw new RuntimeException("Failed to copy games: " + e.getMessage(), e);
         }
-
-        clipboardContent = new ClipboardContent(
-                sourceBrowser.getPgnPath(),
-                new ArrayList<>(entries),
-                entries.size(),
-                System.currentTimeMillis()
-        );
-
-        log.debug("Copied {} games (small amount) from {}", entries.size(), sourceBrowser.getPgnPath().getFileName());
-
-        // Обновляем состояние кнопок во всех браузерах
-        updateAllPasteButtons();
     }
 
     /**
@@ -387,56 +416,46 @@ public class PgnBrowserManager {
     }
 
     /**
-     * Вставляет партии из буфера в целевой браузер
+     * Вставляет партии из буфера обмена
      */
-    public int pasteGames(PgnFileBrowser targetBrowser, ClipboardContent content) throws Exception {
-        if (content == null || content.entries().isEmpty()) {
+    public int pasteGames(PgnFileBrowser targetBrowser, ClipboardContent content) {
+        if (targetBrowser == null || content == null || content.pgnContents().isEmpty()) {
+            log.warn("pasteGames: invalid parameters");
             return 0;
         }
 
-        if (!canPaste(targetBrowser)) {
-            throw new IllegalStateException(lang.get(PGN_BROWSER_PASTE_UNAVAILABLE));
-        }
+        try {
+            List<String> activePgns = content.pgnContents().stream()
+                    .filter(pgn -> pgn != null && !pgn.isEmpty())
+                    .collect(Collectors.toList());
 
-        Path targetPath = targetBrowser.getPgnPath();
-        int total = content.entries().size();
-
-        // ========== ПРОВЕРКА МЕСТА НА ДИСКЕ ==========
-        checkDiskSpace(targetPath, total);
-
-        log.debug("Pasting {} games (small amount) into {}", total, targetPath.getFileName());
-
-        PgnIndex targetIndex = targetBrowser.getCurrentIndex();
-        if (targetIndex == null) {
-            throw new IllegalStateException(
-                    String.format(lang.get(PGN_BROWSER_NO_INDEX), targetPath)
-            );
-        }
-
-        PgnGameOperation operation = new PgnGameOperation(targetPath, targetIndex);
-        PgnFileEditor sourceEditor = new PgnFileEditor(content.sourceFile(), null);
-
-        int inserted = 0;
-        for (GameIndexEntry entry : content.entries()) {
-            try {
-                String pgnContent = sourceEditor.readGame(entry);
-                operation.addGame(pgnContent);
-                inserted++;
-            } catch (IOException e) {
-                // Проверяем, не закончилось ли место
-                if (e.getMessage().contains("No space left on device") ||
-                        e.getMessage().contains("Not enough space")) {
-                    throw new IOException(
-                            String.format(lang.get(PGN_BROWSER_DISK_SPACE_INSUFFICIENT), inserted)
-                    );
-                }
-                throw e;
+            if (activePgns.isEmpty()) {
+                log.warn("No valid PGN content to paste");
+                return 0;
             }
-        }
 
-        log.info("Successfully pasted {} games (small amount)", inserted);
-        clearClipboard();
-        return inserted;
+            PgnBatchOperation batchOp = new PgnBatchOperation(
+                    targetBrowser.getPgnPath(),
+                    targetBrowser.getCurrentIndex()
+            );
+
+            BatchOperationResult result = batchOp.pasteGamesBatch(activePgns, null);
+
+            // ========== ОБНОВЛЯЕМ ИНДЕКС В БРАУЗЕРЕ ==========
+            PgnIndex updatedIndex = batchOp.getIndex();
+            if (updatedIndex != null) {
+                targetBrowser.setCurrentIndex(updatedIndex);
+                log.info("Index updated after paste: {} active entries",
+                        updatedIndex.getActiveCount());
+            }
+
+            log.info("Pasted {} games", result.successful());
+            return result.successful();
+
+        } catch (Exception e) {
+            log.error("Failed to paste games", e);
+            throw new RuntimeException("Failed to paste games: " + e.getMessage(), e);
+        }
     }
 
     /**
@@ -529,6 +548,14 @@ public class PgnBrowserManager {
                             String.format(lang.get(PGN_BROWSER_PASTE_ADDED), processed)));
                 }
             });
+
+            // ========== ОБНОВЛЯЕМ ИНДЕКС В БРАУЗЕРЕ ==========
+            PgnIndex updatedIndex = batchOp.getIndex();
+            if (updatedIndex != null) {
+                targetBrowser.setCurrentIndex(updatedIndex);
+                log.info("Index updated after batch paste: {} active entries",
+                        updatedIndex.getActiveCount());
+            }
 
             // ========== ОБНОВЛЕНИЕ UI ==========
             if (result.successful() > 0) {
@@ -679,20 +706,47 @@ public class PgnBrowserManager {
         log.info("Browser closed via callback. Total: {}", browsers.size());
     }
 
-    // ========== ВНУТРЕННИЙ КЛАСС ДЛЯ БУФЕРА ==========
+    // ========== ВНУТРЕННИЙ КЛАСС ДЛЯ БУФЕРА (как record) ==========
 
-    public record ClipboardContent(Path sourceFile, List<GameIndexEntry> entries, int count, long timestamp) {
-            public ClipboardContent(Path sourceFile, List<GameIndexEntry> entries, int count, long timestamp) {
-                this.sourceFile = sourceFile;
-                this.entries = List.copyOf(entries);
-                this.count = count;
-                this.timestamp = timestamp;
-            }
-
-            @Override
-            public String toString() {
-                return String.format("ClipboardContent{source=%s, count=%d}",
-                        sourceFile.getFileName(), count);
-            }
+    public record ClipboardContent(
+            Path sourceFile,
+            List<GameIndexEntry> entries,
+            List<String> pgnContents,
+            int count,
+            long timestamp
+    ) {
+        // Конструктор с PGN содержимым
+        public ClipboardContent(Path sourceFile, List<GameIndexEntry> entries, List<String> pgnContents) {
+            this(
+                    sourceFile,
+                    List.copyOf(entries),
+                    List.copyOf(pgnContents),
+                    pgnContents.size(),
+                    System.currentTimeMillis()
+            );
         }
+
+        // Конструктор без PGN содержимого (для обратной совместимости)
+        public ClipboardContent(Path sourceFile, List<GameIndexEntry> entries, int count, long timestamp) {
+            this(
+                    sourceFile,
+                    List.copyOf(entries),
+                    new ArrayList<>(),
+                    count,
+                    timestamp
+            );
+        }
+
+        public boolean isEmpty() {
+            return entries == null || entries.isEmpty() || pgnContents == null || pgnContents.isEmpty();
+        }
+
+        @Override
+        public String toString() {
+            return String.format("ClipboardContent{source=%s, entries=%d, pgns=%d}",
+                    sourceFile != null ? sourceFile.getFileName() : "null",
+                    entries != null ? entries.size() : 0,
+                    pgnContents != null ? pgnContents.size() : 0);
+        }
+    }
 }

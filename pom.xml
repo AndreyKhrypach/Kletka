@@ -26,7 +26,7 @@
 
     <groupId>Khrypach.Andrey.chess.kletka</groupId>
     <artifactId>Kletka</artifactId>
-    <version>1.2-SNAPSHOT</version>
+    <version>1.3-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>Kletka Chess Core</name>
@@ -47,7 +47,7 @@
         <chesslib.version>1.3.6</chesslib.version>
         <junit.version>5.10.0</junit.version>
         <javafx.version>17.0.19</javafx.version>
-        <app.version>1.2.0</app.version>
+        <app.version>1.3.0</app.version>
         <win.upgrade.uuid>a1b2c3d4-e5f6-7890-abcd-ef1234567890</win.upgrade.uuid>
 
         <jpackage.type>exe</jpackage.type>
@@ -80,8 +80,12 @@
             </activation>
             <properties>
                 <jpackage.type>exe</jpackage.type>
-                <jpackage.args>--win-dir-chooser --win-shortcut --win-menu
-                    --icon "src/main/resources/icons/windows/kletka.ico" --win-upgrade-uuid ${win.upgrade.uuid}
+                <jpackage.args>
+                    --win-dir-chooser
+                    --win-shortcut
+                    --win-menu
+                    --icon "src/main/resources/icons/windows/kletka.ico"
+                    --win-upgrade-uuid ${win.upgrade.uuid}
                 </jpackage.args>
             </properties>
         </profile>
@@ -97,8 +101,12 @@
             </activation>
             <properties>
                 <jpackage.type>deb</jpackage.type>
-                <jpackage.args>--linux-deb-maintainer "your-email@example.com" --linux-menu-group "Games" --linux-shortcut
-                    --icon "src/main/resources/icons/linux/256x256/apps/kletka.png"</jpackage.args>
+                <jpackage.args>--linux-deb-maintainer "your-email@example.com"
+                    --linux-menu-group "Games"
+                    --linux-shortcut
+                    --icon "src/main/resources/icons/linux/256x256/apps/kletka.png"
+                    --linux-package-deps "libc6"
+                </jpackage.args>
             </properties>
         </profile>
 
@@ -175,13 +183,6 @@
             <artifactId>lombok</artifactId>
             <version>1.18.30</version>
             <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>tools.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>3.2.1</version>
-            <scope>compile</scope>
         </dependency>
 
         <dependency>

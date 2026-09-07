@@ -23,10 +23,15 @@ jobs:
         run: choco install wixtoolset -y
       - name: Build with Maven
         run: mvn clean package -P windows
-      - name: Upload installer to release
-        uses: softprops/action-gh-release@v2
+      - name: Upload installer as artifact
+        uses: actions/upload-artifact@v4.2.0
         with:
-          files: target/installer/Kletka-1.2.0.exe
+          name: kletka-windows
+          path: target/installer/Kletka-1.3.0.exe
+      - name: Upload installer to release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: target/installer/Kletka-1.3.0.exe
         if: github.event_name == 'release'
 
   build-linux:
@@ -44,10 +49,15 @@ jobs:
           sudo apt install fakeroot dpkg -y
       - name: Build with Maven
         run: mvn clean package -P linux
-      - name: Upload installer to release
-        uses: softprops/action-gh-release@v2
+      - name: Upload installer as artifact
+        uses: actions/upload-artifact@v4.2.0
         with:
-          files: target/installer/kletka_1.2.0-1_amd64.deb
+          name: kletka-linux
+          path: target/installer/kletka_1.3.0-1_amd64.deb
+      - name: Upload installer to release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: target/installer/kletka_1.3.0-1_amd64.deb
         if: github.event_name == 'release'
 
   build-macos:
@@ -63,8 +73,9 @@ jobs:
         run: |
           export PATH="$JAVA_HOME/bin:$PATH"
           mvn clean package -P mac
+      # Артефакт для macOS не загружаем (он ломает .dmg)
       - name: Upload installer to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
-          files: target/installer/Kletka-1.2.0.dmg
+          files: target/installer/Kletka-1.3.0.dmg
         if: github.event_name == 'release'

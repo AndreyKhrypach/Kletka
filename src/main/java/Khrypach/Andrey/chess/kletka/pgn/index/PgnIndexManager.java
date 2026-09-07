@@ -1,56 +1,47 @@
 /*
+ * Copyright (c) 2025-2026 Andrey Khrypach
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
- *  *
- *  * This program is free software: you can redistribute it and/or modify
- *  * it under the terms of the GNU General Public License as published by
- *  * the Free Software Foundation, either version 3 of the License, or
- *  * (at your option) any later version.
- *  *
- *  * This program is distributed in the hope that it will be useful,
- *  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  * GNU General Public License for more details.
- *  *
- *  * You should have received a copy of the GNU General Public License
- *  * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
 package Khrypach.Andrey.chess.kletka.pgn.index;
 
+import Khrypach.Andrey.chess.kletka.pgn.index.binary.BinaryIndexConstants;
+import Khrypach.Andrey.chess.kletka.pgn.index.binary.BinaryIndexReader;
+import Khrypach.Andrey.chess.kletka.pgn.index.binary.BinaryIndexWriter;
+import Khrypach.Andrey.chess.kletka.pgn.index.binary.LazyPgnIndex;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.GameIndexEntry;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.IndexStatus;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.PgnIndex;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.SerializationFeature;
-import tools.jackson.databind.json.JsonMapper;
 
-import java.io.*;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.zip.CRC32;
 
 /**
- * Менеджер PGN индекса.
- * Отвечает за загрузку, сохранение и проверку целостности индекса.
+ * Менеджер PGN индекса (бинарный формат)
  */
 public class PgnIndexManager {
     private static final Logger log = LoggerFactory.getLogger(PgnIndexManager.class);
 
-    private static final String INDEX_EXTENSION = ".idx";
-
-    private final ObjectMapper objectMapper;
-
-    public PgnIndexManager() {
-        this.objectMapper = JsonMapper.builder()
-                .enable(SerializationFeature.INDENT_OUTPUT)
-                .build();
-    }
+    private final BinaryIndexReader reader = new BinaryIndexReader();
+    private final BinaryIndexWriter writer = new BinaryIndexWriter();
 
     /**
      * Получает путь к индексному файлу для PGN-файла
@@ -59,7 +50,7 @@ public class PgnIndexManager {
         String fileName = pgnPath.getFileName().toString();
         int dotIndex = fileName.lastIndexOf('.');
         String baseName = dotIndex > 0 ? fileName.substring(0, dotIndex) : fileName;
-        return pgnPath.getParent().resolve(baseName + INDEX_EXTENSION);
+        return pgnPath.getParent().resolve(baseName + BinaryIndexConstants.INDEX_EXTENSION);
     }
 
     /**
@@ -122,49 +113,62 @@ public class PgnIndexManager {
     }
 
     /**
-     * Загружает индекс из файла
+     * Загружает бинарный индекс из файла
      */
     public PgnIndex loadIndex(Path pgnPath) throws IOException {
         Path indexPath = getIndexPath(pgnPath);
-        log.info("Loading index from: {}", indexPath);
+        log.info("Loading binary index from: {}", indexPath);
 
         if (!Files.exists(indexPath)) {
             throw new FileNotFoundException("Index file not found: " + indexPath);
         }
 
-        try (InputStream is = Files.newInputStream(indexPath)) {
-            PgnIndex index = objectMapper.readValue(is, PgnIndex.class);
-            if (index.getEntries() == null) {
-                throw new IOException("Index entries are null");
-            }
-            log.info("Loaded index: {}", index);
-            return index;
-        } catch (Exception e) {
-            log.error("Failed to load index: {}", e.getMessage(), e);
-            throw new IOException("Failed to load index: " + e.getMessage(), e);
-        }
+        return reader.read(indexPath);
     }
 
     /**
-     * Сохраняет индекс в файл.
-     * БЕЗ БЭКАПОВ - просто перезаписываем файл индекса.
+     * Загружает ЛЁГКИЙ индекс (для быстрого отображения)
+     */
+    public LazyPgnIndex loadLazyIndex(Path pgnPath) throws IOException {
+        Path indexPath = getIndexPath(pgnPath);
+        log.info("Loading lazy binary index from: {}", indexPath);
+
+        if (!Files.exists(indexPath)) {
+            throw new FileNotFoundException("Index file not found: " + indexPath);
+        }
+
+        BinaryIndexReader reader = new BinaryIndexReader();
+        return reader.readLazy(indexPath);
+    }
+
+    /**
+     * Сохраняет индекс в бинарный файл
      */
     public void saveIndex(Path pgnPath, PgnIndex index) throws IOException {
-        Path indexPath = getIndexPath(pgnPath);
-        log.info("Saving index to: {}", indexPath);
+        log.info("Saving binary index for: {}", pgnPath);
 
         // Обновляем метаданные
         index.setFileSize(Files.size(pgnPath));
         index.setFileHash(computeFileHash(pgnPath));
 
-        // Сохраняем индекс (просто перезаписываем)
-        try (OutputStream os = Files.newOutputStream(indexPath)) {
-            objectMapper.writeValue(os, index);
-            log.info("Index saved successfully");
-        } catch (Exception e) {
-            log.error("Failed to save index: {}", e.getMessage(), e);
-            throw new IOException("Failed to save index: " + e.getMessage(), e);
+        writer.write(index, getIndexPath(pgnPath));
+
+        // Просто логируем, если старый индекс существует.
+        Path oldJsonIndex = pgnPath.getParent().resolve(
+                pgnPath.getFileName().toString().replaceAll("\\.[^.]+$", "") + ".idx"
+        );
+        if (Files.exists(oldJsonIndex)) {
+            log.info("Old JSON index found: {}. User can delete it manually if not needed.", oldJsonIndex);
         }
+    }
+
+    /**
+     * Удаляет индексный файл
+     */
+    public void deleteIndex(Path pgnPath) throws IOException {
+        Path indexPath = getIndexPath(pgnPath);
+        log.info("Deleting index: {}", indexPath);
+        Files.deleteIfExists(indexPath);
     }
 
     /**
@@ -174,14 +178,14 @@ public class PgnIndexManager {
         CRC32 crc = new CRC32();
         byte[] buffer = new byte[8192];
 
-        try (InputStream is = Files.newInputStream(pgnPath)) {
+        try (java.io.InputStream is = Files.newInputStream(pgnPath)) {
             int bytesRead;
             while ((bytesRead = is.read(buffer)) != -1) {
                 crc.update(buffer, 0, bytesRead);
             }
         }
 
-        return Long.toHexString(crc.getValue());
+        return String.format("%08x", crc.getValue());
     }
 
     /**
@@ -203,7 +207,7 @@ public class PgnIndexManager {
                 .fileSize(fileSize)
                 .gameCount(entries.size())
                 .activeCount(activeCount)
-                .entries(new java.util.ArrayList<>(entries))
+                .entries(new ArrayList<>(entries))
                 .build();
     }
 
@@ -222,14 +226,4 @@ public class PgnIndexManager {
 
         saveIndex(pgnPath, index);
     }
-
-    /**
-     * Удаляет индексный файл
-     */
-    public void deleteIndex(Path pgnPath) throws IOException {
-        Path indexPath = getIndexPath(pgnPath);
-        log.info("Deleting index: {}", indexPath);
-        Files.deleteIfExists(indexPath);
-    }
-
 }

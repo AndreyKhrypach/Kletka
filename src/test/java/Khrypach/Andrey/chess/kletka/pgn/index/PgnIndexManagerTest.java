@@ -61,7 +61,7 @@ class PgnIndexManagerTest {
     class GetIndexPathTests {
 
         @Test
-        @DisplayName("Должен возвращать путь с расширением .idx")
+        @DisplayName("Должен возвращать путь с расширением .klt")
         void shouldReturnPathWithIdxExtension() {
             // given
             Path pgnPath = tempDir.resolve("game.pgn");
@@ -70,7 +70,7 @@ class PgnIndexManagerTest {
             Path indexPath = indexManager.getIndexPath(pgnPath);
 
             // then
-            assertThat(indexPath.toString()).endsWith(".idx");
+            assertThat(indexPath.toString()).endsWith(".klt");
             assertThat(indexPath.getParent()).isEqualTo(tempDir);
         }
 
@@ -84,7 +84,7 @@ class PgnIndexManagerTest {
             Path indexPath = indexManager.getIndexPath(pgnPath);
 
             // then
-            assertThat(indexPath.getFileName().toString()).isEqualTo("tournament.idx");
+            assertThat(indexPath.getFileName().toString()).isEqualTo("tournament.klt");
         }
 
         @Test
@@ -97,7 +97,7 @@ class PgnIndexManagerTest {
             Path indexPath = indexManager.getIndexPath(pgnPath);
 
             // then
-            assertThat(indexPath.getFileName().toString()).isEqualTo("game.idx");
+            assertThat(indexPath.getFileName().toString()).isEqualTo("game.klt");
         }
 
         @Test
@@ -110,7 +110,7 @@ class PgnIndexManagerTest {
             Path indexPath = indexManager.getIndexPath(pgnPath);
 
             // then
-            assertThat(indexPath.getFileName().toString()).isEqualTo("game.2024.idx");
+            assertThat(indexPath.getFileName().toString()).isEqualTo("game.2024.klt");
         }
     }
 

@@ -202,6 +202,14 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.PREFERENCES_OPEN_FOLDER, "Open Folder");
         strings.put(LanguageKeys.PREFERENCES_OPEN_FOLDER_ERROR, "Failed to open settings folder");
 
+        strings.put(LanguageKeys.PREFERENCES_PATHS, "Paths");
+        strings.put(LanguageKeys.PREFERENCES_BOOKS_PATH, "Opening books folder");
+        strings.put(LanguageKeys.PREFERENCES_SELECT_BOOKS_PATH, "Select folder for opening books");
+        strings.put(LanguageKeys.PREFERENCES_LAST_OPEN, "Last open folder");
+        strings.put(LanguageKeys.PREFERENCES_SELECT_LAST_OPEN, "Select last open folder");
+        strings.put(LanguageKeys.PREFERENCES_LAST_SAVE, "Last save folder");
+        strings.put(LanguageKeys.PREFERENCES_SELECT_LAST_SAVE, "Select last save folder");
+
         // === View Menu ===
         strings.put(LanguageKeys.MENU_VIEW, "View");
         strings.put(LanguageKeys.MENU_VIEW_FLIP_BOARD, "Flip Board");
@@ -887,6 +895,8 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.PGN_BROWSER_SEARCH_LABEL, "🔍 Search:");
         strings.put(LanguageKeys.PGN_BROWSER_SEARCH_PROMPT, "Enter player name, opening or ECO...");
         strings.put(LanguageKeys.PGN_BROWSER_SEARCH_CLEAR, "Clear");
+        strings.put(LanguageKeys.PGN_BROWSER_SORTING, "Sorting...");
+        strings.put(LanguageKeys.PGN_BROWSER_SORTED, "Sorted: %d entries");
 
         // ========== PGN BROWSER - STATUS ==========
         strings.put(LanguageKeys.PGN_BROWSER_STATUS_LOADING, "Loading...");
@@ -905,6 +915,17 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.PGN_BROWSER_STATUS_LOADING_GAME, "Loading game...");
         strings.put(LanguageKeys.PGN_BROWSER_STATUS_READY_WITH_COUNT, "Ready (%d games)");
         strings.put(LanguageKeys.PGN_BROWSER_STATUS_ALL_LOADED_WITH_COUNT, "All games loaded (%d)");
+
+        strings.put(LanguageKeys.PGN_BROWSER_STATUS_LOADING_BODIES , "Loading game bodies...");
+        strings.put(LanguageKeys.PGN_BROWSER_STATUS_LOADING_BODIES_PROGRESS , "Loaded bodies: {%d} of {%d}");
+        strings.put(LanguageKeys.PGN_BROWSER_STATUS_GAME_DELETED , "Game deleted");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_GAME_DELETED , "Game ID: {%d}  has been deleted and cannot be loaded");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_LOAD_ERROR , "Error loading game: {%d}");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_COPY_SKIPPED_DELETED , "Skipped deleted games: {%d}");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_COPY_SKIPPED_DELETED_WARNING , "Skipped {%d} deleted games, copied {%d}");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_NO_GAMES_TO_COPY , "No games to copy (all selected games are deleted)");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_FAILED_TO_LOAD_INDEX , "Failed to load index");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_INVALID_PGN_FORMAT_NO_HEADERS , "Invalid PGN format - missing required headers");
 
         // ========== PGN BROWSER - BUTTONS ==========
         strings.put(LanguageKeys.PGN_BROWSER_BUTTON_EDIT, "✏️ Edit");
@@ -950,6 +971,7 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_GAMES, "📋 Paste games");
         strings.put(LanguageKeys.PGN_BROWSER_MSG_PASTE_START, "Starting paste...");
         strings.put(LanguageKeys.PGN_BROWSER_REFRESH_COMPLETE, "Browser refreshed");
+        strings.put(LanguageKeys.PGN_BROWSER_GAME_NOT_FOUND_OR_DELETED, "Game not found or deleted: %d");
 
         strings.put(LanguageKeys.PGN_BROWSER_PASTE_PARTIAL, "Games pasted: successful - %d, total - %d, failed - %d");
         strings.put(LanguageKeys.PGN_BROWSER_PASTE_WRITING, "Pasting games...");
@@ -960,6 +982,13 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.PGN_BROWSER_DELETING, "Deleting %d games...");
         strings.put(LanguageKeys.PGN_BROWSER_DELETING_PROCEED, "Deleting: %d of %d games");
         strings.put(LanguageKeys.PGN_BROWSER_DELETED, "Deleted %d games");
+
+        strings.put(LanguageKeys.PGN_BROWSER_STATUS_NO_GAMES_DELETED, "No games deleted");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_DELETE_FAILED , "Failed to delete games. They may have already been deleted");
+        strings.put(LanguageKeys.PGN_BROWSER_UPDATING_INDEX , "Updating index...");
+        strings.put(LanguageKeys.PGN_BROWSER_UPDATING_TABLE , "Updating table...");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_DELETE_SUCCESS_TIME , "Deleted  {%d} games in {%d} seconds");
+
         strings.put(LanguageKeys.PGN_BROWSER_DUPLICATING, "Duplicating game...");
         strings.put(LanguageKeys.PGN_BROWSER_COPYING, "Copying %d games...");
         strings.put(LanguageKeys.PGN_BROWSER_PASTING, "Pasting %d games...");
@@ -1176,6 +1205,7 @@ public class EnLanguage implements Language {
         //BATCH
         strings.put(LanguageKeys.PGN_BATCH_EXCEPTION_LIMIT, "Too many games for batch delete: %d");
         strings.put(LanguageKeys.PGN_BATCH_EXCEPTION_ALREADY_DELETED, "Game already deleted: %d");
+        strings.put(LanguageKeys.PGN_BATCH_EXCEPTION_NOT_FOUND_IN_INDEX, "Game with ID %d not found in index");
 
     }
 

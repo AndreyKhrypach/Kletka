@@ -6,6 +6,10 @@ markdown
 
 **Kletka** 是一款跨平台国际象棋分析工具，支持 PGN 文件、变着、注释和 Stockfish 引擎。它具有现代可定制的界面，适用于 Windows、Linux 和 macOS。
 
+## 📝 更新日志
+
+详细更改历史请参阅 [CHANGELOG.md](CHANGELOG.md)。
+
 ---
 
 ## 🚀 功能特点

@@ -24,6 +24,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serial;
 import java.io.Serializable;
@@ -40,6 +42,8 @@ import java.util.stream.Collectors;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PgnIndex implements Serializable {
+    private static final Logger log = LoggerFactory.getLogger(PgnIndex.class);
+
     @Serial
     private static final long serialVersionUID = 1L;
 
@@ -112,35 +116,54 @@ public class PgnIndex implements Serializable {
      * Получает следующий свободный ID
      */
     public int getNextId() {
-        return getMaxId() + 1;
+        log.info("Current entries: {}", entries.size());
+        int maxId = entries.stream()
+                .mapToInt(GameIndexEntry::getId)
+                .max()
+                .orElse(0);
+        log.info("Max ID: {}", maxId);
+        return maxId + 1;
     }
 
     /**
      * Добавляет новую запись в индекс
      */
     public void addEntry(GameIndexEntry entry) {
+        log.info("Adding entry with ID: {}", entry.getId());
+
+        // ========== ПРОВЕРКА НА ДУБЛИКАТ ==========
+        for (GameIndexEntry existing : entries) {
+            if (existing.getId() == entry.getId()) {
+                log.warn("Entry with ID {} already exists, skipping", entry.getId());
+                updateEntry(entry);
+                return;
+            }
+        }
+
         entries.add(entry);
         gameCount = entries.size();
         activeCount = (int) entries.stream().filter(e -> !e.isDeleted()).count();
+        refreshCache();
+        log.info("After add: gameCount={}, activeCount={}", gameCount, activeCount);
     }
 
     /**
      * Обновляет существующую запись
      */
     public void updateEntry(GameIndexEntry entry) {
-        int index = -1;
+        // ========== ИСПРАВЛЕНО: ИСПОЛЬЗУЕМ ПОИСК ПО ID ==========
         for (int i = 0; i < entries.size(); i++) {
             if (entries.get(i).getId() == entry.getId()) {
-                index = i;
-                break;
+                entries.set(i, entry);
+                // Пересчитываем счетчики
+                gameCount = entries.size();
+                activeCount = (int) entries.stream().filter(e -> !e.isDeleted()).count();
+                refreshCache();
+                log.debug("Entry {} updated, activeCount={}", entry.getId(), activeCount);
+                return;
             }
         }
-        if (index >= 0) {
-            entries.set(index, entry);
-            // Пересчитываем счетчики
-            gameCount = entries.size();
-            activeCount = (int) entries.stream().filter(e -> !e.isDeleted()).count();
-        }
+        log.warn("Entry with ID {} not found for update", entry.getId());
     }
 
     /**

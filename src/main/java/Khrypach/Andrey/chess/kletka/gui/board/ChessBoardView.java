@@ -66,6 +66,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -1663,9 +1665,42 @@ public class ChessBoardView extends Application {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(lang.get(MENU_FILE_OPEN_PGN));
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PGN files", "*.pgn"));
+
+        // ========== ПЫТАЕМСЯ ОТКРЫТЬ ПОСЛЕДНЮЮ ПАПКУ ==========
+        String lastDir = AppPreferences.getLastOpenDirectory();
+        if (lastDir != null && !lastDir.isEmpty()) {
+            File dir = new File(lastDir);
+            if (dir.exists() && dir.isDirectory()) {
+                fileChooser.setInitialDirectory(dir);
+            } else {
+                // Если папка не существует — используем bases
+                setDefaultOpenDirectory(fileChooser);
+            }
+        } else {
+            setDefaultOpenDirectory(fileChooser);
+        }
+
         File file = fileChooser.showOpenDialog(primaryStage);
         if (file != null && mainController != null) {
+            // ========== СОХРАНЯЕМ ПАПКУ ПРИ УСПЕШНОМ ОТКРЫТИИ ==========
+            if (file.getParent() != null) {
+                AppPreferences.saveLastOpenDirectory(file.getParent());
+            }
             mainController.loadPgnFile(file);
+        }
+    }
+
+    /**
+     * Устанавливает папку bases как директорию по умолчанию
+     */
+    private void setDefaultOpenDirectory(FileChooser fileChooser) {
+        try {
+            Path basesPath = AppPreferences.getBasesDirectory();
+            if (basesPath != null && Files.exists(basesPath)) {
+                fileChooser.setInitialDirectory(basesPath.toFile());
+            }
+        } catch (Exception e) {
+            log.debug("Could not set default open directory: {}", e.getMessage());
         }
     }
 

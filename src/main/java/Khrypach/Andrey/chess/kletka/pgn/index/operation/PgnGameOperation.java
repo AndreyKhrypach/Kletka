@@ -22,6 +22,7 @@ package Khrypach.Andrey.chess.kletka.pgn.index.operation;
 
 import Khrypach.Andrey.chess.kletka.database.model.GameData;
 import Khrypach.Andrey.chess.kletka.database.parser.PgnParser;
+import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageManager;
 import Khrypach.Andrey.chess.kletka.pgn.index.PgnFileEditor;
 import Khrypach.Andrey.chess.kletka.pgn.index.PgnIndexManager;
@@ -45,7 +46,7 @@ public class PgnGameOperation {
     private static final LanguageManager lang = LanguageManager.getInstance();
 
     private final Path pgnPath;
-    private final PgnIndex index;
+    private PgnIndex index;
     private final PgnFileEditor editor;
     private final PgnIndexManager indexManager;
     private final PgnParser parser;
@@ -65,9 +66,20 @@ public class PgnGameOperation {
     public OperationResult deleteGame(int gameId) throws IOException {
         log.info("Deleting game ID: {}", gameId);
 
-        GameIndexEntry oldEntry = index.getActiveEntryById(gameId);
+        reloadIndex();
+
+        // ========== ИСПОЛЬЗУЕМ getEntryById ВМЕСТО getActiveEntryById ==========
+        GameIndexEntry oldEntry = index.getEntryById(gameId);
         if (oldEntry == null) {
-            throw new IllegalArgumentException("Game not found or already deleted: " + gameId);
+            throw new IllegalArgumentException(String.format(
+                    lang.get(PGN_BROWSER_GAME_NOT_FOUND_OR_DELETED), gameId
+            ));
+        }
+
+        if (oldEntry.isDeleted()) {
+            throw new IllegalArgumentException(String.format(
+                    lang.get(PGN_BROWSER_MSG_GAME_DELETED), gameId
+            ));
         }
 
         String pgnContent = editor.readGame(oldEntry);
@@ -81,18 +93,17 @@ public class PgnGameOperation {
         GameIndexEntry deletedEntry;
         if (replaced) {
             log.trace("Successfully replaced in place at offset {}", oldEntry.getOffset());
-
             deletedEntry = oldEntry.markDeleted();
             deletedEntry.setHash(HashUtils.hashString(updatedPgnContent));
-
         } else {
             log.warn("In-place replace failed (length mismatch), appending new version");
-
             GameIndexEntry newVersion = editor.updateGame(gameId, updatedPgnContent);
             deletedEntry = newVersion.markDeleted();
         }
 
-        indexManager.updateIndex(pgnPath, index, deletedEntry);
+        // ========== ОБНОВЛЯЕМ ИНДЕКС ==========
+        index.updateEntry(deletedEntry);
+        indexManager.saveIndex(pgnPath, index);
         index.refreshCache();
 
         log.info("Game {} marked as deleted", gameId);
@@ -147,6 +158,10 @@ public class PgnGameOperation {
         log.info("Adding new game");
 
         try {
+            reloadIndex();
+            //this.index = indexManager.loadIndex(pgnPath);
+            int testId = index.getNextId();
+            log.info("Next ID: {}", testId);
             GameData gameData = parser.parse(pgnContent);
             if (gameData == null ||
                     gameData.whitePlayer() == null ||
@@ -171,7 +186,7 @@ public class PgnGameOperation {
                     newEntry,
                     String.format(lang.get(PGN_OP_ADD_SUCCESS), newId)
             );
-        }catch (Exception e) {
+        } catch (Exception e) {
             throw new IllegalArgumentException("Invalid PGN content: " + e.getMessage(), e);
         }
     }
@@ -223,14 +238,31 @@ public class PgnGameOperation {
     public OperationResult duplicateGame(int gameId) throws IOException {
         log.info("Duplicating game ID: {}", gameId);
 
-        GameIndexEntry sourceEntry = index.getActiveEntryById(gameId);
+        reloadIndex();
+
+        GameIndexEntry sourceEntry = index.getEntryById(gameId);
         if (sourceEntry == null) {
-            throw new IllegalArgumentException("Game not found or deleted: " + gameId);
+            throw new IllegalArgumentException(String.format(
+                    lang.get(LanguageKeys.PGN_BROWSER_GAME_NOT_FOUND_OR_DELETED), gameId
+            ));
+        }
+
+        if (sourceEntry.isDeleted()) {
+            throw new IllegalArgumentException(String.format(
+                    lang.get(PGN_BROWSER_MSG_GAME_DELETED), gameId
+            ));
+        }
+
+        // ========== ДОБАВЛЯЕМ ЛОГИРОВАНИЕ ==========
+        int newId = index.getNextId();
+        log.info("Next ID for duplicate: {}", newId);
+
+        if (newId <= 0) {
+            throw new IllegalStateException("Invalid next ID: " + newId);
         }
 
         String pgnContent = editor.readGame(sourceEntry);
 
-        int newId = index.getNextId();
         GameIndexEntry newEntry = editor.appendGame(pgnContent, newId);
 
         newEntry.setWhite(sourceEntry.getWhite());
@@ -258,6 +290,15 @@ public class PgnGameOperation {
                 newEntry,
                 String.format(lang.get(PGN_OP_DUPLICATE_SUCCESS), gameId, newId)
         );
+    }
+
+    /**
+     * Обновляет индекс из файла
+     */
+    public void reloadIndex() throws IOException {
+        this.index = indexManager.loadIndex(pgnPath);
+        // Обновляем editor с новым индексом
+        this.editor.setIndex(this.index);
     }
 
     private void updateHeaders(GameIndexEntry entry, String pgnContent) {
@@ -304,8 +345,8 @@ public class PgnGameOperation {
                                   String message) {
 
         @Override
-            public String toString() {
-                return String.format("%s [id=%d] %s", type, gameId, message);
-            }
+        public String toString() {
+            return String.format("%s [id=%d] %s", type, gameId, message);
         }
+    }
 }

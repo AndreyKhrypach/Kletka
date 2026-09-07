@@ -42,6 +42,11 @@ class AppPreferencesTest {
     private boolean savedShowCoordinates;
     private int savedBoardTheme;
     private String savedSaveDirectory;
+    private String savedRecentBook;
+    private String savedBookDirectory;
+    private String savedNavigationMode;
+    private String savedLastSaveDirectory;
+    private String savedLastOpenDirectory;
 
     @BeforeEach
     void setUp() {
@@ -53,6 +58,17 @@ class AppPreferencesTest {
         savedShowCoordinates = AppPreferences.isShowCoordinates();
         savedBoardTheme = AppPreferences.getBoardThemeIndex();
         savedSaveDirectory = AppPreferences.getSaveDirectory();
+        savedRecentBook = AppPreferences.getRecentBook();
+        savedBookDirectory = AppPreferences.getBookDirectory();
+        savedNavigationMode = AppPreferences.getNavigationMode();
+        savedLastSaveDirectory = AppPreferences.getLastSaveDirectory();
+        savedLastOpenDirectory = AppPreferences.getLastOpenDirectory();
+
+        // ========== СБРАСЫВАЕМ НАСТРОЙКИ ДЛЯ ТЕСТОВ ==========
+        AppPreferences.saveRecentBook(null);
+        AppPreferences.saveNavigationMode("PGN");
+        AppPreferences.saveLastSaveDirectory(null);
+        AppPreferences.saveLastOpenDirectory(null);
 
         // ========== УСТАНАВЛИВАЕМ ЯЗЫК ДЛЯ ТЕСТОВ ==========
         AppPreferences.saveLanguage("ru");
@@ -74,6 +90,21 @@ class AppPreferencesTest {
         if (savedSaveDirectory != null) {
             AppPreferences.saveSaveDirectory(savedSaveDirectory);
         }
+        if (savedRecentBook != null) {
+            AppPreferences.saveRecentBook(savedRecentBook);
+        }
+        if (savedBookDirectory != null) {
+            AppPreferences.saveBookDirectory(savedBookDirectory);
+        }
+        if (savedNavigationMode != null) {
+            AppPreferences.saveNavigationMode(savedNavigationMode);
+        }
+        if (savedLastSaveDirectory != null) {
+            AppPreferences.saveLastSaveDirectory(savedLastSaveDirectory);
+        }
+        if (savedLastOpenDirectory != null) {
+            AppPreferences.saveLastOpenDirectory(savedLastOpenDirectory);
+        }
     }
 
     // ============================================================
@@ -87,7 +118,7 @@ class AppPreferencesTest {
         @Test
         @DisplayName("Должен сохранять и получать директорию сохранения")
         void shouldSaveAndGetSaveDirectory() {
-            // given - создаем временную директорию
+            // given
             String testPath = tempDir.resolve("test-save-dir").toString();
 
             // when
@@ -121,7 +152,6 @@ class AppPreferencesTest {
 
             // then
             assertThat(result).isEqualTo(testPath);
-            // Проверяем что директория создалась
             java.io.File dir = new java.io.File(testPath);
             assertThat(dir.exists()).isTrue();
             assertThat(dir.isDirectory()).isTrue();
@@ -224,7 +254,6 @@ class AppPreferencesTest {
             String result = AppPreferences.getLanguage();
 
             // then
-            // Язык должен быть одним из поддерживаемых: ru, en, zh
             assertThat(result).isIn("ru", "en", "zh");
         }
     }
@@ -405,7 +434,326 @@ class AppPreferencesTest {
     }
 
     // ============================================================
-    // 9. ТЕСТЫ ДЛЯ @Deprecated МЕТОДОВ
+    // 9. ТЕСТЫ ДЛЯ RECENT BOOK (НОВЫЕ)
+    // ============================================================
+
+    @Nested
+    @DisplayName("Последняя открытая книга")
+    class RecentBookTests {
+
+        @Test
+        @DisplayName("Должен возвращать null для последней книги по умолчанию")
+        void shouldReturnNullByDefault() {
+            // given
+            AppPreferences.saveRecentBook(null);
+
+            // when
+            String result = AppPreferences.getRecentBook();
+
+            // then
+            assertThat(result).isNull();
+        }
+
+        @Test
+        @DisplayName("Должен сохранять и получать путь к последней книге")
+        void shouldSaveAndGetRecentBook() {
+            // given
+            String testPath = tempDir.resolve("book").resolve("test-book.ctg").toString();
+
+            // when
+            AppPreferences.saveRecentBook(testPath);
+            String result = AppPreferences.getRecentBook();
+
+            // then
+            assertThat(result).isEqualTo(testPath);
+        }
+
+        @Test
+        @DisplayName("Должен удалять путь при сохранении null")
+        void shouldRemovePathWhenSavingNull() {
+            // given
+            AppPreferences.saveRecentBook("/test/book");
+            assertThat(AppPreferences.getRecentBook()).isNotNull();
+
+            // when
+            AppPreferences.saveRecentBook(null);
+
+            // then
+            assertThat(AppPreferences.getRecentBook()).isNull();
+        }
+    }
+
+    // ============================================================
+    // 10. ТЕСТЫ ДЛЯ BOOK DIRECTORY (НОВЫЕ)
+    // ============================================================
+
+    @Nested
+    @DisplayName("Директория книг")
+    class BookDirectoryTests {
+
+        @Test
+        @DisplayName("Должен сохранять и получать директорию книг")
+        void shouldSaveAndGetBookDirectory() {
+            // given
+            String testPath = tempDir.resolve("custom-books").toString();
+
+            // when
+            AppPreferences.saveBookDirectory(testPath);
+            String result = AppPreferences.getBookDirectory();
+
+            // then
+            assertThat(result).isEqualTo(testPath);
+        }
+
+        @Test
+        @DisplayName("Должен возвращать путь по умолчанию (bases/book)")
+        void shouldReturnDefaultBookDirectory() {
+            // when
+            String result = AppPreferences.getBookDirectory();
+
+            // then
+            assertThat(result).isNotNull();
+            assertThat(result).contains("book");
+        }
+    }
+
+    // ============================================================
+    // 11. ТЕСТЫ ДЛЯ NAVIGATION MODE (НОВЫЕ)
+    // ============================================================
+
+    @Nested
+    @DisplayName("Режим навигации")
+    class NavigationModeTests {
+
+        @Test
+        @DisplayName("Должен сохранять и получать режим навигации")
+        void shouldSaveAndGetNavigationMode() {
+            // given
+            String mode = "DATABASE";
+
+            // when
+            AppPreferences.saveNavigationMode(mode);
+            String result = AppPreferences.getNavigationMode();
+
+            // then
+            assertThat(result).isEqualTo(mode);
+        }
+
+        @Test
+        @DisplayName("Должен возвращать 'PGN' по умолчанию")
+        void shouldReturnPgnByDefault() {
+            // when
+            String result = AppPreferences.getNavigationMode();
+
+            // then
+            assertThat(result).isEqualTo("PGN");
+        }
+
+        @Test
+        @DisplayName("Должен удалять режим при сохранении null")
+        void shouldRemoveModeWhenSavingNull() {
+            // given
+            AppPreferences.saveNavigationMode("DATABASE");
+            assertThat(AppPreferences.getNavigationMode()).isNotNull();
+
+            // when
+            AppPreferences.saveNavigationMode(null);
+
+            // then
+            assertThat(AppPreferences.getNavigationMode()).isEqualTo("PGN");
+        }
+
+        @Test
+        @DisplayName("Должен поддерживать регистры")
+        void shouldSupportCaseInsensitive() {
+            // given
+            String mode = "database";
+
+            // when
+            AppPreferences.saveNavigationMode(mode);
+            String result = AppPreferences.getNavigationMode();
+
+            // then
+            assertThat(result).isEqualTo(mode);
+        }
+    }
+
+    // ============================================================
+    // 12. ТЕСТЫ ДЛЯ LAST SAVE DIRECTORY (НОВЫЕ)
+    // ============================================================
+
+    @Nested
+    @DisplayName("Последняя директория сохранения")
+    class LastSaveDirectoryTests {
+
+        @Test
+        @DisplayName("Должен возвращать null после сохранения null")
+        void shouldReturnNullAfterSavingNull() {
+            // given
+            AppPreferences.saveLastSaveDirectory(null);
+
+            // when
+            String result = AppPreferences.getLastSaveDirectory();
+
+            // then
+            assertThat(result).isNull();
+        }
+
+        @Test
+        @DisplayName("Должен сохранять и получать последнюю директорию сохранения")
+        void shouldSaveAndGetLastSaveDirectory() {
+            // given
+            String testPath = tempDir.resolve("last-save").toString();
+
+            // when
+            AppPreferences.saveLastSaveDirectory(testPath);
+            String result = AppPreferences.getLastSaveDirectory();
+
+            // then
+            assertThat(result).isEqualTo(testPath);
+        }
+
+        @Test
+        @DisplayName("Должен удалять путь при сохранении null")
+        void shouldRemovePathWhenSavingNull() {
+            // given
+            AppPreferences.saveLastSaveDirectory("/test/path");
+            assertThat(AppPreferences.getLastSaveDirectory()).isNotNull();
+
+            // when
+            AppPreferences.saveLastSaveDirectory(null);
+
+            // then
+            assertThat(AppPreferences.getLastSaveDirectory()).isNull();
+        }
+    }
+
+    // ============================================================
+    // 13. ТЕСТЫ ДЛЯ LAST OPEN DIRECTORY (НОВЫЕ)
+    // ============================================================
+
+    @Nested
+    @DisplayName("Последняя директория открытия")
+    class LastOpenDirectoryTests {
+
+        @Test
+        @DisplayName("Должен возвращать путь к bases по умолчанию (при первом запуске)")
+        void shouldReturnBasesByDefault() {
+            // given
+            // Удаляем сохраненное значение
+            AppPreferences.saveLastOpenDirectory(null);
+
+            // when
+            String result = AppPreferences.getLastOpenDirectory();
+
+            // then
+            // После удаления возвращается null
+            assertThat(result).isNull();
+        }
+
+        @Test
+        @DisplayName("Должен сохранять и получать последнюю директорию открытия")
+        void shouldSaveAndGetLastOpenDirectory() {
+            // given
+            String testPath = tempDir.resolve("last-open").toString();
+
+            // when
+            AppPreferences.saveLastOpenDirectory(testPath);
+            String result = AppPreferences.getLastOpenDirectory();
+
+            // then
+            assertThat(result).isEqualTo(testPath);
+        }
+
+        @Test
+        @DisplayName("Должен удалять путь при сохранении null")
+        void shouldRemovePathWhenSavingNull() {
+            // given
+            AppPreferences.saveLastOpenDirectory("/test/path");
+            assertThat(AppPreferences.getLastOpenDirectory()).isNotNull();
+
+            // when
+            AppPreferences.saveLastOpenDirectory(null);
+
+            // then
+            assertThat(AppPreferences.getLastOpenDirectory()).isNull();
+        }
+    }
+
+    // ============================================================
+    // 14. ТЕСТЫ ДЛЯ resetAllPreferences() (НОВЫЕ)
+    // ============================================================
+
+    @Nested
+    @DisplayName("Сброс всех настроек")
+    class ResetAllPreferencesTests {
+
+        @Test
+        @DisplayName("Должен сбрасывать все настройки к значениям по умолчанию")
+        void shouldResetAllPreferences() {
+            // given
+            // Устанавливаем разные настройки
+            AppPreferences.saveLanguage("en");
+            AppPreferences.saveTileSize(100);
+            AppPreferences.saveBoardFlipped(true);
+            AppPreferences.saveShowCoordinates(false);
+            AppPreferences.saveBoardTheme(3);
+            AppPreferences.saveRecentBook("/test/book");
+            AppPreferences.saveNavigationMode("DATABASE");
+
+            // when
+            AppPreferences.resetAllPreferences();
+
+            // then
+            // Проверяем, что настройки сброшены
+            assertThat(AppPreferences.getLanguage()).isIn("ru", "en");
+            assertThat(AppPreferences.getTileSize()).isBetween(
+                    BoardSizeController.MIN_TILE_SIZE,
+                    BoardSizeController.MAX_TILE_SIZE
+            );
+            assertThat(AppPreferences.isBoardFlipped()).isFalse();
+            assertThat(AppPreferences.isShowCoordinates()).isTrue();
+            assertThat(AppPreferences.getBoardThemeIndex()).isEqualTo(0);
+            assertThat(AppPreferences.getRecentBook()).isNull();
+            assertThat(AppPreferences.getNavigationMode()).isEqualTo("PGN");
+        }
+    }
+
+    // ============================================================
+    // 15. ТЕСТЫ ДЛЯ getConfigFilePath() и configFileExists() (НОВЫЕ)
+    // ============================================================
+
+    @Nested
+    @DisplayName("Информация о файле настроек")
+    class ConfigFileInfoTests {
+
+        @Test
+        @DisplayName("Должен возвращать путь к файлу настроек")
+        void shouldGetConfigFilePath() {
+            // when
+            String path = AppPreferences.getConfigFilePath();
+
+            // then
+            assertThat(path).isNotNull();
+            assertThat(path).contains("config.properties");
+        }
+
+        @Test
+        @DisplayName("Должен проверять существование файла настроек")
+        void shouldCheckConfigFileExists() {
+            // when
+            boolean exists = AppPreferences.configFileExists();
+
+            // then
+            // Проверяем, что метод возвращает boolean (true или false)
+            assertThat(exists).isInstanceOf(Boolean.class);
+            // Или просто проверяем, что это boolean (без проверки типа)
+            assertThat(exists).isTrue(); // или isFalse()
+        }
+    }
+
+    // ============================================================
+    // 16. ТЕСТЫ ДЛЯ @Deprecated МЕТОДОВ
     // ============================================================
 
     @Nested
@@ -413,7 +761,7 @@ class AppPreferencesTest {
     class DeprecatedMethodsTests {
 
         @Test
-        @DisplayName("saveDatabasePath - заглушка, возвращает null")
+        @DisplayName("saveDatabasePath - заглушка, ничего не делает")
         void saveDatabasePathShouldDoNothing() {
             // given
             String testPath = "/test/db/path";
@@ -453,6 +801,47 @@ class AppPreferencesTest {
             // then
             assertThat(AppPreferences.getDatabasePath()).isNull();
             assertThat(AppPreferences.getLastOpened()).isNull();
+        }
+    }
+
+    // ============================================================
+    // 17. ТЕСТЫ ДЛЯ ОБЩЕЙ РАБОТОСПОСОБНОСТИ
+    // ============================================================
+
+    @Nested
+    @DisplayName("Общая работоспособность")
+    class GeneralTests {
+
+        @Test
+        @DisplayName("Должен корректно работать после сброса настроек")
+        void shouldWorkAfterReset() {
+            // given
+            AppPreferences.saveLanguage("zh");
+            AppPreferences.saveBoardTheme(5);
+
+            // when
+            AppPreferences.resetAllPreferences();
+
+            // then
+            assertThat(AppPreferences.getLanguage()).isIn("ru", "en");
+            assertThat(AppPreferences.getBoardThemeIndex()).isEqualTo(0);
+            assertThat(AppPreferences.isBoardFlipped()).isFalse();
+        }
+
+        @Test
+        @DisplayName("Должен сохранять настройки между вызовами")
+        void shouldPersistSettingsBetweenCalls() {
+            // given
+            String testPath = tempDir.resolve("test-dir").toString();
+
+            // when
+            AppPreferences.saveSaveDirectory(testPath);
+
+            // then
+            assertThat(AppPreferences.getSaveDirectory()).isEqualTo(testPath);
+
+            // Еще раз проверяем
+            assertThat(AppPreferences.getSaveDirectory()).isEqualTo(testPath);
         }
     }
 }

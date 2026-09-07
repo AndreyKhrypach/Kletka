@@ -726,6 +726,7 @@ public class MoveNavigationController {
 
     /**
      * Навигация к конкретному ходу в варианте
+     * (исправлено: добавляет обновление списка вариантов после переключения)
      */
     public void navigateToMoveInVariation(Variation targetVariation, int moveIndex) {
         if (targetVariation == null) return;
@@ -737,6 +738,7 @@ public class MoveNavigationController {
 
         log.trace("Navigating to: {} in variation: {}", targetNode.getSan(), targetVariation.getName());
 
+        // Находим путь через родителей
         List<ParentNode> path = pathBuilder.buildPathFromParents(targetNode);
 
         if (path != null && !path.isEmpty()) {
@@ -749,16 +751,33 @@ public class MoveNavigationController {
                 currentNode.setOwningVariation(targetVariation);
             }
 
+            // ========== ВОССТАНАВЛИВАЕМ ДОСКУ ==========
             restoreBoardFromCurrentNode();
             updateNotationView();
+
+            // ========== ЗАГРУЖАЕМ ПОДВАРИАНТЫ ДЛЯ НОВОГО УЗЛА ==========
+            loadVariationsForNode(currentNode);
+            updateCurrentVariations();
+            selectedVariationIndex = 0;
+
             sendCurrentPositionToEngine();
 
             if (boardView != null) {
                 boardView.notifyPositionChanged();
             }
+
+            // ========== ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ ОТОБРАЖЕНИЯ ==========
+            if (notationView != null) {
+                Platform.runLater(() -> {
+                    notationView.refreshFromMainLine();
+                    notationView.updateNotationDisplayWithVisitor();
+                    log.trace("Notation updated after navigation to: {}", targetNode.getSan());
+                });
+            }
             return;
         }
 
+        // ========== FALLBACK: ЕСЛИ ПУТЬ НЕ НАЙДЕН ==========
         currentVariation = targetVariation;
         currentNode = targetNode;
 
@@ -768,10 +787,25 @@ public class MoveNavigationController {
 
         restoreBoardFromCurrentNode();
         updateNotationView();
+
+        // ========== ЗАГРУЖАЕМ ПОДВАРИАНТЫ ==========
+        loadVariationsForNode(currentNode);
+        updateCurrentVariations();
+        selectedVariationIndex = 0;
+
         sendCurrentPositionToEngine();
 
         if (boardView != null) {
             boardView.notifyPositionChanged();
+        }
+
+        // ========== ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ ОТОБРАЖЕНИЯ ==========
+        if (notationView != null) {
+            Platform.runLater(() -> {
+                notationView.refreshFromMainLine();
+                notationView.updateNotationDisplayWithVisitor();
+                log.trace("Notation updated after navigation (fallback) to: {}", targetNode.getSan());
+            });
         }
     }
 
