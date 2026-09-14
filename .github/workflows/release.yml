@@ -6,6 +6,9 @@ on:
   release:
     types: [ created ]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 permissions:
   contents: write
 
@@ -24,7 +27,7 @@ jobs:
       - name: Build with Maven
         run: mvn clean package -P windows
       - name: Upload installer as artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: kletka-windows
           path: target/installer/Kletka-1.4.0.exe
@@ -50,7 +53,7 @@ jobs:
       - name: Build with Maven
         run: mvn clean package -P linux
       - name: Upload installer as artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: kletka-linux
           path: target/installer/kletka_1.4.0-1_amd64.deb
