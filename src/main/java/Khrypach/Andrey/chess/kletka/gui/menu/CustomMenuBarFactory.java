@@ -77,6 +77,8 @@ public class CustomMenuBarFactory {
 
     private static final Logger log = LoggerFactory.getLogger(CustomMenuBarFactory.class);
 
+    private static final String GITHUB_URI = "https://github.com/AndreyKhrypach/Kletka";
+
     private final LanguageManager lang = LanguageManager.getInstance();
 
     private final MainController controller;
@@ -737,7 +739,8 @@ public class CustomMenuBarFactory {
         menu.setStyle("-fx-open-on-hover: false;");
 
         MenuItem loadBookItem = new MenuItem(lang.get(MENU_BOOKS_LOAD));
-        loadBookItem.setAccelerator(new KeyCodeCombination(KeyCode.B, KeyCombination.CONTROL_DOWN));
+        loadBookItem.setAccelerator(new KeyCodeCombination(KeyCode.B,
+                KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN));
         loadBookItem.setOnAction(e -> {
             if (controller != null) {
                 controller.openPolyglotBook();
@@ -746,8 +749,34 @@ public class CustomMenuBarFactory {
         });
         menu.getItems().add(loadBookItem);
 
+        MenuItem saveBookItem = new MenuItem(lang.get(MENU_BOOKS_SAVE));
+        saveBookItem.setAccelerator(new KeyCodeCombination(KeyCode.S,
+                KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN));
+        saveBookItem.setOnAction(e -> {
+            if (controller != null) {
+                controller.savePolyglotBook();
+            }
+            returnFocusToBoard();
+        });
+
+        // Добавляем после loadBookItem
+        menu.getItems().add(1, saveBookItem);
+
+        // ========== ОТМЕНА ХОДА В КНИГЕ ==========
+        MenuItem undoBookItem = new MenuItem(lang.get(MENU_BOOKS_UNDO_MOVE));
+        undoBookItem.setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCombination.ALT_DOWN));
+        undoBookItem.setOnAction(e -> {
+            ChessBoardView boardView = controller.getBoardView();
+            if (boardView != null) {
+                boardView.undoBookMove();
+            }
+            returnFocusToBoard();
+        });
+        // Добавляем после "Сохранить книгу"
+        menu.getItems().add(undoBookItem);
+
         MenuItem clearBookItem = new MenuItem(lang.get(MENU_BOOKS_CLEAR));
-        clearBookItem.setAccelerator(new KeyCodeCombination(KeyCode.B, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN));
+        clearBookItem.setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN));
         clearBookItem.setOnAction(e -> {
             if (controller != null) {
                 controller.clearBook();
@@ -1375,11 +1404,11 @@ public class CustomMenuBarFactory {
     private void openGitHubPage() {
         HostServices hs = KletkaGui.hostServices();
         if (hs != null) {
-            hs.showDocument("https://github.com/AndreyKhrypach/Kletka");
+            hs.showDocument(GITHUB_URI);
         } else {
             // Fallback
             try {
-                Desktop.getDesktop().browse(URI.create("https://github.com/AndreyKhrypach/Kletka"));
+                Desktop.getDesktop().browse(URI.create(GITHUB_URI));
             } catch (Exception e) {
                 showError(lang.get(MENU_HELP_GITHUB_ERROR));
             }

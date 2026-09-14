@@ -55,6 +55,10 @@ public class VariationManager {
     @Getter
     private Variation mainLine;
 
+    @Getter
+    @Setter
+    private NavigationMode navigationMode = NavigationMode.PGN;
+
     public VariationManager(RootNode rootNode, Variation rootVariation, Variation mainLine,
                             BoardReconstructor boardReconstructor, VariationNamingService namingService) {
         this.rootNode = rootNode;
@@ -97,9 +101,8 @@ public class VariationManager {
                     log.trace("Move already exists as root variation: {}", var.getName());
                     updatedVariation = var;
                     updatedNode = firstNode;
-                    result = false;
                     return new VariationStateSnapshot(rootNode, rootVariation, mainLine,
-                            updatedVariation, updatedNode, result);
+                            updatedVariation, updatedNode, false);
                 }
             }
 
@@ -123,14 +126,46 @@ public class VariationManager {
                     updatedVariation, updatedNode, result);
         }
 
+        // ========== BOOK РЕЖИМ: ПРОВЕРКА НА СУЩЕСТВОВАНИЕ ХОДА ==========
+        if (navigationMode == NavigationMode.BOOK &&
+                currentNode != null &&
+                !currentNode.isRoot()) {
+
+            boolean existsInBook = false;
+            Variation targetVariation = null;
+            ParentNode targetNode = null;
+
+            for (Variation subVar : currentNode.getSubVariations()) {
+                if (subVar == null || subVar.isEmpty()) continue;
+                ParentNode firstMove = subVar.getFirstNode();
+                if (firstMove != null && !firstMove.isRoot() &&
+                        firstMove.getUciMove().equals(currentUci)) {
+                    existsInBook = true;
+                    targetVariation = subVar;
+                    targetNode = firstMove;
+                    break;
+                }
+            }
+
+            if (existsInBook) {
+                // Ход есть в книге — переключаемся на него
+                log.trace("BOOK mode: move exists in book, switching");
+                return new VariationStateSnapshot(rootNode, rootVariation, mainLine,
+                        targetVariation, targetNode, false);
+            } else {
+                // Хода нет в книге — показываем диалог
+                return new VariationStateSnapshot(rootNode, rootVariation, mainLine,
+                        currentVariation, currentNode, null);
+            }
+        }
+
         assert currentVariation != null;
         if (currentVariation.isEmpty()) {
             MoveNode newNode = new MoveNode(move, piece, isCapture, promotionPiece);
             currentVariation.addMove(newNode);
             updatedNode = newNode;
-            result = false;
             return new VariationStateSnapshot(rootNode, rootVariation, mainLine,
-                    updatedVariation, updatedNode, result);
+                    updatedVariation, updatedNode, false);
         }
 
         if (currentNode != null && currentNode.getNext() != null) {
@@ -138,9 +173,8 @@ public class VariationManager {
             if (!nextNode.isRoot() && nextNode.getUciMove().equals(currentUci)) {
                 log.trace("Move already exists as next move: {}", nextNode.getSan());
                 updatedNode = nextNode;
-                result = false;
                 return new VariationStateSnapshot(rootNode, rootVariation, mainLine,
-                        updatedVariation, updatedNode, result);
+                        updatedVariation, updatedNode, false);
             }
         }
 
@@ -153,9 +187,8 @@ public class VariationManager {
                     log.trace("Move already exists as variation: {}", subVar.getName());
                     updatedVariation = subVar;
                     updatedNode = firstMove;
-                    result = false;
                     return new VariationStateSnapshot(rootNode, rootVariation, mainLine,
-                            updatedVariation, updatedNode, result);
+                            updatedVariation, updatedNode, false);
                 }
             }
         }
@@ -171,17 +204,15 @@ public class VariationManager {
             newNode.setOwningVariation(currentVariation);
 
             updatedNode = newNode;
-            result = false;
 
             return new VariationStateSnapshot(rootNode, rootVariation, mainLine,
-                    updatedVariation, updatedNode, result);
+                    updatedVariation, updatedNode, false);
         }
 
         if (currentNode != null) {
             log.trace("Case 6: needs dialog, currentNode.next exists");
-            result = null;
             return new VariationStateSnapshot(rootNode, rootVariation, mainLine,
-                    updatedVariation, updatedNode, result);
+                    updatedVariation, updatedNode, null);
         }
 
         log.trace("Fallback: simple add move");
@@ -248,6 +279,18 @@ public class VariationManager {
             return null;
         }
 
+        log.trace("=== VariationManager.createNewVariation ===");
+        log.trace("  currentNode: {} (isRoot={})",
+                currentNode.getSan(), currentNode.isRoot());
+        log.trace("  currentNode.getNext(): {}",
+                currentNode.getNext() != null ? currentNode.getNext().getSan() : "null");
+        log.trace("  currentNode.getSubVariations() BEFORE:");
+
+        if (navigationMode == NavigationMode.BOOK) {
+            return createNewVariationForBook(move, piece, isCapture, promotionPiece,
+                    currentVariation, currentNode);
+        }
+
         log.trace("createNewVariation - currentNode: {}, currentNode.next: {}",
                 currentNode.getSan(),
                 currentNode.getNext() != null ? currentNode.getNext().getSan() : "null");
@@ -294,8 +337,10 @@ public class VariationManager {
                 current = current.getNext();
             }
 
+
+            currentNode.setOwningVariation(currentVariation);
+
             currentNode.getSubVariations().add(oldMainVariation);
-            log.trace("Added old main line to subVariations");
         }
 
         MoveNode newNode = new MoveNode(move, piece, isCapture, promotionPiece);
@@ -314,21 +359,14 @@ public class VariationManager {
         newNode.setOwningVariation(newVar);
 
         currentNode.getSubVariations().add(newVar);
-        log.trace("Added new variation to subVariations");
-
-        log.trace("next remains: {}",
-                currentNode.getNext() != null ? currentNode.getNext().getSan() : "null");
 
         if (currentVariation == this.mainLine || currentVariation.isMainLine()) {
             if (oldMainVariation != null) {
                 this.mainLine = oldMainVariation;
                 this.mainLine.setMainLine(true);
-                log.trace("createNewVariation Global mainLine updated to: {} (id={})",
-                        this.mainLine.getName(), this.mainLine.getId());
             } else {
                 newVar.setMainLine(true);
                 this.mainLine = newVar;
-                log.trace("Global mainLine updated to new variation: {}", this.mainLine.getName());
             }
         }
 
@@ -336,6 +374,88 @@ public class VariationManager {
         updateAllVariationNames();
 
         log.trace("createNewVariation END");
+
+        return newVar;
+    }
+
+    /**
+     * Создает новый вариант для BOOK режима (без проверки дубликатов через VariationParser)
+     */
+    private Variation createNewVariationForBook(Move move, Piece piece, boolean isCapture,
+                                                Piece promotionPiece, Variation currentVariation,
+                                                ParentNode currentNode) {
+        log.trace("createNewVariationForBook - currentNode: {}, currentNode.next: {}",
+                currentNode.getSan(),
+                currentNode.getNext() != null ? currentNode.getNext().getSan() : "null");
+
+        // Сохраняем старую главную линию, если есть
+        Variation oldMainVariation = null;
+        for (Variation var : currentNode.getSubVariations()) {
+            if (var.isMainLine()) {
+                oldMainVariation = var;
+                log.trace("createNewVariationForBook:Found existing main line in subVariations: {}", var.getName());
+                break;
+            }
+        }
+
+        if (oldMainVariation == null && currentNode.getNext() != null) {
+            ParentNode oldNext = currentNode.getNext();
+            log.trace("Creating old main line from next: {}", oldNext.getSan());
+
+            oldMainVariation = new Variation("~");
+            oldMainVariation.setFirstNode(oldNext);
+            oldMainVariation.setMainLine(currentVariation.isMainLine());
+            oldMainVariation.setParentVariation(currentVariation);
+            oldMainVariation.setParentNodeRef(currentNode);
+
+            ParentNode current = oldNext;
+            ParentNode prev = currentNode;
+            while (current != null && !current.isRoot()) {
+                current.setParent(prev);
+                current.setForkNode(currentNode);
+                current.setOwningVariation(oldMainVariation);
+                prev = current;
+                current = current.getNext();
+            }
+
+            currentNode.getSubVariations().add(oldMainVariation);
+            log.trace("Added old main line to subVariations");
+        }
+
+        // Создаем новый узел
+        MoveNode newNode = new MoveNode(move, piece, isCapture, promotionPiece);
+        Board boardBefore = boardReconstructor.reconstruct(currentVariation, currentNode);
+        setAbsolutePlyForNode(newNode, boardBefore);
+
+        // Создаем новый вариант
+        Variation newVar = new Variation("");
+        newVar.setNameGenerated(false);
+        newVar.addMove(newNode);
+        newVar.setMainLine(false);
+        newVar.setParentVariation(currentVariation);
+        newVar.setParentNodeRef(currentNode);
+
+        newNode.setParent(currentNode);
+        newNode.setForkNode(currentNode);
+        newNode.setOwningVariation(newVar);
+
+        currentNode.getSubVariations().add(newVar);
+        log.trace("Added new variation to subVariations");
+
+        // Обновляем главную линию
+        if (currentVariation == this.mainLine || currentVariation.isMainLine()) {
+            if (oldMainVariation != null) {
+                this.mainLine = oldMainVariation;
+                this.mainLine.setMainLine(true);
+                log.trace("Global mainLine updated to old main line: {}", this.mainLine.getName());
+            } else {
+                newVar.setMainLine(true);
+                this.mainLine = newVar;
+                log.trace("Global mainLine updated to new variation: {}", this.mainLine.getName());
+            }
+        }
+
+        log.trace("createNewVariationForBook END");
         return newVar;
     }
 

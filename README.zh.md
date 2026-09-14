@@ -1,8 +1,14 @@
 
 ## 📝 Содержимое README.zh.md:
 
-markdown
 # ♟️ Kletka — 跨平台国际象棋分析工具
+
+**阅读语言：**
+[🇬🇧 English](README.md) |
+[🇷🇺 Русский](README.ru.md) |
+[🇨🇳 中文](README.zh.md)
+
+---
 
 **Kletka** 是一款跨平台国际象棋分析工具，支持 PGN 文件、变着、注释和 Stockfish 引擎。它具有现代可定制的界面，适用于 Windows、Linux 和 macOS。
 
@@ -37,6 +43,57 @@ Kletka 支持 **Polyglot 开局库** (`.bin` 文件)，让您可以交互式地�
     - **→ / Enter** — 选择变着
     - **←** — 返回上一位置
 
+### 书籍的系统要求
+
+Kletka 的开局书功能需要以下环境：
+
+    Java 17 LTS（推荐使用 Liberica Full JDK）
+
+    JVM 参数（通过启动器运行时自动应用）：
+
+```
+--add-opens java.base/sun.nio.ch=ALL-UNNAMED
+--add-opens java.base/sun.misc=ALL-UNNAMED
+```
+
+注意： 如果您从命令行运行 Kletka，请使用：
+
+```bash
+java --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/sun.misc=ALL-UNNAMED -jar Kletka.jar
+```
+
+### 🔧 技术细节：内存映射文件
+
+Kletka 使用 **内存映射文件** (`MappedByteBuffer`) 实现极快的 Polyglot 开局库操作，即使在 HDD 上也是如此。
+
+**重要提示：** 只要存在引用，内存映射字节缓冲区就**不会**被 JVM 垃圾回收器释放。为了让您在 Kletka 运行时能够**删除、移动或替换**开局库文件，应用程序会显式调用：
+
+```
+sun.misc.Unsafe.invokeCleaner(mappedByteBuffer);
+```
+
+这会立即释放操作系统级别的文件锁定。
+
+这对您意味着什么：
+
+    ✅ 卸载开局库后可以安全地删除或移动 .bin 文件
+
+    ✅ 可以将开局库文件替换为新文件
+
+    ✅ 在 Windows 上不会再出现"文件被另一个进程占用"的错误
+
+
+### Linux：已知问题
+
+在 **Debian Trixie / Ubuntu 24.04+** 上使用 **Wayland** 时，对话框可能无法获得焦点
+（键盘可以工作，但鼠标无法工作）。这是 **JavaFX 17 + GTK 3 + Wayland 的已知 bug**。
+
+**解决方案：** 已在 Kletka 中包含——应用程序启动时带有
+
+`-Djdk.gtk.version=2` 标志，通过 XWayland 使用 GTK 2。
+
+---
+
 ### 推荐书籍：
 
 为获得最佳效果，我们推荐使用 **`uho-pohl.bin`** 开局库，其中包含大量高质量的开局变着。
@@ -53,22 +110,51 @@ Kletka 支持 **Polyglot 开局库** (`.bin` 文件)，让您可以交互式地�
 
 ---
 
+
 ## 🖥️ 截图
 
 ### English
-| ![主窗口](screenshots/Main_en.png) | ![PGN 浏览器](screenshots/Browser_en.png) |
-|-------------------------------------|-------------------------------------------|
-| *主界面*                            | *PGN 浏览器*                              |
+| ![Main Window](screenshots/Main_en.png)    | ![PGN file browser](screenshots/Browser_en.png)    |
+|--------------------------------------------|----------------------------------------------------|
+| *Main interface*                           | *PGN browser*                                      |
+
+| ![Book open](screenshots/book_open_en.png) | ![Book loaded](screenshots/book_loaded_en.png)     |
+|--------------------------------------------| -------------------------------------------------- |
+| *Open Polyglot Book*                       | *Polyglot Book Loaded*                             |
 
 ### Русский
-| ![主窗口](screenshots/Main_ru.png) | ![PGN 浏览器](screenshots/Browser_ru.png) |
-|-------------------------------------|-------------------------------------------|
-| *主界面*                            | *PGN 浏览器*                              |
+| ![Главное окно](screenshots/Main_ru.png)        | ![Пгн файл обозреватель](screenshots/Browser_ru.png)  |
+|-------------------------------------------------|-------------------------------------------------------|
+| *Главный интерфейс*                             | *Обозреватель PGN*                                    |
+
+| ![Открытие книги](screenshots/book_open_ru.png) | ![Загруженная книга](screenshots/book_loaded_ru.png)  |
+| -------------------------------------------     | ----------------------------------------------------- |
+| *Открытие полиглот книги*                       | *Загруженная Полиглот книга*                          |
 
 ### 中文 (Chinese)
 | ![主窗口](screenshots/Main_zh.png) | ![PGN 浏览器](screenshots/Browser_zh.png) |
 |-------------------------------------|-------------------------------------------|
 | *主界面*                            | *PGN 浏览器*                              |
+
+| ![打开开局库](screenshots/book_open_zh.png) | ![已加载的开局库](screenshots/book_loaded_zh.png)  |
+| ------------------------------------------- | -------------------------------------------------- |
+| *打开 Polyglot 开局库*                      | *已加载的 Polyglot 开局库*                         |
+
+---
+
+## 🖥️ 截图
+
+### English
+| ![Main Window](screenshots/Main_en.png) | ![PGN file browser](screenshots/Browser_en.png) |
+| ![Book open](screenshots/book_open_en.png) | ![Book loaded](screenshots/book_loaded_en.png)     |
+
+### Русский
+| ![Главное окно](screenshots/Main_ru.png) | ![Пгн файл обозреватель](screenshots/Browser_ru.png) |
+| ![Открытие книги](screenshots/book_open_ru.png) | ![Загруженная книга](screenshots/book_loaded_ru.png)  |
+
+### 中文 (Chinese)
+| ![主窗口](screenshots/Main_zh.png) | ![PGN 浏览器](screenshots/Browser_zh.png) |
+| ![打开开局库](screenshots/book_open_zh.png) | ![已加载的开局库](screenshots/book_loaded_zh.png)  |
 
 ---
 
@@ -82,16 +168,31 @@ Kletka 支持 **Polyglot 开局库** (`.bin` 文件)，让您可以交互式地�
 
 ### Linux (Debian/Ubuntu)
 ```bash
-sudo dpkg -i kletka_1.2.0-1_amd64.deb
+sudo dpkg -i kletka*.deb
 ```
 
 ---
-🛠️ 从源码构建
-环境要求
+
+## 🛠️ 从源码构建
+
+### 环境要求
 
     Java 17 (推荐 Liberica Full JDK) — 从 BellSoft 下载
 
     Maven — 通过 brew install maven (macOS) 或 sudo apt install maven (Linux) 安装
+
+### 开发时的重要 JVM 参数
+
+在 IDE 中运行时，请添加以下 VM 选项：
+
+```
+--add-opens java.base/sun.nio.ch=ALL-UNNAMED
+--add-opens java.base/sun.misc=ALL-UNNAMED
+```
+
+这可以确保在开发期间完全支持 Polyglot 书籍功能。
+
+---
 
 ```bash
 git clone https://github.com/AndreyKhrypach/Kletka.git
@@ -99,7 +200,7 @@ cd Kletka
 mvn clean package
 ```
 
-特定平台构建
+### 特定平台构建
 
 ```bash
 # Windows
@@ -113,7 +214,7 @@ mvn clean package -P mac
 ```
 ---
 
-🧠 配置 Stockfish
+## 🧠 配置 Stockfish
 
 Kletka 使用 Stockfish UCI 引擎进行分析。您需要单独安装它。
 Windows
@@ -139,20 +240,20 @@ brew install stockfish
 然后在 Kletka 中，进入 引擎 → 配置引擎 并选择 stockfish 二进制文件。
 
 ---
-📄 许可证
+
+## 📄 许可证
 
 本项目采用 GNU General Public License v3.0 许可证。
-详见 LICENSE 文件。
+详见 [LICENSE](LICENSE)。
 
 ---
 
-👨‍💻 作者
+## 👨‍💻 作者
 
 Andrey Khrypach
-GitHub
 
 ---
 
-⭐ 支持
+## ⭐ 支持
 
 如果您喜欢这个项目，请在 GitHub 上给它一个星标！

@@ -440,14 +440,14 @@ public class PgnFileBrowser {
         table.setSortPolicy(tv -> {
             List<TableColumn<GameTableRow, ?>> sortOrder = tv.getSortOrder();
 
-            log.info("setSortPolicy triggered, sortOrder size: {}", sortOrder.size());
+            log.debug("setSortPolicy triggered, sortOrder size: {}", sortOrder.size());
 
             if (sortOrder.isEmpty()) {
                 return true;
             }
 
             TableColumn<GameTableRow, ?> column = sortOrder.get(0);
-            log.info("Sort column: {}", column.getText());
+            log.debug("Sort column: {}", column.getText());
 
             if (column == idColumn) {
                 sortGamesByColumn("id");
@@ -1061,7 +1061,7 @@ public class PgnFileBrowser {
             updateButtonsState();
             updateStatus();
 
-            log.info("Lazy index load completed in {} ms with {} active entries (total {})",
+            log.debug("Lazy index load completed in {} ms with {} active entries (total {})",
                     System.currentTimeMillis() - startTime, allRows.size(), lazyIndex.getLightEntries().size());
 
             if (onDataLoaded != null) {
@@ -1119,7 +1119,7 @@ public class PgnFileBrowser {
             statusLabel.setText(String.format(lang.get(PGN_BROWSER_STATUS_READY_WITH_COUNT), allRows.size()));
             updateTitle();
 
-            log.info("Parsing completed in {} ms",
+            log.debug("Parsing completed in {} ms",
                     System.currentTimeMillis() - startTime);
 
             if (onDataLoaded != null) {
@@ -1191,9 +1191,6 @@ public class PgnFileBrowser {
     }
 
     private void loadMoreRowsInternal() {
-        log.info("loadMoreRowsInternal: currentPage={}, isSorted={}, allRows.size={}, sortedLightEntries={}",
-                currentPage, isSorted, allRows.size(), sortedLightEntries != null ? sortedLightEntries.size() : "null");
-
         int startIndex = currentPage * PAGE_SIZE;
         int totalSize;
         List<LightGameEntry> entriesToLoad;
@@ -1288,7 +1285,6 @@ public class PgnFileBrowser {
                 }
 
                 Platform.runLater(() -> {
-                    log.info("Adding {} rows to table, current table size: {}", rowsToDisplay.size(), tableView.getItems().size());
                     tableView.getItems().addAll(rowsToDisplay);
                     currentPage++;
                     isLoadingMore = false;
@@ -1654,7 +1650,7 @@ public class PgnFileBrowser {
                 // ========== ЗАГРУЖАЕМ СВЕЖИЙ ЛЕНИВЫЙ ИНДЕКС ==========
                 PgnIndexManager indexManager = new PgnIndexManager();
                 LazyPgnIndex freshIndex = indexManager.loadLazyIndex(pgnPath);
-                log.info("Loaded LAZY index for editing: {} entries", freshIndex.getGameCount());
+                log.debug("Loaded LAZY index for editing: {} entries", freshIndex.getGameCount());
 
                 // ========== ПОЛУЧАЕМ РЕАЛЬНЫЙ ID ИЗ СТРОКИ ==========
                 int realGameId;
@@ -1672,8 +1668,6 @@ public class PgnFileBrowser {
                 } else {
                     throw new IllegalArgumentException("Cannot determine real game ID for row: " + row.getId());
                 }
-
-                log.info("Real game ID from row: {}", realGameId);
 
                 if (oldEntry == null) {
                     throw new IllegalArgumentException(String.format(
@@ -1694,7 +1688,7 @@ public class PgnFileBrowser {
                 if (deleteResult == null) {
                     throw new IllegalStateException("Failed to delete old game (result is null)");
                 }
-                log.info("Old game {} marked as deleted: {}", realGameId, deleteResult.message());
+                log.debug("Old game {} marked as deleted: {}", realGameId, deleteResult.message());
 
                 // ========== 2. ДОБАВЛЯЕМ НОВУЮ ВЕРСИЮ ==========
                 String newPgn = updatedGameData.pgn();
@@ -1703,11 +1697,11 @@ public class PgnFileBrowser {
                 if (addResult == null) {
                     throw new IllegalStateException("Failed to add new game (result is null)");
                 }
-                log.info("New game added with ID: {}", addResult.newEntry().getId());
+                log.debug("New game added with ID: {}", addResult.newEntry().getId());
 
                 // ========== 3. ОБНОВЛЯЕМ ИНДЕКС ==========
                 this.currentIndex = indexManager.loadLazyIndex(pgnPath);
-                log.info("Index reloaded after edit: {} entries", currentIndex.getGameCount());
+                log.debug("Index reloaded after edit: {} entries", currentIndex.getGameCount());
 
                 Platform.runLater(() -> {
                     progressIndicator.setVisible(false);
@@ -1804,12 +1798,12 @@ public class PgnFileBrowser {
                 PgnIndex updatedIndex = batchOp.getIndex();
                 if (updatedIndex != null) {
                     this.currentIndex = updatedIndex;
-                    log.info("Index updated after batch delete: {} active entries", currentIndex.getActiveCount());
+                    log.debug("Index updated after batch delete: {} active entries", currentIndex.getActiveCount());
                 } else {
                     // Fallback: перезагружаем индекс
                     PgnIndexManager indexManager = new PgnIndexManager();
                     this.currentIndex = indexManager.loadIndex(pgnPath);
-                    log.info("Index reloaded after batch delete: {} active entries", currentIndex.getActiveCount());
+                    log.debug("Index reloaded after batch delete: {} active entries", currentIndex.getActiveCount());
                 }
 
                 progressDialog.updateProgress(1.0, String.format(lang.get(PGN_BROWSER_DELETED), result.successful()),
@@ -1863,7 +1857,7 @@ public class PgnFileBrowser {
         PgnIndex freshIndex;
         try {
             freshIndex = indexManager.loadLazyIndex(pgnPath);
-            log.info("Loaded LAZY index for duplicate: {} entries", freshIndex.getGameCount());
+            log.debug("Loaded LAZY index for duplicate: {} entries", freshIndex.getGameCount());
         } catch (IOException e) {
             log.error("Failed to load index", e);
             showNotification(lang.get(PGN_BROWSER_MSG_DUPLICATE_ERROR));
@@ -1892,7 +1886,7 @@ public class PgnFileBrowser {
                 // Перезагружаем индекс заново, чтобы получить актуальные данные
                 PgnIndexManager reloadManager = new PgnIndexManager();
                 this.currentIndex = reloadManager.loadLazyIndex(pgnPath);
-                log.info("Index reloaded after duplicate: {} entries", currentIndex.getGameCount());
+                log.debug("Index reloaded after duplicate: {} entries", currentIndex.getGameCount());
 
                 Platform.runLater(() -> {
                     progressIndicator.setVisible(false);
@@ -2280,7 +2274,7 @@ public class PgnFileBrowser {
     }
 
     private void refreshAfterRepack(PgnIndex newIndex) {
-        log.info("Refreshing after repack, new index has {} entries", newIndex.getActiveCount());
+        log.debug("Refreshing after repack, new index has {} entries", newIndex.getActiveCount());
 
         // Обновляем индекс
         this.currentIndex = newIndex;
@@ -2300,13 +2294,13 @@ public class PgnFileBrowser {
     private void refreshAfterOperation() {
         try {
             long startTime = System.currentTimeMillis();
-            log.info("Starting refresh after operation...");
+            log.debug("Starting refresh after operation...");
 
             PgnIndexManager indexManager = new PgnIndexManager();
 
             // ========== ВСЕГДА ЗАГРУЖАЕМ ЛЕНИВЫЙ ИНДЕКС ==========
             this.currentIndex = indexManager.loadLazyIndex(pgnPath);
-            log.info("Loaded LAZY index after refresh: {} entries", currentIndex.getGameCount());
+            log.debug("Loaded LAZY index after refresh: {} entries", currentIndex.getGameCount());
 
             if (currentIndex == null) {
                 log.error("Failed to load index after operation");
@@ -2317,7 +2311,7 @@ public class PgnFileBrowser {
             LazyPgnIndex lazyIndex = (LazyPgnIndex) currentIndex;
             List<LightGameEntry> allLight = lazyIndex.getActiveLightEntries();
 
-            log.info("Loaded {} active entries ({} ms)", allLight.size(),
+            log.debug("Loaded {} active entries ({} ms)", allLight.size(),
                     System.currentTimeMillis() - startTime);
 
             Platform.runLater(() -> {
@@ -2350,7 +2344,7 @@ public class PgnFileBrowser {
                 updateTitle();
                 updateButtonsState();
 
-                log.info("Table updated without bodies ({} ms)", System.currentTimeMillis() - startTime);
+                log.debug("Table updated without bodies ({} ms)", System.currentTimeMillis() - startTime);
 
                 loadBodiesAsync();
             });

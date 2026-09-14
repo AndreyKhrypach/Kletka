@@ -146,8 +146,6 @@ public class VariationParser {
                 addVariationToTree(forkNode, newVariation);
                 log.trace("Variation #{} added to tree with {} moves",
                         currentVariationId, newVariation.getMoveCount());
-            } else {
-                log.warn("Variation #{} is empty, not adding to tree", currentVariationId);
             }
 
             restoreFromVariation();
@@ -487,7 +485,6 @@ public class VariationParser {
 
             Move move = moveParser.convertSanToMove(cleanMoveText, board);
             if (move == null) {
-                log.warn("Could not convert move: {} (clean: {})", moveText, cleanMoveText);
                 return false;
             }
 
@@ -495,8 +492,6 @@ public class VariationParser {
             Side expectedSide = isWhiteMove ? Side.WHITE : Side.BLACK;
 
             if (movingPiece.getPieceSide() != expectedSide) {
-                log.warn("Move side mismatch! Expected: {}, Actual: {}",
-                        expectedSide, movingPiece.getPieceSide());
                 return false;
             }
 
@@ -607,12 +602,6 @@ public class VariationParser {
                 if (existingFirst == null || existingFirst.isRoot()) continue;
 
                 if (existingFirst.getUciMove().equals(uci)) {
-                    log.warn("DUPLICATE variation detected! firstMove={}, uci={}, skipping add",
-                            firstNode.getSan(), uci);
-                    log.warn("Existing variation: name={}, id={}",
-                            existing.getName(), existing.getId());
-                    log.warn("New variation: name={}, id={}",
-                            variation.getName(), variation.getId());
                     return;
                 }
             }
@@ -640,7 +629,6 @@ public class VariationParser {
                 if (varFirst == null || varFirst.isRoot()) continue;
                 if (varFirst.getUciMove().equals(nextUci)) {
                     alreadyExists = true;
-                    log.warn("Old main line already exists in subVariations, skipping creation");
                     break;
                 }
             }

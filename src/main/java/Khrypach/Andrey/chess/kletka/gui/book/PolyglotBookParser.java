@@ -17,89 +17,65 @@
 
 package Khrypach.Andrey.chess.kletka.gui.book;
 
-import Khrypach.Andrey.chess.kletka.database.model.GameTree;
-import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
-import Khrypach.Andrey.chess.kletka.gui.languages.LanguageManager;
-import Khrypach.Andrey.chess.kletka.gui.model.MoveNode;
-import Khrypach.Andrey.chess.kletka.gui.model.RootNode;
-import Khrypach.Andrey.chess.kletka.gui.model.Variation;
 import com.github.bhlangonijr.chesslib.Board;
 import com.github.bhlangonijr.chesslib.Piece;
 import com.github.bhlangonijr.chesslib.Square;
 import com.github.bhlangonijr.chesslib.move.Move;
-import lombok.Getter;
+import Khrypach.Andrey.chess.kletka.gui.model.MoveNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 import static Khrypach.Andrey.chess.kletka.gui.book.PolyglotConstants.ENTRY_SIZE;
 
 /**
- * Парсер для Polyglot книг (.bin)
- * Использует MappedByteBuffer (как mmap в Python-chess)
- * БЫСТРАЯ ЗАГРУЗКА — без создания миллионов объектов!
+ * Парсер Polyglot книг (.bin) с ленивой загрузкой.
+ * Использует MappedByteBuffer (mmap) — мгновенная загрузка и бинарный поиск.
  */
-public class PolyglotBookParser {
+public class PolyglotBookParser implements AutoCloseable {
 
     private static final Logger log = LoggerFactory.getLogger(PolyglotBookParser.class);
-    private final LanguageManager languageManager = LanguageManager.getInstance();
 
-    // MappedByteBuffer для прямого доступа к файлу (как mmap в Python)
     private MappedByteBuffer buffer;
     private int entryCount;
+    private boolean closed = false;
 
-    @Getter
-    private int totalEntries = 0;
-
-    /**
-     * Парсит .bin файл и возвращает GameTree
-     */
-    public GameTree parse(Path bookPath) throws IOException {
-        log.debug("Parsing Polyglot book: {}", bookPath);
-
-        // 1. Отображаем файл в память (как mmap)
-        loadMappedFile(bookPath);
-        log.debug("Mapped {} entries", entryCount);
-
-        totalEntries = entryCount;
-
-        // 2. Строим дерево
-        GameTree gameTree = buildTreeIterative();
-
-        gameTree.setResult("*");
-        gameTree.setStartWithBlack(false);
-
-        log.debug("Book parsing complete. Main line moves: {}",
-                gameTree.getMainLine().getMoveCount());
-
-        return gameTree;
+    public int getTotalEntries() {
+        return entryCount;
     }
 
     /**
-     * Отображает файл в память через MappedByteBuffer (аналог mmap в Python)
+     * Открывает файл книги через mmap.
      */
-    private void loadMappedFile(Path bookPath) throws IOException {
+    public void open(Path bookPath) throws IOException {
         try (RandomAccessFile file = new RandomAccessFile(bookPath.toFile(), "r");
              FileChannel channel = file.getChannel()) {
 
             long fileSize = channel.size();
             this.entryCount = (int) (fileSize / ENTRY_SIZE);
-            log.debug("File size: {} bytes, expected entries: {}", fileSize, entryCount);
 
             this.buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, fileSize);
             this.buffer.order(ByteOrder.BIG_ENDIAN);
+            this.closed = false;
+
+            log.debug("Opened book {}: {} bytes, {} entries",
+                    bookPath, fileSize, entryCount);
         }
     }
 
     /**
-     * Получает ключ по индексу (без создания объекта)
+     * Ключ по индексу (без создания объекта).
      */
     private long getKeyAt(int index) {
         int position = index * ENTRY_SIZE;
@@ -107,21 +83,7 @@ public class PolyglotBookParser {
     }
 
     /**
-     * Получает запись по индексу (создаёт объект только при необходимости)
-     */
-    private PolyglotEntry getEntryAt(int index) {
-        int position = index * ENTRY_SIZE;
-        long key = buffer.getLong(position);
-        short move = buffer.getShort(position + 8);
-        short weight = buffer.getShort(position + 10);
-        int learn = buffer.getInt(position + 12);
-        int games = 0;
-        return new PolyglotEntry(key, move, weight, learn, games);
-    }
-
-    /**
-     * Бинарный поиск первой записи с ключом >= key
-     * Аналог bisect_left в Python
+     * Бинарный поиск первой записи с ключом >= key (bisect_left).
      */
     private int bisectKeyLeft(long key) {
         int lo = 0;
@@ -130,7 +92,6 @@ public class PolyglotBookParser {
         while (lo < hi) {
             int mid = (lo + hi) >>> 1;
             long midKey = getKeyAt(mid);
-            // Беззнаковое сравнение!
             if (Long.compareUnsigned(midKey, key) < 0) {
                 lo = mid + 1;
             } else {
@@ -141,21 +102,28 @@ public class PolyglotBookParser {
     }
 
     /**
-     * Находит все записи для позиции (по ключу)
-     * Аналог find_all в Python-chess
+     * Находит все записи для позиции (по ключу).
      */
     public List<PolyglotEntry> findAllEntries(long key) {
-        int index = bisectKeyLeft(key);
+        if (buffer == null || closed) {
+            return List.of();
+        }
 
+        int index = bisectKeyLeft(key);
         List<PolyglotEntry> result = new ArrayList<>();
+
         while (index < entryCount) {
-            long currentKey = getKeyAt(index);
+            int position = index * ENTRY_SIZE;
+            long currentKey = buffer.getLong(position);
             if (currentKey != key) {
-                log.debug("  Stopping at index {}: key=0x{} (expected 0x{})",
-                        index, Long.toHexString(currentKey), Long.toHexString(key));
                 break;
             }
-            result.add(getEntryAt(index));
+
+            short move = buffer.getShort(position + 8);
+            int weight = buffer.getShort(position + 10) & 0xFFFF;
+            int learn = buffer.getInt(position + 12);
+
+            result.add(new PolyglotEntry(currentKey, move, weight, learn, 0));
             index++;
         }
 
@@ -163,19 +131,19 @@ public class PolyglotBookParser {
     }
 
     /**
-     * Проверяет, легален ли ход на доске
+     * Проверяет, легален ли ход на доске.
      */
-    private boolean isLegalMove(PolyglotEntry entry, Board board) {
+    public boolean isLegalMove(PolyglotEntry entry, Board board) {
         Square from = entry.getFromSquare();
         Square to = entry.getToSquare();
         Piece promotion = entry.getPromotionPiece();
 
-        List<Move> legalMoves = board.legalMoves();
-        for (Move move : legalMoves) {
+        for (Move move : board.legalMoves()) {
             if (move.getFrom() == from && move.getTo() == to) {
                 Piece legalPromotion = move.getPromotion();
-                if ((legalPromotion == null || legalPromotion == Piece.NONE) &&
-                        (promotion == null || promotion == Piece.NONE)) {
+                boolean legalNone = (legalPromotion == null || legalPromotion == Piece.NONE);
+                boolean entryNone = (promotion == null || promotion == Piece.NONE);
+                if (legalNone && entryNone) {
                     return true;
                 }
                 if (legalPromotion == promotion) {
@@ -187,26 +155,48 @@ public class PolyglotBookParser {
     }
 
     /**
-     * Создает Move из PolyglotEntry
+     * Создаёт Move из PolyglotEntry.
      */
     public Move createChesslibMove(PolyglotEntry entry) {
+        return new Move(entry.getFromSquare(), entry.getToSquare(), entry.getPromotionPiece());
+    }
+
+    /**
+     * Создаёт MoveNode из записи Polyglot.
+     */
+    public MoveNode createMoveNode(PolyglotEntry entry, Board board, int ply) {
         Square from = entry.getFromSquare();
         Square to = entry.getToSquare();
-        Piece promotion = entry.getPromotionPiece();
-        Piece promotionPiece = (promotion != null) ? promotion : Piece.NONE;
-        return new Move(from, to, promotionPiece);
+        Piece promotionPiece = entry.getPromotionPiece();
+
+        Move move = new Move(from, to, promotionPiece);
+        Piece piece = board.getPiece(from);
+        boolean isCapture = board.getPiece(to) != Piece.NONE;
+
+        MoveNode node = new MoveNode(move, piece, isCapture, promotionPiece);
+        node.setAbsolutePly(ply);
+
+        // ← НОВОЕ: FEN до и после
+        node.setSavedFenBefore(board.getFen());
+
+        Board afterBoard = board.clone();
+        try {
+            afterBoard.doMove(move);
+            node.setSavedFenAfter(afterBoard.getFen());
+        } catch (Exception e) {
+            log.trace("Failed to apply move for FEN: {}", e.getMessage());
+            node.setSavedFenAfter(board.getFen());
+        }
+
+        String stats = String.format("weight:%d,games:%d,rating:%d",
+                entry.weight(), entry.games(), entry.getRating());
+        node.setComment(stats);
+
+        return node;
     }
 
     /**
-     * Определяет фигуру для клетки в начальной позиции
-     */
-    private Piece getPieceForSquareInInitial(Square square) {
-        Board board = new Board();
-        return board.getPiece(square);
-    }
-
-    /**
-     * Генерирует имя для варианта
+     * Генерирует имя варианта.
      */
     public String generateVariationName(MoveNode node, int id) {
         String san = node.getSan();
@@ -218,243 +208,32 @@ public class PolyglotBookParser {
     }
 
     /**
-     * ИТЕРАТИВНОЕ построение дерева - БЕЗ РЕКУРСИИ!
+     * Освобождает mmap.
      */
-    private GameTree buildTreeIterative() {
-        // Создаем корневой узел
-        RootNode rootNode = new RootNode();
-        rootNode.setAbsolutePly(-1);
-
-        // Корневой вариант
-        Variation rootVariation = new Variation(languageManager.get(LanguageKeys.ROOT));
-        rootVariation.setFirstNode(rootNode);
-        rootVariation.setMainLine(false);
-
-        // Начальная доска
-        Board startBoard = new Board();
-        long startKey = ZobristHasher.calculate(startBoard);
-
-        // Находим ВСЕ записи с ключом начальной позиции
-        List<PolyglotEntry> startEntries = findAllEntries(startKey);
-        log.debug("Found {} entries with start key", startEntries.size());
-
-        // Фильтруем по весу и легальности
-        List<PolyglotEntry> filteredEntries = new ArrayList<>();
-        for (PolyglotEntry entry : startEntries) {
-            if (entry.weight() >= 1 && isLegalMove(entry, startBoard)) {
-                filteredEntries.add(entry);
-            }
+    @Override
+    public void close() {
+        if (buffer == null || closed) return;
+        try {
+            unmap(buffer);
+        } catch (Exception e) {
+            log.debug("Failed to unmap buffer, falling back to GC", e);
         }
-
-        // Главная линия
-        Variation mainLine = null;
-        Stack<BuildContext> stack = new Stack<>();
-
-        // ========== УВЕЛИЧЕННЫЕ ОГРАНИЧЕНИЯ ==========
-        int maxDepth = 60;              // 60 полуходов = 30 полных ходов
-        int maxMovesPerPosition = 20;   // Максимум вариантов на позицию
-        int maxTotalNodes = 500000;     // 500,000 узлов - достаточно для большой книги
-
-        int nodeCount = 0;
-        int variationId = 0;
-
-        // Создаем варианты для каждого первого хода
-        for (int i = 0; i < Math.min(filteredEntries.size(), maxMovesPerPosition); i++) {
-            PolyglotEntry entry = filteredEntries.get(i);
-
-            // Создаем узел для хода
-            MoveNode moveNode = createMoveNode(entry, startBoard, 1);
-            if (moveNode == null) continue;
-
-            nodeCount++;
-            if (nodeCount > maxTotalNodes) {
-                log.debug("Reached max total nodes limit ({})", maxTotalNodes);
-                break;
-            }
-
-            // Создаем вариант
-            Variation variation = new Variation(generateVariationName(moveNode, variationId++));
-            variation.addMove(moveNode);
-            variation.setMainLine(i == 0);
-            variation.setParentVariation(rootVariation);
-            variation.setParentNodeRef(rootNode);
-
-            moveNode.setParent(rootNode);
-            moveNode.setOwningVariation(variation);
-
-            rootNode.getSubVariations().add(variation);
-
-            if (i == 0) {
-                mainLine = variation;
-            }
-
-            // Применяем ход на доске
-            Board newBoard = startBoard.clone();
-            try {
-                Move move = createChesslibMove(entry);
-                newBoard.doMove(move);
-            } catch (Exception e) {
-                log.trace("BuildTreeIterative Failed to apply move: {}", e.getMessage());
-                continue;
-            }
-
-            // Добавляем в стек для продолжения
-            stack.push(new BuildContext(
-                    variation,
-                    newBoard,
-                    moveNode,
-                    1,
-                    entry.key(),
-                    new HashSet<>()
-            ));
-        }
-
-        // Если нет главной линии - создаем пустую
-        if (mainLine == null) {
-            mainLine = new Variation(languageManager.get(LanguageKeys.MAIN_LINE));
-            mainLine.setMainLine(true);
-            mainLine.setParentVariation(rootVariation);
-            mainLine.setParentNodeRef(rootNode);
-        }
-
-        // ИТЕРАТИВНЫЙ ОБХОД
-        int iterations = 0;
-        int maxIterations = 5000; // Увеличиваем для глубоких книг
-
-        while (!stack.isEmpty() && iterations < maxIterations) {
-            iterations++;
-            BuildContext ctx = stack.pop();
-
-            if (ctx.depth >= maxDepth) {
-                continue;
-            }
-
-            String fen = ctx.board.getFen();
-            if (ctx.visited.contains(fen)) {
-                continue;
-            }
-            ctx.visited.add(fen);
-
-            long currentKey = ZobristHasher.calculate(ctx.board);
-            List<PolyglotEntry> entries = findAllEntries(currentKey);
-            if (entries.isEmpty()) continue;
-
-            int movesToTake = Math.min(entries.size(), maxMovesPerPosition);
-            boolean isFirst = true;
-
-            for (int i = 0; i < movesToTake; i++) {
-                PolyglotEntry entry = entries.get(i);
-
-                if (entry.weight() < 1) continue;
-                if (!isLegalMove(entry, ctx.board)) continue;
-
-                int ply = ctx.depth + 1;
-                MoveNode moveNode = createMoveNode(entry, ctx.board, ply);
-                if (moveNode == null) continue;
-
-                nodeCount++;
-                if (nodeCount > maxTotalNodes) {
-                    log.warn("Reached max total nodes limit ({}). Stopping.", maxTotalNodes);
-                    stack.clear();
-                    break;
-                }
-
-                if (isFirst) {
-                    ctx.lastNode.setNext(moveNode);
-                    moveNode.setParent(ctx.lastNode);
-                    moveNode.setOwningVariation(ctx.variation);
-                    isFirst = false;
-
-                    Board nextBoard = ctx.board.clone();
-                    try {
-                        nextBoard.doMove(createChesslibMove(entry));
-                        stack.push(new BuildContext(
-                                ctx.variation,
-                                nextBoard,
-                                moveNode,
-                                ply,
-                                entry.key(),
-                                new HashSet<>(ctx.visited)
-                        ));
-                    } catch (Exception e) {
-                        log.trace("Failed to apply move: {}", e.getMessage());
-                    }
-                } else {
-                    Variation subVar = new Variation(generateVariationName(moveNode, variationId++));
-                    subVar.addMove(moveNode);
-                    subVar.setMainLine(false);
-                    subVar.setParentVariation(ctx.variation);
-                    subVar.setParentNodeRef(ctx.lastNode);
-
-                    moveNode.setParent(ctx.lastNode);
-                    moveNode.setOwningVariation(subVar);
-                    moveNode.setForkNode(ctx.lastNode);
-
-                    ctx.lastNode.getSubVariations().add(subVar);
-
-                    Board nextBoard = ctx.board.clone();
-                    try {
-                        nextBoard.doMove(createChesslibMove(entry));
-                        stack.push(new BuildContext(
-                                subVar,
-                                nextBoard,
-                                moveNode,
-                                ply,
-                                entry.key(),
-                                new HashSet<>(ctx.visited)
-                        ));
-                    } catch (Exception e) {
-                        log.trace("Failed to apply move in nextBoard: {}", e.getMessage());
-                    }
-                }
-            }
-        }
-
-        if (iterations >= maxIterations) {
-            log.warn("Reached max iterations limit ({}). Tree may be incomplete.", maxIterations);
-        }
-
-        log.info("Built tree with {} nodes, {} variations, depth: {}",
-                nodeCount, variationId, maxDepth / 2);
-
-        GameTree gameTree = new GameTree(rootNode, mainLine, rootVariation);
-        gameTree.setInitialBoard(startBoard);
-        gameTree.setStartWithBlack(false);
-        return gameTree;
+        buffer = null;
+        closed = true;
+        log.debug("Book parser closed");
     }
 
-    /**
-     * Создает MoveNode из записи Polyglot
-     */
-    public MoveNode createMoveNode(PolyglotEntry entry, Board board, int ply) {
-        Square from = entry.getFromSquare();
-        Square to = entry.getToSquare();
-        Piece promotion = entry.getPromotionPiece();
-
-        Piece promotionPiece = (promotion != null) ? promotion : Piece.NONE;
-        Move move = new Move(from, to, promotionPiece);
-
-        Piece piece = board.getPiece(from);
-        if (piece == Piece.NONE) {
-            piece = getPieceForSquareInInitial(from);
+    private static void unmap(ByteBuffer buffer) {
+        if (buffer == null) return;
+        try {
+            Field field = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+            field.setAccessible(true);
+            sun.misc.Unsafe unsafe = (sun.misc.Unsafe) field.get(null);
+            Method method = sun.misc.Unsafe.class.getMethod("invokeCleaner", ByteBuffer.class);
+            method.invoke(unsafe, buffer);
+        } catch (Exception e) {
+            buffer.clear();
+            System.gc();
         }
-
-        boolean isCapture = board.getPiece(to) != Piece.NONE;
-
-        MoveNode node = new MoveNode(move, piece, isCapture, promotion);
-        node.setAbsolutePly(ply);
-
-        String stats = String.format("weight:%d,games:%d,rating:%d",
-                entry.weight(), entry.games(), entry.getRating());
-        node.setComment(stats);
-
-        return node;
-    }
-
-    /**
-         * Контекст для построения дерева
-         */
-        private record BuildContext(Variation variation, Board board, MoveNode lastNode, int depth, long key,
-                                    Set<String> visited) {
     }
 }

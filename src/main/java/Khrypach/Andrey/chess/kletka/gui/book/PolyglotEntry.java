@@ -35,7 +35,7 @@ import com.github.bhlangonijr.chesslib.Square;
  * @param learn  Информация для обучения
  * @param games  Количество партий
  */
-public record PolyglotEntry(long key, short move, short weight, int learn, int games) {
+public record PolyglotEntry(long key, short move, int weight, int learn, int games) {
 
     /**
      * Получает начальную клетку из 16-битного хода

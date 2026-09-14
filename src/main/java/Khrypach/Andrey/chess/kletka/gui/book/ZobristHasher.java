@@ -247,7 +247,6 @@ public class ZobristHasher {
      * Вычисляет Zobrist хеш для позиции
      */
     public static long calculate(Board board) {
-        log.debug("calculate zobrist hash started");
 
         if (board == null) {
             return 0L;

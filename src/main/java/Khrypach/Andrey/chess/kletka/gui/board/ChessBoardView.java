@@ -21,6 +21,7 @@
 package Khrypach.Andrey.chess.kletka.gui.board;
 
 import Khrypach.Andrey.chess.kletka.database.model.GameData;
+import Khrypach.Andrey.chess.kletka.gui.book.*;
 import Khrypach.Andrey.chess.kletka.gui.coach.CoachTools;
 import Khrypach.Andrey.chess.kletka.gui.coach.MarkerOverlay;
 import Khrypach.Andrey.chess.kletka.gui.coach.timer.TimerPanel;
@@ -43,6 +44,7 @@ import com.github.bhlangonijr.chesslib.move.Move;
 import javafx.animation.PauseTransition;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.*;
@@ -80,6 +82,8 @@ public class ChessBoardView extends Application {
 
     private static final Logger log = LoggerFactory.getLogger(ChessBoardView.class);
     private static final Color BOARD_BORDER_COLOR = Color.rgb(80, 50, 25);
+    private static final boolean IS_LINUX =
+            System.getProperty("os.name").toLowerCase().contains("nux");
 
     private final LanguageManager lang = LanguageManager.getInstance();
 
@@ -98,6 +102,7 @@ public class ChessBoardView extends Application {
 
     private Square selectedSquare = null;
     private List<Move> possibleMoves = new ArrayList<>();
+    @Getter
     private Stage primaryStage;
 
     @Getter
@@ -134,6 +139,9 @@ public class ChessBoardView extends Application {
     private GridPane currentBoardGrid;
     private final Map<String, StackPane> squareMap = new HashMap<>();
     private Square highlightedSquare = null;
+
+    private Move pendingDropMove = null;
+    private Square pendingDropSquare = null;
 
     /**
      * Индикатор режима навигации
@@ -324,12 +332,6 @@ public class ChessBoardView extends Application {
             // Enter - запуск/остановка анализа
             if (event.getCode() == KeyCode.ENTER && event.isShiftDown()) {
                 event.consume();
-
-                // ========== В РЕЖИМЕ КНИГИ АНАЛИЗ ТОЖЕ НЕ ДОЛЖЕН РАБОТАТЬ ==========
-                if (navController != null && navController.getNavigationMode() == NavigationMode.BOOK) {
-                    showTemporaryMessage(lang.get(ENGINE_BOOK_MODE_NO_ANALYSIS)); // "В режиме книги анализ отключен"
-                    return;
-                }
 
                 if (analysisPanel != null) {
                     analysisPanel.toggleAnalysisByKey();
@@ -550,6 +552,42 @@ public class ChessBoardView extends Application {
                         coachTools != null && coachTools.canRedo());
             }
         });
+
+        // Alt+Z — отмена хода в книге
+        KeyCombination altZ = new KeyCodeCombination(KeyCode.Z, KeyCombination.ALT_DOWN);
+        scene.getAccelerators().put(altZ, () -> {
+            if (navController != null && navController.getNavigationMode() == NavigationMode.BOOK) {
+                Platform.runLater(this::undoBookMove);
+            }
+        });
+
+        // ========== ГОРЯЧИЕ КЛАВИШИ ДЛЯ КНИГ ==========
+
+        // Ctrl+shift+B — Загрузить книгу (открывает диалог выбора)
+        KeyCombination ctrlB = new KeyCodeCombination(KeyCode.B, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN);
+        scene.getAccelerators().put(ctrlB, () -> {
+            if (mainController != null) {
+                Platform.runLater(() -> mainController.openPolyglotBook());
+            }
+        });
+
+        // Ctrl+Shift+C — Очистить книгу
+        KeyCombination ctrlShiftC = new KeyCodeCombination(KeyCode.C,
+                KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN);
+        scene.getAccelerators().put(ctrlShiftC, () -> {
+            if (mainController != null) {
+                Platform.runLater(() -> mainController.clearBook());
+            }
+        });
+
+        // Ctrl+Shift+S — Сохранить книгу
+        KeyCombination ctrlShiftS = new KeyCodeCombination(KeyCode.S,
+                KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN);
+        scene.getAccelerators().put(ctrlShiftS, () -> {
+            if (mainController != null) {
+                Platform.runLater(() -> mainController.savePolyglotBook());
+            }
+        });
     }
 
     private void setupGlobalMouseHandlers(Scene scene) {
@@ -641,16 +679,17 @@ public class ChessBoardView extends Application {
         if (boardAndNav == null) return null;
 
         // Получаем координаты относительно boardAndNav
-        javafx.geometry.Bounds bounds = boardAndNav.localToScene(boardAndNav.getBoundsInLocal());
+        Bounds bounds = boardAndNav.localToScene(boardAndNav.getBoundsInLocal());
         double localX = sceneX - bounds.getMinX();
         double localY = sceneY - bounds.getMinY();
 
-        // Определяем размеры доски
-        double boardWidth = bounds.getWidth();
+        // Используем актуальный размер клетки
+        double cellSize = tileSize; // tileSize всегда актуален в ChessBoardView
 
-        // Учитываем паддинг и координаты
-        int padding = 12; // из createBoardWithCoordinates()
-        double cellSize = (boardWidth - 2 * padding) / 8;
+        // Вычисляем отступ. Он может быть разным, если координаты скрыты.
+        // Но проще вычислить его из общей ширины и количества клеток.
+        double totalBoardWidth = cellSize * 8;
+        double padding = (bounds.getWidth() - totalBoardWidth) / 2;
 
         int col = (int) ((localX - padding) / cellSize);
         int row = (int) ((localY - padding) / cellSize);
@@ -944,51 +983,109 @@ public class ChessBoardView extends Application {
         });
 
         tile.setOnDragDropped(e -> {
-            // Если активен инструмент ARROW - игнорируем
             if (coachTools != null && coachTools.getCurrentTool() == ToolType.ARROW) {
                 return;
             }
 
             Dragboard db = e.getDragboard();
-            if (db.hasString()) {
-                Square fromSquare = Square.valueOf(db.getString());
-                List<Move> legalMoves = chessBoard.legalMoves().stream()
-                        .filter(m -> m.getFrom() == fromSquare && m.getTo() == square)
-                        .toList();
-
-                if (!legalMoves.isEmpty()) {
-                    Move move = legalMoves.get(0);
-                    Piece movingPiece = chessBoard.getPiece(move.getFrom());
-                    boolean isCapture = chessBoard.getPiece(move.getTo()) != Piece.NONE;
-
-                    Piece promotionPiece = null;
-                    if (movingPiece == Piece.WHITE_PAWN && move.getTo().getRank().ordinal() == 7) {
-                        log.debug("Drag&Drop - PROMOTION for white pawn");
-                        PromotionDialog dialog = new PromotionDialog(primaryStage, true);
-                        promotionPiece = dialog.showAndWait();
-                        if (promotionPiece == null) promotionPiece = Piece.WHITE_QUEEN;
-                    } else if (movingPiece == Piece.BLACK_PAWN && move.getTo().getRank().ordinal() == 0) {
-                        log.debug("Drag&Drop - PROMOTION for black pawn");
-                        PromotionDialog dialog = new PromotionDialog(primaryStage, false);
-                        promotionPiece = dialog.showAndWait();
-                        if (promotionPiece == null) promotionPiece = Piece.BLACK_QUEEN;
-                    }
-
-                    executeMove(move, movingPiece, isCapture, promotionPiece);
-                    e.setDropCompleted(true);
-                } else {
-                    e.setDropCompleted(false);
-                }
+            if (!db.hasString()) {
+                e.setDropCompleted(false);
+                e.consume();
+                return;
             }
+
+            Square fromSquare = Square.valueOf(db.getString());
+            List<Move> legalMoves = chessBoard.legalMoves().stream()
+                    .filter(m -> m.getFrom() == fromSquare && m.getTo() == square)
+                    .toList();
+
+            if (legalMoves.isEmpty()) {
+                e.setDropCompleted(false);
+                e.consume();
+                return;
+            }
+
+            Move move = legalMoves.get(0);
+            Piece movingPiece = chessBoard.getPiece(move.getFrom());
+            boolean isCapture = chessBoard.getPiece(move.getTo()) != Piece.NONE;
+
+            //  1. ЗАВЕРШАЕМ DROP
+            e.setDropCompleted(true);
             e.consume();
+
+            //  2. РАЗНОЕ ПОВЕДЕНИЕ ДЛЯ LINUX И WINDOWS
+            if (IS_LINUX) {
+                // ========== LINUX: СРАЗУ ВЫПОЛНЯЕМ ХОД ==========
+                // Linux хочет: Robot.mouseRelease + executeMove прямо здесь
+                try {
+                    javafx.scene.robot.Robot robot = new javafx.scene.robot.Robot();
+                    robot.mouseRelease(javafx.scene.input.MouseButton.PRIMARY);
+                } catch (Exception ex) {
+                    log.debug("Robot not available: {}", ex.getMessage());
+                }
+
+                Piece promotionPiece = getPromotionPiece(movingPiece, square);
+                Move moveToUse = move;
+                if (promotionPiece != null && promotionPiece != Piece.NONE) {
+                    moveToUse = new Move(move.getFrom(), move.getTo(), promotionPiece);
+                }
+                executeMove(moveToUse, movingPiece, isCapture, promotionPiece);
+
+            } else {
+                // ========== WINDOWS: ОТКЛАДЫВАЕМ В setOnDragDone ==========
+                // Windows хочет: сохранить данные, дождаться очистки drag view
+                pendingDropMove = move;
+                pendingDropSquare = square;
+            }
         });
 
         tile.setOnDragDone(e -> {
+            //  ОЧИЩАЕМ DRAG VIEW (Windows)
+            Dragboard db = e.getDragboard();
+            if (db != null) {
+                db.setDragView(null);
+            }
+
             tile.setCursor(Cursor.OPEN_HAND);
+
+            //  ТОЛЬКО ДЛЯ WINDOWS — выполняем отложенный ход
+            if (!IS_LINUX && pendingDropMove != null && pendingDropSquare != null) {
+                Move move = pendingDropMove;
+                Square toSquare = pendingDropSquare;
+
+                pendingDropMove = null;
+                pendingDropSquare = null;
+
+                Piece movingPiece = chessBoard.getPiece(move.getFrom());
+                boolean isCapture = chessBoard.getPiece(move.getTo()) != Piece.NONE;
+
+                Piece promotionPiece = getPromotionPiece(movingPiece, toSquare);
+                Move moveToUse = move;
+                if (promotionPiece != null && promotionPiece != Piece.NONE) {
+                    moveToUse = new Move(move.getFrom(), move.getTo(), promotionPiece);
+                }
+
+                executeMove(moveToUse, movingPiece, isCapture, promotionPiece);
+            }
+
             e.consume();
         });
 
         return tile;
+    }
+
+    private Piece getPromotionPiece(Piece movingPiece, Square finalTo) {
+        Piece promotionPiece = null;
+        if (movingPiece == Piece.WHITE_PAWN && finalTo.getRank().ordinal() == 7) {
+            PromotionDialog dialog = new PromotionDialog(primaryStage, true);
+            promotionPiece = dialog.showAndWait();
+            if (promotionPiece == null) promotionPiece = Piece.WHITE_QUEEN;
+        } else if (movingPiece == Piece.BLACK_PAWN && finalTo.getRank().ordinal() == 0) {
+            PromotionDialog dialog = new PromotionDialog(primaryStage, false);
+            promotionPiece = dialog.showAndWait();
+            if (promotionPiece == null) promotionPiece = Piece.BLACK_QUEEN;
+        }
+        return promotionPiece;
     }
 
     private Rectangle createBoardTile(int row, int col) {
@@ -1058,35 +1155,28 @@ public class ChessBoardView extends Application {
                         .orElse(null);
 
                 if (move != null) {
-                    Piece movingPiece = chessBoard.getPiece(move.getFrom());
-                    boolean isCapture = chessBoard.getPiece(move.getTo()) != Piece.NONE;
-                    Piece promotionPiece = null;
+                    // ★ Откладываем ВСЮ обработку, чтобы превью хода показалось первым
+                    final Move finalMove = move;
+                    Platform.runLater(() -> {
+                        Piece movingPiece = chessBoard.getPiece(finalMove.getFrom());
+                        boolean isCapture = chessBoard.getPiece(finalMove.getTo()) != Piece.NONE;
+                        Piece promotionPiece = getPromotionPiece(movingPiece, finalMove);
 
-                    log.trace("Move: {} -> {}", move.getFrom(), move.getTo());
-                    log.trace("Moving piece: {}", movingPiece);
-                    log.trace("To rank: {} (ordinal={})", move.getTo().getRank(), move.getTo().getRank().ordinal());
-                    log.trace("Is white pawn? {}", movingPiece == Piece.WHITE_PAWN);
-                    log.trace("Is rank 7? {}", move.getTo().getRank().ordinal() == 7);
+                        Move moveToUse = finalMove;
+                        if (promotionPiece != null && promotionPiece != Piece.NONE) {
+                            moveToUse = new Move(finalMove.getFrom(), finalMove.getTo(), promotionPiece);
+                        }
 
-                    if (movingPiece == Piece.WHITE_PAWN && move.getTo().getRank().ordinal() == 7) {
-                        log.debug("PROMOTION DETECTED for white");
-                        PromotionDialog dialog = new PromotionDialog(primaryStage, true);
-                        promotionPiece = dialog.showAndWait();
-                        if (promotionPiece == null) promotionPiece = Piece.WHITE_QUEEN;
-                        log.trace("Selected promotion white piece: {}", promotionPiece);
-                    } else if (movingPiece == Piece.BLACK_PAWN && move.getTo().getRank().ordinal() == 0) {
-                        log.debug("PROMOTION DETECTED for black");
-                        PromotionDialog dialog = new PromotionDialog(primaryStage, false);
-                        promotionPiece = dialog.showAndWait();
-                        if (promotionPiece == null) promotionPiece = Piece.BLACK_QUEEN;
-                        log.trace("Selected promotion black piece: {}", promotionPiece);
-                    }
-
-                    executeMove(move, movingPiece, isCapture, promotionPiece);
+                        executeMove(moveToUse, movingPiece, isCapture, promotionPiece);
+                    });
                 }
             }
         }
         requestFocusOnScene();
+    }
+
+    private Piece getPromotionPiece(Piece movingPiece, Move finalMove) {
+        return getPromotionPiece(movingPiece, finalMove.getTo());
     }
 
     /**
@@ -1102,29 +1192,56 @@ public class ChessBoardView extends Application {
             return;
         }
 
-
         Board boardBeforeMove = chessBoard.clone();
+
+        ParentNode parentNodeBefore = navController.getCurrentNode();
 
         Boolean addResult = navController.addMove(move, movingPiece, isCapture, promotionPiece);
 
         if (addResult == null) {
+            // ✅ 1. ПРЕВЬЮ ХОДА — фигура на новой клетке
+            Board boardAfterMove = boardBeforeMove.clone();
+            try {
+                boardAfterMove.doMove(move);
+            } catch (Exception e) {
+                log.warn("Cannot preview move: {}", e.getMessage());
+            }
+
+            this.chessBoard = boardAfterMove.clone();
+
+            // ✅ 2. ПОЛНАЯ ПЕРЕРИСОВКА ДОСКИ — убивает drag view
+            // (создаёт новые StackPane, старый snapshot исчезает)
+            updateBoardDisplay();
+
+            // ✅ 3. ПРИНУДИТЕЛЬНЫЙ LAYOUT — гарантирует, что всё отрисовалось
+            // (нужно для Linux/Windows, чтобы диалог открылся поверх)
+            if (root != null) {
+                root.applyCss();
+                root.layout();
+            }
+
+            // ✅ 4. ТЕПЕРЬ ПОКАЗЫВАЕМ ДИАЛОГ
             VariationChoiceDialog.Choice choice = navController.showVariationDialog(
                     move, movingPiece, isCapture, promotionPiece);
 
             if (choice == null) {
-                log.debug("User cancelled - reverting everything");
-                selectedSquare = null;
-                possibleMoves.clear();
-                chessBoard = boardBeforeMove.clone();
+                // ✅ ОТМЕНА — откатываем доску
+                this.chessBoard = boardBeforeMove.clone();
                 refreshBoard();
                 notationView.refreshFromMainLine();
                 requestFocusOnScene();
                 return;
             }
 
+            // ✅ OK — применяем вариант
             navController.applyVariationChoice(choice, move, movingPiece, isCapture, promotionPiece);
-        } else {
-            log.trace("Move handled by navController, result: {}", addResult);
+        }
+
+        // ========== ДОБАВЛЯЕМ ХОД В КНИГУ (ЕСЛИ РЕЖИМ BOOK) ==========
+        // Проверяем, что ход был успешно добавлен (не отменен)
+        if (navController.getNavigationMode() == NavigationMode.BOOK) {
+            // Используем доску ДО хода для вычисления Zobrist хеша
+            addMoveToBook(move, movingPiece, isCapture, promotionPiece, boardBeforeMove, parentNodeBefore);
         }
 
         mainController.updateCurrentGameData();
@@ -1328,6 +1445,10 @@ public class ChessBoardView extends Application {
         this.showCoordinates = show;
         AppPreferences.saveShowCoordinates(show);
         refreshBoard();
+        // После перерисовки доски нужно перерисовать и оверлей
+        if (markerOverlay != null) {
+            Platform.runLater(() -> markerOverlay.redraw());
+        }
     }
 
     public void setBoard(Board board) {
@@ -1820,6 +1941,211 @@ public class ChessBoardView extends Application {
             navigationModeIndicator.setText(text);
             navigationModeIndicator.setStyle(style);
         });
+    }
+
+    /**
+     * Обновляет индикатор несохраненных изменений в книге
+     */
+    public void updateBookUnsavedIndicator(boolean hasUnsavedChanges) {
+        Platform.runLater(() -> {
+            if (primaryStage == null) return;
+
+            String title = lang.get(APP_TITLE);
+
+            BookManager bookManager = BookManager.getInstance();
+            if (bookManager.isBookLoaded() && bookManager.getCurrentBookPath() != null) {
+                String bookName = bookManager.getCurrentBookPath().getFileName().toString();
+                String mode = lang.get(LanguageKeys.BOOK_MODE);
+                String star = hasUnsavedChanges ? "*" : "";
+                primaryStage.setTitle(title + " - " + bookName + star + " " + mode);
+            } else {
+                primaryStage.setTitle(title);
+            }
+        });
+    }
+
+    /**
+     * Отменяет последний добавленный ход в книгу
+     */
+    public void undoBookMove() {
+        BookManager bookManager = BookManager.getInstance();
+
+        if (!bookManager.isBookLoaded()) {
+            showTemporaryMessage(lang.get(BOOK_NOT_LOADED));
+            return;
+        }
+        if (!bookManager.canUndoBook()) {
+            showTemporaryMessage(lang.get(BOOK_NO_UNDO));
+            return;
+        }
+
+        BookAction action = bookManager.peekBookAction();
+        if (action == null) return;
+
+        String parentUuid = action.parentNode() != null ? action.parentNode().getNodeUuid() : null;
+
+        log.debug("book action = {}, uuid = {}, san = {}",
+                action, parentUuid,
+                action.parentNode() != null ? action.parentNode().getSan() : null);
+
+        // ========== 1. УДАЛЯЕМ ИЗ dirtyEntries ==========
+        bookManager.undoBookAction();
+
+        // ========== 2. УДАЛЯЕМ ВАРИАНТ ИЗ ДЕРЕВА ==========
+        ParentNode parentNode = action.parentNode();
+        String uciToRemove = action.entry().getUciMove();
+        boolean removed = false;
+
+        if (parentNode != null) {
+            removed = parentNode.getSubVariations().removeIf(var -> {
+                if (var == null || var.isEmpty()) return false;
+                ParentNode first = var.getFirstNode();
+                if (first == null || first.isRoot()) return false;
+                return first.getUciMove().equals(uciToRemove);
+            });
+
+            // Если next указывает на этот ход — обнуляем
+            if (parentNode.getNext() != null && !parentNode.getNext().isRoot()
+                    && parentNode.getNext().getUciMove().equals(uciToRemove)) {
+                parentNode.setNext(null);
+            }
+        }
+
+        log.debug("Removed variation from tree: {}", removed);
+
+        // ========== 3. ОБНОВЛЯЕМ UI ==========
+        Platform.runLater(() -> {
+            if (navController == null) return;
+
+            // Устанавливаем текущую позицию на родителя
+            if (parentNode != null) {
+                navController.setCurrentNode(parentNode);
+                Variation parentVar = parentNode.getOwningVariation();
+                if (parentVar == null) parentVar = navController.getRootVariation();
+                navController.setCurrentVariation(parentVar);
+            } else {
+                // Нет родителя — в корень
+                navController.setCurrentNode(navController.getRootNode());
+                navController.setCurrentVariation(navController.getRootVariation());
+            }
+
+            // Обновляем список
+            navController.updateCurrentVariations();
+            navController.setSelectedVariationIndex(0);
+
+            // Доска
+            navController.restoreBoardFromCurrentNode();
+
+            Board board = navController.getBoardView().getCurrentBoard();
+            if (board != null) {
+                this.chessBoard = board.clone();
+                this.initialBoard = this.chessBoard.clone();
+            }
+
+            if (notationView != null) {
+                notationView.refreshFromMainLine();
+                notationView.updateNotationDisplayWithVisitor();
+            }
+
+            updateBookUnsavedIndicator(bookManager.hasUnsavedChanges());
+            refreshBoard();
+            requestFocusOnScene();
+        });
+    }
+
+    /**
+     * Добавляет ход в Polyglot книгу
+     */
+    private void addMoveToBook(Move move, Piece piece, boolean isCapture,
+                               Piece promotionPiece, Board boardBefore, ParentNode parentNode) {
+        if (boardBefore == null) return;
+
+        BookManager bookManager = BookManager.getInstance();
+        if (!bookManager.isBookLoaded()) return;
+
+        // Вычисляем Zobrist хеш позиции ДО хода
+        long key = ZobristHasher.calculate(boardBefore);
+
+        // Формируем UCI хода
+        String uci = move.getFrom().toString().toLowerCase() +
+                move.getTo().toString().toLowerCase();
+        if (promotionPiece != null && promotionPiece != Piece.NONE) {
+            uci += getPromotionChar(promotionPiece);
+        }
+
+        // Проверяем, есть ли уже такой ход
+        if (bookManager.hasMoveInBook(key, uci)) {
+            log.debug("Move already exists in book: {} (key=0x{})", uci, Long.toHexString(key));
+            return;
+        }
+
+        // Кодируем ход
+        short moveCode = encodePolyglotMove(move, promotionPiece);
+
+        // Создаем запись с весом 10
+        PolyglotEntry entry = new PolyglotEntry(key, moveCode, (short) 10, 0, 0);
+
+        // Добавляем в dirtyEntries
+        boolean added = bookManager.addMoveToBook(key, entry);
+
+        if (added) {
+            log.debug("Added move to book: {} from position 0x{}", uci, Long.toHexString(key));
+
+            // ========== СОХРАНЯЕМ ДЕЙСТВИЕ ДЛЯ UNDO ==========
+            BookAction action = new BookAction(
+                    key, entry, move, piece, isCapture, promotionPiece,
+                    boardBefore.clone(), parentNode
+            );
+            bookManager.pushBookAction(action);
+
+            updateBookUnsavedIndicator(true);
+
+            // ========== ОБНОВЛЯЕМ ОТОБРАЖЕНИЕ ==========
+            Platform.runLater(() -> {
+                if (notationView != null) {
+                    notationView.refreshFromMainLine();
+                    notationView.updateNotationDisplayWithVisitor();
+                }
+                refreshBoard();
+            });
+        }
+    }
+
+    /**
+     * Кодирует ход в 16-битный формат Polyglot
+     */
+    private short encodePolyglotMove(Move move, Piece promotionPiece) {
+        int from = move.getFrom().ordinal();
+        int to = move.getTo().ordinal();
+        int promo = getPolyglotPromotionCode(promotionPiece);
+        return (short) ((promo << 12) | (from << 6) | to);
+    }
+
+    /**
+     * Получает код превращения для Polyglot
+     */
+    private int getPolyglotPromotionCode(Piece piece) {
+        if (piece == null || piece == Piece.NONE) return 0;
+        return switch (piece) {
+            case WHITE_KNIGHT, BLACK_KNIGHT -> 1;
+            case WHITE_BISHOP, BLACK_BISHOP -> 2;
+            case WHITE_ROOK, BLACK_ROOK -> 3;
+            case WHITE_QUEEN, BLACK_QUEEN -> 4;
+            default -> 0;
+        };
+    }
+
+    /**
+     * Получает символ превращения
+     */
+    private String getPromotionChar(Piece piece) {
+        return switch (piece) {
+            case WHITE_QUEEN, BLACK_QUEEN -> "q";
+            case WHITE_ROOK, BLACK_ROOK -> "r";
+            case WHITE_BISHOP, BLACK_BISHOP -> "b";
+            case WHITE_KNIGHT, BLACK_KNIGHT -> "n";
+            default -> "";
+        };
     }
 
     /**

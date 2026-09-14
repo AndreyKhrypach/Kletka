@@ -17,15 +17,12 @@
 
 package Khrypach.Andrey.chess.kletka.gui.book;
 
-import Khrypach.Andrey.chess.kletka.database.model.GameTree;
 import Khrypach.Andrey.chess.kletka.gui.model.MoveNode;
-import Khrypach.Andrey.chess.kletka.gui.model.ParentNode;
-import Khrypach.Andrey.chess.kletka.gui.model.RootNode;
-import Khrypach.Andrey.chess.kletka.gui.model.Variation;
 import com.github.bhlangonijr.chesslib.Board;
 import com.github.bhlangonijr.chesslib.Piece;
 import com.github.bhlangonijr.chesslib.Square;
 import com.github.bhlangonijr.chesslib.move.Move;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -39,8 +36,8 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Тесты для PolyglotBookParser.
- * Используем тестовую книгу Variety.bin из resources/polyglot/.
+ * Тесты для PolyglotBookParser (ленивая загрузка через mmap).
+ * Использует тестовую книгу Variety.bin из resources/polyglot/.
  */
 class PolyglotBookParserTest {
 
@@ -57,39 +54,34 @@ class PolyglotBookParserTest {
         testBookPath = Paths.get(bookUrl.toURI());
     }
 
+    @AfterEach
+    void tearDown() {
+        if (parser != null) {
+            parser.close();
+        }
+    }
+
     // ======================================================================
-    // 1. ТЕСТ ПАРСИНГА КНИГИ
+    // 1. ТЕСТ ОТКРЫТИЯ КНИГИ
     // ======================================================================
 
     @Test
-    void parse_ShouldLoadBookAndBuildTree() throws IOException {
-        GameTree gameTree = parser.parse(testBookPath);
+    void open_ShouldLoadBookAndReportEntryCount() throws IOException {
+        parser.open(testBookPath);
 
-        assertNotNull(gameTree, "GameTree не должен быть null");
-
-        RootNode rootNode = gameTree.getRootNode();
-        assertNotNull(rootNode, "Корневой узел не должен быть null");
-
-        // Проверяем, что есть хотя бы один вариант
-        List<Variation> subVariations = rootNode.getSubVariations();
-        assertFalse(subVariations.isEmpty(), "Должен быть хотя бы один вариант");
-
-        // Проверяем главную линию
-        Variation mainLine = gameTree.getMainLine();
-        assertNotNull(mainLine, "Главная линия не должна быть null");
-        assertTrue(mainLine.isMainLine(), "Главная линия должна быть отмечена как mainLine");
-
-        // Проверяем общее количество записей
         int totalEntries = parser.getTotalEntries();
-        assertTrue(totalEntries > 0, "Книга должна содержать записи (найдено: " + totalEntries + ")");
+        assertTrue(totalEntries > 0,
+                "Книга должна содержать записи (найдено: " + totalEntries + ")");
+        assertTrue(totalEntries > 1000,
+                "В тестовой книге должно быть много записей, найдено: " + totalEntries);
+    }
 
-        // Проверяем первый ход в главной линии
-        List<ParentNode> mainLineMoves = mainLine.getMoves();
-        if (!mainLineMoves.isEmpty()) {
-            MoveNode firstMove = (MoveNode) mainLineMoves.get(0);
-            assertNotNull(firstMove, "Первый ход не должен быть null");
-            assertNotNull(firstMove.getMove(), "Ход должен быть не null");
-        }
+    @Test
+    void open_ShouldThrowIOExceptionForInvalidPath() {
+        Path invalidPath = Paths.get("non-existent-file.bin");
+
+        assertThrows(IOException.class, () -> parser.open(invalidPath),
+                "Для несуществующего файла должно быть выброшено IOException");
     }
 
     // ======================================================================
@@ -98,20 +90,18 @@ class PolyglotBookParserTest {
 
     @Test
     void findAllEntries_ShouldReturnEntriesForStartPosition() throws IOException {
-        // Загружаем книгу
-        parser.parse(testBookPath);
+        parser.open(testBookPath);
 
         // Вычисляем хеш начальной позиции
         Board startBoard = new Board();
         long startKey = ZobristHasher.calculate(startBoard);
 
-        // Ищем записи для начальной позиции
         List<PolyglotEntry> entries = parser.findAllEntries(startKey);
 
         assertNotNull(entries, "Список записей не должен быть null");
         assertFalse(entries.isEmpty(), "Для начальной позиции должны быть записи");
 
-        // Проверяем, что все записи имеют правильный ключ
+        // Все записи должны иметь правильный ключ
         for (PolyglotEntry entry : entries) {
             assertEquals(startKey, entry.key(),
                     "Все записи должны иметь ключ начальной позиции");
@@ -120,14 +110,22 @@ class PolyglotBookParserTest {
 
     @Test
     void findAllEntries_ShouldReturnEmptyListForUnknownKey() throws IOException {
-        parser.parse(testBookPath);
+        parser.open(testBookPath);
 
-        // Используем заведомо несуществующий ключ
         long unknownKey = 0x0000000000000001L;
         List<PolyglotEntry> entries = parser.findAllEntries(unknownKey);
 
         assertNotNull(entries, "Список не должен быть null для неизвестного ключа");
         assertTrue(entries.isEmpty(), "Для неизвестного ключа должен возвращаться пустой список");
+    }
+
+    @Test
+    void findAllEntries_ShouldReturnEmptyListWhenNotOpened() {
+        // parser ещё не открыт (или закрыт)
+        List<PolyglotEntry> entries = parser.findAllEntries(0x1234567890ABCDEFL);
+
+        assertNotNull(entries, "Список не должен быть null");
+        assertTrue(entries.isEmpty(), "Для неоткрытого парсера должен быть пустой список");
     }
 
     // ======================================================================
@@ -136,8 +134,7 @@ class PolyglotBookParserTest {
 
     @Test
     void createChesslibMove_ShouldCreateMoveWithoutPromotion() {
-        // Создаём запись для хода e2-e4
-        short move = (short) ((12 << 6) | 28); // from=E2(12), to=E4(28)
+        short move = (short) ((12 << 6) | 28); // from=E2, to=E4
         PolyglotEntry entry = new PolyglotEntry(0L, move, (short) 0, 0, 0);
 
         Move chessMove = parser.createChesslibMove(entry);
@@ -150,8 +147,7 @@ class PolyglotBookParserTest {
 
     @Test
     void createChesslibMove_ShouldCreateMoveWithPromotion() {
-        // Создаём запись для хода a7-a8=Q
-        short move = (short) ((48 << 6) | 56 | (4 << 12)); // from=A7(48), to=A8(56), promotion=4
+        short move = (short) ((48 << 6) | 56 | (4 << 12)); // from=A7, to=A8, promo=Q
         PolyglotEntry entry = new PolyglotEntry(0L, move, (short) 0, 0, 0);
 
         Move chessMove = parser.createChesslibMove(entry);
@@ -159,7 +155,8 @@ class PolyglotBookParserTest {
         assertNotNull(chessMove, "Ход не должен быть null");
         assertEquals(Square.A7, chessMove.getFrom(), "Начальная клетка должна быть A7");
         assertEquals(Square.A8, chessMove.getTo(), "Конечная клетка должна быть A8");
-        assertEquals(Piece.WHITE_QUEEN, chessMove.getPromotion(), "Должно быть превращение в ферзя");
+        assertEquals(Piece.WHITE_QUEEN, chessMove.getPromotion(),
+                "Должно быть превращение в ферзя");
     }
 
     // ======================================================================
@@ -168,7 +165,6 @@ class PolyglotBookParserTest {
 
     @Test
     void generateVariationName_ShouldUseSanForNamedNode() {
-        // Создаём MoveNode с SAN
         Move move = new Move(Square.E2, Square.E4, Piece.NONE);
         MoveNode node = new MoveNode(move, Piece.WHITE_PAWN, false, null);
         node.setSan("e4");
@@ -183,24 +179,15 @@ class PolyglotBookParserTest {
         Move move = new Move(Square.E2, Square.E4, Piece.NONE);
         MoveNode node = new MoveNode(move, Piece.WHITE_PAWN, false, null);
 
-        // SAN будет сгенерирован автоматически как "e4"
-        // Нам не нужно устанавливать его вручную
-
         String name = parser.generateVariationName(node, 42);
 
-        // Проверяем, что имя содержит SAN и ID
         assertEquals("e4 (42)", name,
                 "Имя должно содержать SAN и ID в скобках");
     }
 
     @Test
     void generateVariationName_ShouldRemoveSpecialCharacters() {
-        // Создаём узел с ходом, который содержит спецсимволы в SAN
-        // Например, взятие с шахом: exd5+
-        // Для этого нужно создать реальную доску и выполнить ход
-
         Board board = new Board();
-        // 1. e4 e5 2. Nf3 d6 3. Bb5 Nc6 4. Bxc6+ (шах)
         board.doMove(new Move(Square.E2, Square.E4));
         board.doMove(new Move(Square.E7, Square.E5));
         board.doMove(new Move(Square.G1, Square.F3));
@@ -211,22 +198,30 @@ class PolyglotBookParserTest {
         Move move = new Move(Square.B5, Square.C6, Piece.NONE);
         board.doMove(move);
 
-        // Создаём узел и устанавливаем FEN для генерации SAN
         MoveNode node = new MoveNode(move, Piece.WHITE_BISHOP, true, Piece.NONE);
         node.setSavedFenBefore("r1bqkbnr/1ppp1ppp/p1B5/4p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 4");
-        String san = node.getSan();
-        // Генерируем имя
+
         String name = parser.generateVariationName(node, 7);
 
-        // Должен быть удалён символ '+', оставлено "Bxc6"
         assertTrue(name.startsWith("Bxc6"),
                 "Имя должно начинаться с Bxc6, получено: " + name);
         assertTrue(name.contains("(7)"),
                 "Имя должно содержать ID в скобках");
         assertFalse(name.contains("+"),
-                "Имя не должно содержать символ '+', получено: " + name);
+                "Имя не должно содержать '+', получено: " + name);
         assertTrue(name.contains("x"),
-                "Имя должно содержать символ 'x', получено: " + name);
+                "Имя должно содержать 'x', получено: " + name);
+    }
+
+    @Test
+    void generateVariationName_ShouldFallbackForEmptySan() {
+        Move move = new Move(Square.E2, Square.E4, Piece.NONE);
+        MoveNode node = new MoveNode(move, Piece.WHITE_PAWN, false, null);
+        // не задаём savedFenBefore и san — getSan() вернёт fallback
+
+        String name = parser.generateVariationName(node, 99);
+
+        assertTrue(name.endsWith("(99)"), "Имя должно заканчиваться на (99)");
     }
 
     // ======================================================================
@@ -235,7 +230,7 @@ class PolyglotBookParserTest {
 
     @Test
     void createMoveNode_ShouldCreateNodeFromEntry() {
-        Board board = new Board(); // Начальная позиция
+        Board board = new Board();
         short move = (short) ((12 << 6) | 28); // e2-e4
         PolyglotEntry entry = new PolyglotEntry(0L, move, (short) 16384, 0, 100);
 
@@ -252,22 +247,27 @@ class PolyglotBookParserTest {
         String comment = node.getComment();
         assertNotNull(comment, "Комментарий не должен быть null");
         assertTrue(comment.contains("weight:16384"), "Комментарий должен содержать вес");
-        assertTrue(comment.contains("games:100"), "Комментарий должен содержать количество партий");
         assertTrue(comment.contains("rating:"), "Комментарий должен содержать рейтинг");
+
+        // Проверяем FEN
+        assertNotNull(node.getSavedFenBefore(), "savedFenBefore должен быть установлен");
+        assertNotNull(node.getSavedFenAfter(), "savedFenAfter должен быть установлен");
     }
 
     @Test
-    void createMoveNode_ShouldDetectCapture() {
-        // Создаём позицию с возможностью взятия
+    void createMoveNode_ShouldSetFenBeforeAndAfter() {
         Board board = new Board();
-        // 1. e4
-        board.doMove(new Move(Square.E2, Square.E4));
+        String fenBefore = board.getFen();
 
-        // Создаём запись для взятия d7-d5
-        short move = (short) ((28 << 6) | 20); // from=E4? Нет, нам нужно взятие...
-        // Проще: используем реальный ход из позиции: e4xd5 (но это сложно в тесте)
-        // Для простоты проверим логику: если на клетке to есть фигура, то isCapture = true
-        // В тесте это сложно эмулировать без реальной доски
+        short move = (short) ((12 << 6) | 28); // e2-e4
+        PolyglotEntry entry = new PolyglotEntry(0L, move, (short) 16384, 0, 100);
+
+        MoveNode node = parser.createMoveNode(entry, board, 1);
+
+        assertEquals(fenBefore, node.getSavedFenBefore(),
+                "savedFenBefore должен совпадать с FEN доски");
+        assertNotEquals(fenBefore, node.getSavedFenAfter(),
+                "savedFenAfter должен отличаться от FEN доски");
     }
 
     // ======================================================================
@@ -276,38 +276,32 @@ class PolyglotBookParserTest {
 
     @Test
     void getTotalEntries_ShouldReturnCorrectCount() throws IOException {
-        parser.parse(testBookPath);
+        parser.open(testBookPath);
 
         int totalEntries = parser.getTotalEntries();
         assertTrue(totalEntries > 0, "Количество записей должно быть больше 0");
-
-        // Проверяем, что это число соответствует размеру файла
-        // (косвенная проверка, т.к. мы не можем легко получить размер файла в тесте)
-        assertTrue(totalEntries > 1000, "В тестовой книге должно быть много записей");
+        assertTrue(totalEntries > 1000,
+                "В тестовой книге должно быть много записей, найдено: " + totalEntries);
     }
 
     // ======================================================================
-    // 7. ИНТЕГРАЦИОННЫЙ ТЕСТ: ПОЛНЫЙ ЦИКЛ
+    // 7. ИНТЕГРАЦИОННЫЙ ТЕСТ
     // ======================================================================
 
     @Test
-    void fullBookParsingCycle_ShouldNotThrowExceptions() {
-        // Весь процесс парсинга не должен выбросить исключение
+    void fullOpenCycle_ShouldNotThrowExceptions() {
         assertDoesNotThrow(() -> {
-            GameTree gameTree = parser.parse(testBookPath);
-            assertNotNull(gameTree);
-        }, "Полный цикл парсинга не должен выбрасывать исключения");
+            parser.open(testBookPath);
+            assertTrue(parser.getTotalEntries() > 0);
+            parser.close();
+        }, "Полный цикл открытия/закрытия не должен выбрасывать исключения");
     }
 
-    // ======================================================================
-    // 8. ТЕСТ НА ПУСТУЮ ИЛИ НЕСУЩЕСТВУЮЩУЮ КНИГУ
-    // ======================================================================
-
     @Test
-    void parse_ShouldThrowIOExceptionForInvalidPath() {
-        Path invalidPath = Paths.get("non-existent-file.bin");
-
-        assertThrows(IOException.class, () -> parser.parse(invalidPath),
-                "Для несуществующего файла должно быть выброшено IOException");
+    void close_ShouldBeIdempotent() throws IOException {
+        parser.open(testBookPath);
+        parser.close();
+        // Повторный close не должен бросать
+        assertDoesNotThrow(() -> parser.close());
     }
 }

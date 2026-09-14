@@ -1,5 +1,10 @@
 # ♟️ Kletka — Кроссплатформенный шахматный анализатор
 
+**Читать на:**
+[🇬🇧 English](README.md) |
+[🇷🇺 Русский](README.ru.md) |
+[🇨🇳 中文](README.zh.md)
+
 **Kletka** — это кроссплатформенный шахматный анализатор с поддержкой PGN файлов, вариантов, аннотаций и движка Stockfish. Программа имеет современный настраиваемый интерфейс и доступна для Windows, Linux и macOS.
 
 ## 📝 Журнал изменений
@@ -33,6 +38,55 @@ Kletka поддерживает **дебютные книги Polyglot** (фай
     - **→ / Enter** — выбор варианта
     - **←** — возврат на предыдущую позицию
 
+### Системные требования для книг
+
+Для работы с дебютными книгами Kletka требует:
+
+    Java 17 LTS (рекомендуется Liberica Full JDK)
+
+    Аргументы JVM (автоматически применяются при запуске через лаунчер):
+
+```
+--add-opens java.base/sun.nio.ch=ALL-UNNAMED
+--add-opens java.base/sun.misc=ALL-UNNAMED
+```
+
+**Примечание:** Если вы запускаете Kletka из командной строки, используйте:
+
+```bash
+java --add-opens java.base/sun.nio.ch=ALL-UNNAMED \
+--add-opens java.base/sun.misc=ALL-UNNAMED \
+-jar Kletka.jar
+```
+
+Эти аргументы необходимы для быстрой работы с Polyglot книгами с использованием файлов, отображаемых в память (mmap).
+
+### 🔧 Технические детали: Memory-Mapped Files
+
+Kletka использует **memory-mapped files** (`MappedByteBuffer`) для молниеносно быстрой работы с Polyglot книгами, даже на HDD.
+
+**Важно:** Mapped byte buffer **не освобождается** сборщиком мусора JVM, пока на него есть ссылка. Чтобы вы могли **удалить, переместить или заменить** файл книги во время работы Kletka, приложение явно вызывает:
+
+```
+sun.misc.Unsafe.invokeCleaner(mappedByteBuffer);
+```
+
+Это немедленно снимает блокировку файла на уровне ОС.
+
+**Что это значит для вас:**
+- ✅ Можно безопасно **удалять** и **перемещать** `.bin` файл после выгрузки книги
+- ✅ Можно **заменять** файл книги на новый
+- ✅ Никаких ошибок "файл занят другим процессом" на Windows
+
+### Linux: известные проблемы
+
+На **Debian Trixie / Ubuntu 24.04+** с **Wayland** диалоги могут не получать фокус
+(клавиатура работает, мышь — нет). Это **известный баг JavaFX 17 + GTK 3 + Wayland**.
+
+**Решение:** уже включено в Kletka — приложение запускается с флагом
+`-Djdk.gtk.version=2`, который использует GTK 2 через XWayland.
+---
+
 ### Рекомендуемые книги:
 
 Для наилучших результатов мы рекомендуем использовать книгу **`uho-pohl.bin`**, которая содержит обширные качественные дебютные варианты.
@@ -52,19 +106,47 @@ Kletka поддерживает **дебютные книги Polyglot** (фай
 ## 🖥️ Скриншоты
 
 ### English
-| ![Главное окно](screenshots/Main_en.png) | ![Обозреватель PGN](screenshots/Browser_en.png) |
-|-------------------------------------------|--------------------------------------------------|
-| *Главный интерфейс*                       | *Обозреватель PGN*                               |
+| ![Main Window](screenshots/Main_en.png)    | ![PGN file browser](screenshots/Browser_en.png)    |
+|--------------------------------------------|----------------------------------------------------|
+| *Main interface*                           | *PGN browser*                                      |
+
+| ![Book open](screenshots/book_open_en.png) | ![Book loaded](screenshots/book_loaded_en.png)     |
+|--------------------------------------------| -------------------------------------------------- |
+| *Open Polyglot Book*                       | *Polyglot Book Loaded*                             |
 
 ### Русский
-| ![Главное окно](screenshots/Main_ru.png) | ![Обозреватель PGN](screenshots/Browser_ru.png) |
-|-------------------------------------------|--------------------------------------------------|
-| *Главный интерфейс*                       | *Обозреватель PGN*                               |
+| ![Главное окно](screenshots/Main_ru.png)        | ![Пгн файл обозреватель](screenshots/Browser_ru.png)  |
+|-------------------------------------------------|-------------------------------------------------------|
+| *Главный интерфейс*                             | *Обозреватель PGN*                                    |
+
+| ![Открытие книги](screenshots/book_open_ru.png) | ![Загруженная книга](screenshots/book_loaded_ru.png)  |
+| -------------------------------------------     | ----------------------------------------------------- |
+| *Открытие полиглот книги*                       | *Загруженная Полиглот книга*                          |
 
 ### 中文 (Chinese)
-| ![Главное окно](screenshots/Main_zh.png) | ![Обозреватель PGN](screenshots/Browser_zh.png) |
-|-------------------------------------------|--------------------------------------------------|
-| *Главный интерфейс*                       | *Обозреватель PGN*                               |
+| ![主窗口](screenshots/Main_zh.png) | ![PGN 浏览器](screenshots/Browser_zh.png) |
+|-------------------------------------|-------------------------------------------|
+| *主界面*                            | *PGN 浏览器*                              |
+
+| ![打开开局库](screenshots/book_open_zh.png) | ![已加载的开局库](screenshots/book_loaded_zh.png)  |
+| ------------------------------------------- | -------------------------------------------------- |
+| *打开 Polyglot 开局库*                      | *已加载的 Polyglot 开局库*                         |
+
+---
+
+## 🖥️ Скриншоты
+
+### English
+| ![Main Window](screenshots/Main_en.png) | ![PGN file browser](screenshots/Browser_en.png) |
+| ![Book open](screenshots/book_open_en.png) | ![Book loaded](screenshots/book_loaded_en.png)     |
+
+### Русский
+| ![Главное окно](screenshots/Main_ru.png) | ![Пгн файл обозреватель](screenshots/Browser_ru.png) |
+| ![Открытие книги](screenshots/book_open_ru.png) | ![Загруженная книга](screenshots/book_loaded_ru.png)  |
+
+### 中文 (Chinese)
+| ![主窗口](screenshots/Main_zh.png) | ![PGN 浏览器](screenshots/Browser_zh.png) |
+| ![打开开局库](screenshots/book_open_zh.png) | ![已加载的开局库](screenshots/book_loaded_zh.png)  |
 
 ---
 
@@ -78,25 +160,33 @@ Kletka поддерживает **дебютные книги Polyglot** (фай
 
 ### Linux (Debian/Ubuntu)
 ```bash
-sudo dpkg -i kletka_1.2.0-1_amd64.deb
+sudo dpkg -i kletka*.deb
 ```
 ---
 
-🛠️ Сборка из исходников
+## 🛠️ Сборка из исходников
 
-Требования
+### Требования
+- **Java 17** (рекомендуется Liberica Full JDK) — скачайте с [BellSoft](https://bell-sw.com/pages/downloads/#/java-17-lts)
+- **Maven** — установите через `brew install maven` (macOS) или `sudo apt install maven` (Linux)
 
-    Java 17 (рекомендуется Liberica Full JDK) — скачайте с BellSoft
+### Важные аргументы JVM для разработки
 
-    Maven — установите через brew install maven (macOS) или sudo apt install maven (Linux)
----
+При запуске из IDE добавьте следующие параметры VM:
+
+```
+--add-opens java.base/sun.nio.ch=ALL-UNNAMED
+--add-opens java.base/sun.misc=ALL-UNNAMED
+```
+
+Это обеспечивает полную поддержку Polyglot книг во время разработки.
 
 ```bash
 git clone https://github.com/AndreyKhrypach/Kletka.git
 cd Kletka
 mvn clean package
 ```
-Сборка для конкретной платформы
+### Сборка для конкретной платформы
 
 ```bash
 
@@ -110,27 +200,27 @@ mvn clean package -P linux
 mvn clean package -P mac
 ```
 
-🧠 Настройка Stockfish
+## 🧠 Настройка Stockfish
 
 Kletka использует движок Stockfish для анализа. Вам нужно установить его отдельно.
-Windows
 
-    Скачайте Stockfish с официального сайта: https://stockfishchess.org/download/
+### Windows
 
-    Распакуйте архив
+1. Скачайте Stockfish с официального сайта: https://stockfishchess.org/download/
+2. Распакуйте архив
+3. В Kletka перейдите в **Движок → Настроить движок** и выберите файл `stockfish.exe`
 
-    В Kletka перейдите в Движок → Настроить движок и выберите файл stockfish.exe
+### Linux (Debian/Ubuntu)
 
-Linux (Debian/Ubuntu)
 ```bash
 sudo apt install stockfish
 ```
 
-Затем в Kletka перейдите в Движок → Настроить движок и выберите бинарный файл stockfish.
+Затем в Kletka перейдите в **Движок → Настроить движок** и выберите бинарный файл stockfish.
 
-macOS
+### macOS
+
 ```bash
-
 brew install stockfish
 ```
 
@@ -138,21 +228,19 @@ brew install stockfish
 
 ---
 
-📄 Лицензия
+## 📄 Лицензия
 
 Этот проект распространяется под лицензией GNU General Public License v3.0.
-Подробнее см. файл LICENSE.
+Подробнее см. файл [LICENSE](LICENSE).
 
 ---
 
-👨‍💻 Автор
+## 👨‍💻 Автор
 
 Andrey Khrypach
 
-GitHub
-
 ---
 
-⭐ Поддержка
+## ⭐ Поддержка
 
 Если вам нравится проект, поставьте ⭐ на GitHub!

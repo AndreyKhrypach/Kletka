@@ -108,7 +108,7 @@ public class SanGenerator {
 
         san.append(toSquare);
 
-        if (promotionPiece != null) {
+        if (promotionPiece != null && promotionPiece != Piece.NONE) {
             san.append("=").append(getPieceLetter(promotionPiece));
         }
 
@@ -321,7 +321,7 @@ public class SanGenerator {
                 san.append(fromFile).append("x");
             }
             san.append(toSquare);
-            if (promotionPiece != null) {
+            if (promotionPiece != null && promotionPiece != Piece.NONE) {
                 san.append("=").append(getPieceLetter(promotionPiece));
             }
             return san.toString();
