@@ -27,6 +27,7 @@ import Khrypach.Andrey.chess.kletka.gui.settings.AppPreferences;
 import Khrypach.Andrey.chess.kletka.gui.splash.SplashScreen;
 import javafx.animation.PauseTransition;
 import javafx.application.Application;
+import javafx.application.HostServices;
 import javafx.application.Platform;
 import javafx.stage.Stage;
 import javafx.util.Duration;
@@ -41,6 +42,7 @@ public class KletkaGui extends Application {
 
     private static final Logger log = LoggerFactory.getLogger(KletkaGui.class);
     private static final LanguageManager lang = LanguageManager.getInstance();
+    private static HostServices hostServices;
     private SplashScreen splashScreen;
 
     // Время показа загрузочного экрана (2 секунды)
@@ -74,7 +76,7 @@ public class KletkaGui extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-
+        hostServices = getHostServices();
         // ========== 1. СНАЧАЛА ПОКАЗЫВАЕМ ЗАГРУЗОЧНЫЙ ЭКРАН ==========
         splashScreen = new SplashScreen();
         splashScreen.showSplash();
@@ -153,5 +155,9 @@ public class KletkaGui extends Application {
         }
         Platform.exit();
         System.exit(0);
+    }
+
+    public static HostServices hostServices() {
+        return hostServices;
     }
 }

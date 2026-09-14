@@ -41,7 +41,7 @@ public class BinaryIndexReader {
      * Читает ВСЕ записи в память (для совместимости)
      */
     public PgnIndex read(Path inputPath) throws IOException {
-        log.info("Reading full binary index from: {}", inputPath);
+        log.debug("Reading full binary index from: {}", inputPath);
 
         try (FileChannel channel = FileChannel.open(inputPath, StandardOpenOption.READ)) {
             ByteBuffer buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
@@ -101,7 +101,7 @@ public class BinaryIndexReader {
 
             index.refreshCache();
 
-            log.info("Full index read: {} entries, timestamp: {}", entries.size(), timestamp);
+            log.debug("Full index read: {} entries, timestamp: {}", entries.size(), timestamp);
             return index;
         }
     }
@@ -110,7 +110,7 @@ public class BinaryIndexReader {
      * Читает ЛЁГКИЙ индекс (только для отображения и поиска)
      */
     public LazyPgnIndex readLazy(Path inputPath) throws IOException {
-        log.info("Reading lazy binary index from: {}", inputPath);
+        log.debug("Reading lazy binary index from: {}", inputPath);
 
         FileChannel channel = FileChannel.open(inputPath, StandardOpenOption.READ);
         ByteBuffer buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
@@ -212,7 +212,7 @@ public class BinaryIndexReader {
             lightEntries.add(light);
         }
 
-        log.info("Lazy index read: {} light entries", lightEntries.size());
+        log.debug("Lazy index read: {} light entries", lightEntries.size());
 
         return new LazyPgnIndex(header, channel, buffer, dataStart, lightEntries);
     }

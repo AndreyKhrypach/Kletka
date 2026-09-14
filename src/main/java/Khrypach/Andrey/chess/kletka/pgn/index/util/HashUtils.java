@@ -176,33 +176,26 @@ public class HashUtils {
      * Сохраняет порядок, но игнорирует форматирование
      */
     public static int calculateBodyHash(GameData gameData) {
-        if (gameData == null) {
-            return 0;
-        }
+        if (gameData == null) return 0;
 
-        // Извлекаем тело партии (без заголовков)
         String body = extractBody(gameData.pgn());
-        if (body.isEmpty()) {
-            return 0;
-        }
+        if (body.isEmpty()) return 0;
 
-        // ========== НОРМАЛИЗУЕМ ТОЛЬКО ФОРМАТИРОВАНИЕ ==========
-        // Убираем лишние пробелы и переносы, но СОХРАНЯЕМ порядок
-        String normalized = body.replaceAll("\\s+", " ");
+        // ========== УБИРАЕМ КОММЕНТАРИИ { ... } ==========
+        String normalized = body.replaceAll("\\{[^}]*}", "");
 
-        // Убираем результат в конце (если есть)
-        normalized = normalized.replaceAll("\\s+[0-9.-]+$", "").trim();
+        // ========== УБИРАЕМ ШАХМАТНЫЕ NAG-КОММЕНТАРИИ $N ==========
+        normalized = normalized.replaceAll("\\$\\d+", "");
+
+        // ========== УБИРАЕМ ЛИШНИЕ ПРОБЕЛЫ ==========
+        normalized = normalized.replaceAll("\\s+", " ").trim();
+
+        // ========== УБИРАЕМ РЕЗУЛЬТАТ В КОНЦЕ ==========
+        normalized = normalized.replaceAll("\\s+[0-9./-]+$", "").trim();
         normalized = normalized.replaceAll("\\s+\\*$", "").trim();
 
-        // ========== НЕ УБИРАЕМ номера ходов, аннотации, комментарии ==========
-        // Они остаются в строке
+        if (normalized.isEmpty()) return 0;
 
-        if (normalized.isEmpty()) {
-            return 0;
-        }
-
-        // ========== ИСПОЛЬЗУЕМ CRC32 ОТ НОРМАЛИЗОВАННОЙ СТРОКИ ==========
-        // Порядок сохраняется, форматирование игнорируется
         return hashString(normalized);
     }
 }

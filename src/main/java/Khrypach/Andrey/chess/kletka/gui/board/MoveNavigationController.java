@@ -23,8 +23,8 @@ package Khrypach.Andrey.chess.kletka.gui.board;
 import Khrypach.Andrey.chess.kletka.database.eco.EcoEntry;
 import Khrypach.Andrey.chess.kletka.database.eco.EcoService;
 import Khrypach.Andrey.chess.kletka.engine.UciEngineManager;
+import Khrypach.Andrey.chess.kletka.gui.book.BookManager;
 import Khrypach.Andrey.chess.kletka.gui.book.PolyglotBookParser;
-import Khrypach.Andrey.chess.kletka.gui.book.PolyglotEntry;
 import Khrypach.Andrey.chess.kletka.gui.book.ZobristHasher;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.DialogCoordinator;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.VariationChoiceDialog;
@@ -130,6 +130,7 @@ public class MoveNavigationController {
 
     // Для BOOK режима
     @Getter
+    @Setter
     private int selectedVariationIndex = 0;
     private List<Variation> currentVariations = new ArrayList<>();
 
@@ -159,8 +160,9 @@ public class MoveNavigationController {
 
         this.pathBuilder = new PathBuilder(rootVariation, mainLine);
         this.boardReconstructor = new BoardReconstructor(pathBuilder, initialPosition, startWithBlack);
-        this.dialogCoordinator = new DialogCoordinator(rootNode, rootVariation, mainLine);
+        this.dialogCoordinator = new DialogCoordinator(boardView, rootNode, rootVariation, mainLine);
         this.variationManager = new VariationManager(rootNode, rootVariation, mainLine, boardReconstructor, namingService);
+        this.variationManager.setNavigationMode(navigationMode);
     }
 
     /**
@@ -178,11 +180,8 @@ public class MoveNavigationController {
         mainLine.setParentVariation(rootVariation);
         mainLine.setParentNodeRef(rootNode);
 
-        // НЕ ДОБАВЛЯЕМ mainLine в rootNode.getSubVariations() пока нет ходов!
-        // rootNode.getSubVariations().add(mainLine); // <-- УБРАТЬ!
-
-        currentVariation = mainLine;
-        currentNode = null;
+        currentVariation = rootVariation;
+        currentNode = rootNode;
     }
 
     /**
@@ -205,7 +204,7 @@ public class MoveNavigationController {
 
         this.pathBuilder = new PathBuilder(rootVariation, mainLine);
         this.boardReconstructor = new BoardReconstructor(pathBuilder, initialPosition, startWithBlack);
-        this.dialogCoordinator = new DialogCoordinator(rootNode, rootVariation, mainLine);
+        this.dialogCoordinator = new DialogCoordinator(boardView, rootNode, rootVariation, mainLine);
 
         variationManager.updateState(rootNode, rootVariation, mainLine);
         variationManager.setBoardReconstructor(this.boardReconstructor);
@@ -216,9 +215,9 @@ public class MoveNavigationController {
             } else {
                 Board startBoard = new Board();
                 if (startWithBlack) startBoard.setSideToMove(Side.BLACK);
+                boardView.refreshBoard();
                 boardView.setBoard(startBoard);
             }
-            boardView.refreshBoard();
         }
 
         if (notationView != null) {
@@ -329,6 +328,17 @@ public class MoveNavigationController {
             if (parent.isRoot()) {
                 log.trace("Parent is root, switching to rootVariation");
                 currentVariation = rootVariation;
+            } else {
+                // ========== КОРРЕКТНО ОПРЕДЕЛЯЕМ ВАРИАНТ РОДИТЕЛЯ ==========
+                Variation parentVariation = findVariationForNode(parent);
+                if (parentVariation != null) {
+                    log.trace("Setting currentVariation to parent's variation: {}", parentVariation.getName());
+                    currentVariation = parentVariation;
+                } else {
+                    // Fallback — оставляем как есть
+                    log.trace("Could not find variation for parent, keeping currentVariation: {}",
+                            currentVariation != null ? currentVariation.getName() : "null");
+                }
             }
 
             currentNode = parent;
@@ -561,16 +571,10 @@ public class MoveNavigationController {
                 nextIsWhite);
 
         if (node != null) {
-            log.trace("node.getAbsolutePly(): {}", node.getAbsolutePly());
-            log.trace("node.getNext(): {}", node.getNext() != null ? node.getNext().getSan() : "null");
-            log.trace("node.getSubVariations().size(): {}",
-                    node.getSubVariations() != null ? node.getSubVariations().size() : 0);
-
             if (node.getSubVariations() != null) {
                 for (int i = 0; i < node.getSubVariations().size(); i++) {
                     Variation var = node.getSubVariations().get(i);
                     if (var == null) {
-                        log.trace("  subVar[{}] NULL", i);
                         continue;
                     }
                     String firstMove = "EMPTY";
@@ -647,24 +651,13 @@ public class MoveNavigationController {
             ));
         }
 
-        VariationChoiceDialog dialog = new VariationChoiceDialog(choices);
+        VariationChoiceDialog dialog = new VariationChoiceDialog(choices, boardView.getPrimaryStage());
+
         VariationChoiceDialog.Choice selected = dialog.showAndWait();
 
         if (selected != null && selected.variation() != null) {
-            if (selected.variation() != currentVariation) {
-                switchToVariation(selected.variation());
-            } else {
-                assert node != null;
-                if (node.getNext() != null && !node.getNext().isRoot()) {
-                    currentNode = node.getNext();
-                    restoreBoardFromCurrentNode();
-                    updateNotationView();
-                    sendCurrentPositionToEngine();
-                    if (boardView != null) {
-                        boardView.notifyPositionChanged();
-                    }
-                }
-            }
+            log.trace("  → Calling switchToVariation('{}')", selected.variation().getName());
+            switchToVariation(selected.variation());
         }
     }
 
@@ -691,7 +684,10 @@ public class MoveNavigationController {
      * Переключается на указанный вариант
      */
     private void switchToVariation(Variation variation) {
-        if (variation == null) return;
+        if (variation == null) {
+            log.warn("switchToVariation: variation is null");
+            return;
+        }
 
         currentVariation = variation;
         currentNode = variation.getFirstNode();
@@ -707,21 +703,27 @@ public class MoveNavigationController {
             currentNode.setOwningVariation(variation);
         }
 
-        restoreBoardFromCurrentNode();
+        // ========== ВОССТАНОВЛЕНИЕ ДОСКИ ==========
+        Board restoredBoard = boardReconstructor.reconstruct(currentVariation, currentNode);
+
+        boardView.setBoard(restoredBoard);
+        boardView.refreshBoard();
+
         updateNotationView();
         sendCurrentPositionToEngine();
-        if (boardView != null) {
-            boardView.notifyPositionChanged();
-        }
+        boardView.notifyPositionChanged();
 
         if (hasForkAtNode(currentNode)) {
             boolean isWhiteTurn = (currentNode.getAbsolutePly() % 2 == 0);
+            log.debug("  currentNode is fork, showing dialog recursively");
             showBranchChoiceDialog(currentNode, isWhiteTurn);
         }
         loadVariationsForNode(currentNode);
         updateCurrentVariations();
         selectedVariationIndex = 0;
         updateNotationView();
+
+        log.debug("=== switchToVariation END ===");
     }
 
     /**
@@ -868,6 +870,15 @@ public class MoveNavigationController {
 
         updatePathBuilder();
 
+        // ========== ЗАГРУЖАЕМ ПОДВАРИАНТЫ ДЛЯ BOOK РЕЖИМА ==========
+        if (navigationMode == NavigationMode.BOOK &&
+                currentNode != null &&
+                bookParser != null) {
+            loadVariationsForNode(currentNode);
+            updateCurrentVariations();
+            selectedVariationIndex = 0;
+        }
+
         if (notationView != null) {
             log.trace("Updating notation...");
             Platform.runLater(() -> {
@@ -929,8 +940,11 @@ public class MoveNavigationController {
     public VariationChoiceDialog.Choice showVariationDialog(Move move, Piece piece,
                                                             boolean isCapture, Piece promotionPiece) {
         if (dialogCoordinator != null) {
+
             dialogCoordinator.updateState(currentVariation, currentNode);
-            return dialogCoordinator.showVariationDialog(move, piece, isCapture, promotionPiece);
+
+            return dialogCoordinator.showVariationDialog(
+                    move, piece, isCapture, promotionPiece);
         }
         return null;
     }
@@ -940,18 +954,53 @@ public class MoveNavigationController {
      */
     public void applyVariationChoice(VariationChoiceDialog.Choice choice, Move move,
                                      Piece piece, boolean isCapture, Piece promotionPiece) {
-        if (choice == null || move == null) return;
+        if (choice == null || move == null) {
+            log.warn("applyVariationChoice: choice or move is null");
+            return;
+        }
+
+        log.trace("=== applyVariationChoice ===");
+        log.trace("  choice.isNewVariation(): {}", choice.isNewVariation());
+        log.trace("  choice.variation(): {}",
+                choice.variation() != null ? choice.variation().getName() : "null");
+        log.trace("  currentVariation BEFORE: {} (id={}, isMainLine={})",
+                currentVariation != null ? currentVariation.getName() : "null",
+                currentVariation != null ? currentVariation.getId() : -1,
+                currentVariation != null && currentVariation.isMainLine());
+        log.trace("  currentNode BEFORE: {}",
+                currentNode != null ? currentNode.getSan() : "null");
 
         ParentNode newCurrentNode;
 
         if (choice.isNewVariation()) {
+            log.trace("  → BRANCH: createNewVariation");
             Variation newVar = variationManager.createNewVariation(move, piece, isCapture, promotionPiece,
                     currentVariation, currentNode);
+
             if (newVar != null) {
+                log.trace("  createNewVariation returned: {} (id={})",
+                        newVar.getName(), newVar.getId());
                 currentVariation = newVar;
                 currentNode = newVar.getFirstNode();
+
+                // ========== ЗАГРУЖАЕМ ПОДВАРИАНТЫ ДЛЯ НОВОГО УЗЛА ==========
+                if (navigationMode == NavigationMode.BOOK && bookParser != null) {
+                    loadVariationsForNode(currentNode);
+                    updateCurrentVariations();
+                    selectedVariationIndex = 0;
+
+                    // ========== ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ ВИЗИТЕРА ==========
+                    if (notationView != null) {
+                        Platform.runLater(() -> {
+                            notationView.refreshFromMainLine();
+                            notationView.updateNotationDisplayWithVisitor();
+                        });
+                    }
+                }
             }
         } else if (choice.variation() != null) {
+            log.trace("  → BRANCH: overwriteInSpecificVariation with var='{}'",
+                    choice.variation().getName());
             newCurrentNode = variationManager.overwriteInSpecificVariation(
                     choice.variation(), move, piece, isCapture, promotionPiece,
                     currentVariation, currentNode);
@@ -963,6 +1012,13 @@ public class MoveNavigationController {
                 currentNode = newCurrentNode;
             }
         }
+
+        log.trace("  currentVariation AFTER: {} (id={}, isMainLine={})",
+                currentVariation != null ? currentVariation.getName() : "null",
+                currentVariation != null ? currentVariation.getId() : -1,
+                currentVariation != null && currentVariation.isMainLine());
+        log.trace("  currentNode AFTER: {}",
+                currentNode != null ? currentNode.getSan() : "null");
 
         rootVariation = variationManager.getRootVariation();
         rootNode = variationManager.getRootNode();
@@ -1248,10 +1304,38 @@ public class MoveNavigationController {
         nextBtn.setPrefWidth(buttonWidth);
         lastBtn.setPrefWidth(buttonWidth);
 
-        firstBtn.setOnAction(e -> Platform.runLater(this::goToFirstMove));
-        prevBtn.setOnAction(e -> Platform.runLater(this::goToPreviousMove));
-        nextBtn.setOnAction(e -> Platform.runLater(this::goToNextMove));
-        lastBtn.setOnAction(e -> Platform.runLater(this::goToLastMove));
+        // ========== ПРОВЕРКА РЕЖИМА ПРИ НАЖАТИИ ==========
+        firstBtn.setOnAction(e -> Platform.runLater(() -> {
+            if (navigationMode == NavigationMode.BOOK) {
+                moveSelectionUp();
+            } else {
+                goToFirstMove();
+            }
+        }));
+
+        prevBtn.setOnAction(e -> Platform.runLater(() -> {
+            if (navigationMode == NavigationMode.BOOK) {
+                goToParentLevel();
+            } else {
+                goToPreviousMove();
+            }
+        }));
+
+        nextBtn.setOnAction(e -> Platform.runLater(() -> {
+            if (navigationMode == NavigationMode.BOOK) {
+                selectCurrentVariation();
+            } else {
+                goToNextMove();
+            }
+        }));
+
+        lastBtn.setOnAction(e -> Platform.runLater(() -> {
+            if (navigationMode == NavigationMode.BOOK) {
+                moveSelectionDown();
+            } else {
+                goToLastMove();
+            }
+        }));
 
         navCenterBox.getChildren().addAll(firstBtn, prevBtn, nextBtn, lastBtn);
 
@@ -1361,10 +1445,6 @@ public class MoveNavigationController {
                 log.trace("HOME pressed (BOOK mode)");
                 goToRootLevel();
             }
-            case END -> {
-                log.trace("END pressed (BOOK mode)");
-                goToDeepestLevel();
-            }
             default -> {
                 // Игнорируем
             }
@@ -1378,31 +1458,18 @@ public class MoveNavigationController {
         log.trace("goToRootLevel");
         currentNode = rootNode;
         currentVariation = rootVariation;
+
+        // Загружаем продолжения из книги для корня
+        loadVariationsForNode(currentNode);
+
         updateCurrentVariations();
         selectedVariationIndex = 0;
         restoreBoardFromRoot();
         updateNotationView();
         sendCurrentPositionToEngine();
-    }
 
-    /**
-     * Переход в конец главной линии (в BOOK режиме)
-     */
-    private void goToDeepestLevel() {
-        log.trace("goToDeepestLevel");
-        // Идём вниз по главной линии, пока есть next
-        ParentNode node = currentNode;
-        while (node != null && node.getNext() != null && !node.getNext().isRoot()) {
-            node = node.getNext();
-        }
-        if (node != currentNode) {
-            currentNode = node;
-            loadVariationsForNode(currentNode);
-            updateCurrentVariations();
-            selectedVariationIndex = 0;
-            restoreBoardFromCurrentNode();
-            updateNotationView();
-            sendCurrentPositionToEngine();
+        if (boardView != null) {
+            boardView.notifyPositionChanged();
         }
     }
 
@@ -1435,19 +1502,32 @@ public class MoveNavigationController {
      * Поиск варианта для узла
      */
     private Variation findVariationForNode(ParentNode node) {
-        if (node == null) return null;
+        if (node == null || node.isRoot()) return null;
 
-        // Проверяем, не принадлежит ли узел текущему варианту
+        // ========== 1. ПРОСТОЙ ПУТЬ: owningVariation ==========
+        Variation owning = node.getOwningVariation();
+        if (owning != null) {
+            return owning;
+        }
+
+        // ========== 2. FALLBACK: идём вверх по parent до первого узла с owningVariation ==========
+        ParentNode current = node.getParent();
+        while (current != null && !current.isRoot()) {
+            if (current.getOwningVariation() != null) {
+                return current.getOwningVariation();
+            }
+            current = current.getParent();
+        }
+
+        // ========== 3. FALLBACK: ищем по всем вариантам ==========
         if (currentVariation != null && currentVariation.getMoves().contains(node)) {
             return currentVariation;
         }
 
-        // Ищем в корневых вариантах
         for (Variation var : rootNode.getSubVariations()) {
             if (var.getMoves().contains(node)) {
                 return var;
             }
-            // Проверяем вложенные варианты
             Variation found = findVariationRecursive(var, node);
             if (found != null) return found;
         }
@@ -1490,7 +1570,7 @@ public class MoveNavigationController {
         if (pathBuilder != null) {
             this.pathBuilder = new PathBuilder(rootVariation, mainLine);
             this.boardReconstructor = new BoardReconstructor(pathBuilder, initialPosition, startWithBlack);
-            this.dialogCoordinator = new DialogCoordinator(rootNode, rootVariation, mainLine);
+            this.dialogCoordinator = new DialogCoordinator(boardView, rootNode, rootVariation, mainLine);
 
             variationManager.updateState(rootNode, rootVariation, mainLine);
 
@@ -1508,7 +1588,7 @@ public class MoveNavigationController {
         this.mainLine = newMainLine;
         this.initialPosition = initialBoard != null ? initialBoard.clone() : null;
 
-        this.currentVariation = mainLine;
+        this.currentVariation = rootVariation;
         this.currentNode = rootNode;
 
         this.pathBuilder = new PathBuilder(rootVariation, mainLine);
@@ -1516,9 +1596,10 @@ public class MoveNavigationController {
 
         this.pathBuilder = new PathBuilder(rootVariation, mainLine);
         this.boardReconstructor = new BoardReconstructor(pathBuilder, initialPosition, startWithBlack);
-        this.dialogCoordinator = new DialogCoordinator(rootNode, rootVariation, mainLine);
+        this.dialogCoordinator = new DialogCoordinator(boardView, rootNode, rootVariation, mainLine);
         this.variationManager = new VariationManager(rootNode, rootVariation, mainLine,
                 boardReconstructor, namingService);
+        this.variationManager.setNavigationMode(this.navigationMode);
 
         restoreBoardFromCurrentNode();
         updateNotationView();
@@ -1537,6 +1618,11 @@ public class MoveNavigationController {
     public void setNavigationMode(NavigationMode mode) {
         this.navigationMode = mode;
         log.debug("Navigation mode set to: {}", mode);
+
+        // ========== ОБНОВЛЯЕМ РЕЖИМ В VARIATION_MANAGER ==========
+        if (variationManager != null) {
+            variationManager.setNavigationMode(mode);
+        }
 
         // Обновляем отображение нотации
         if (notationView != null) {
@@ -1604,7 +1690,7 @@ public class MoveNavigationController {
     /**
      * Обновляет список вариантов для текущего уровня
      */
-    private void updateCurrentVariations() {
+    void updateCurrentVariations() {
         if (currentNode == null) {
             currentVariations = new ArrayList<>();
             return;
@@ -1669,7 +1755,6 @@ public class MoveNavigationController {
             return;
         }
 
-        // Получаем родительский узел
         ParentNode parent = currentNode.getParent();
         if (parent == null || parent.isRoot()) {
             log.trace("Parent is root - moving to root");
@@ -1677,14 +1762,15 @@ public class MoveNavigationController {
             currentVariation = rootVariation;
         } else {
             currentNode = parent;
-            // Находим вариант для родителя
             Variation parentVariation = findVariationForNode(parent);
             if (parentVariation != null) {
                 currentVariation = parentVariation;
             }
         }
 
-        // Обновляем список вариантов
+        // Загружаем продолжения для нового узла
+        loadVariationsForNode(currentNode);
+
         updateCurrentVariations();
         selectedVariationIndex = 0;
 
@@ -1697,61 +1783,38 @@ public class MoveNavigationController {
         }
     }
 
+    /**
+     * Ленивая загрузка продолжений из книги для узла.
+     * Восстанавливает доску и делегирует в BookManager.
+     */
     private void loadVariationsForNode(ParentNode node) {
-
-        if (node == null) {
-            log.warn("  Node is null, returning");
-            return;
-        }
-
-        // Если у узла уже есть подварианты — ничего не делаем
-        if (!node.getSubVariations().isEmpty()) {
-            return;
-        }
-
+        if (node == null) return;
         if (bookParser == null) {
-            log.warn("  bookParser is NULL! Book not loaded?");
+            log.trace("bookParser is null, skipping load");
             return;
         }
 
-        // Вычисляем хеш позиции для этого узла
+        BookManager bookManager = BookManager.getInstance();
+        if (!bookManager.isBookLoaded()) return;
+
+        // Кэш: если ключ уже загружен — не восстанавливаем доску зря
         Board board = boardReconstructor.reconstruct(currentVariation, node);
         long key = ZobristHasher.calculate(board);
-
-        // Находим записи в книге для этой позиции
-        List<PolyglotEntry> entries = bookParser.findAllEntries(key);
-
-        if (entries.isEmpty()) {
-            log.warn("  No entries found for key 0x{}", Long.toHexString(key));
+        if (bookManager.isKeyLoaded(key)) {
             return;
         }
 
-        int variationId = 0;
-        // Создаём подварианты из записей
-        for (PolyglotEntry entry : entries) {
-            if (entry.weight() < 1) {
-                log.trace("    Skipping entry with weight < 1: {}", entry.weight());
-                continue;
-            }
-
-            Move chesslibMove = bookParser.createChesslibMove(entry);
-            if (!board.isMoveLegal(chesslibMove, true)) {
-                log.trace("    Move {} is not legal, skipping", entry.getUciMove());
-                continue;
-            }
-
-            MoveNode moveNode = bookParser.createMoveNode(entry, board, node.getAbsolutePly() + 1);
-            // Добавляем под вариант к узлу
-            Variation subVar = new Variation(bookParser.generateVariationName(moveNode, variationId++));
-            subVar.addMove(moveNode);
-            subVar.setMainLine(false);
-            subVar.setParentVariation(currentVariation);
-            subVar.setParentNodeRef(node);
-
-            moveNode.setParent(node);
-            moveNode.setOwningVariation(subVar);
-            node.getSubVariations().add(subVar);
-        }
+        bookManager.loadVariationsForNode(node, board);
     }
 
+    /**
+     * Принудительно загружает продолжения из книги для корневого узла.
+     * Вызывается после открытия книги.
+     */
+    public void loadRootLevel() {
+        if (navigationMode != NavigationMode.BOOK) return;
+        loadVariationsForNode(rootNode);
+        updateCurrentVariations();
+        selectedVariationIndex = 0;
+    }
 }

@@ -32,4 +32,6 @@ public final class PolyglotConstants {
     // Максимальное количество книг в истории
     public static final int MAX_RECENT_BOOKS = 10;
 
+    // Максимальное количество ходов, показываемых из одной позиции книги
+    public static final int MAX_MOVES_PER_POSITION = 30;
 }

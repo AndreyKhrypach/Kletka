@@ -84,11 +84,10 @@ public class MoveParser {
                 return foundMove;
             }
 
-            log.warn("No legal move found for SAN: {} (clean: {})", san, cleanSan);
             return null;
 
         } catch (Exception e) {
-            log.warn("Error converting SAN {}: {}", san, e.getMessage());
+            log.error("Error converting SAN {}: {}", san, e.getMessage());
             return null;
         }
     }

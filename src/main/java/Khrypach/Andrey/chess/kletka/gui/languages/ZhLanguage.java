@@ -325,6 +325,7 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.SETUP_FEN_PROMPT, "输入FEN...");
         strings.put(LanguageKeys.SETUP_CONTROL, "控制:");
         strings.put(LanguageKeys.SETUP_KING_IN_CHECK, "无法设置%s走棋 - 王被将军!");
+        strings.put(LanguageKeys.SETUP_FLIP_BOARD, "翻转棋盘");
 
         // ========== NAVIGATION ==========
         strings.put(LanguageKeys.NAV_FIRST, "⏮");
@@ -339,13 +340,26 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.NAVIGATION_MODE, "导航模式");
         strings.put(LanguageKeys.NAVIGATION_MODE_PGN, "PGN");
         strings.put(LanguageKeys.NAVIGATION_MODE_BOOK, "书籍");
-        strings.put(LanguageKeys.BOOK_MODE, "\uD83D\uDCD6 书籍");
+        strings.put(LanguageKeys.BOOK_MODE, "♟ 书籍");
+        strings.put(LanguageKeys.BOOK_MODE_DISABLED, "在书籍模式下不可用");
         strings.put(LanguageKeys.BOOK_LOADED, "书籍已加载");
         strings.put(LanguageKeys.BOOK_NO_BOOK, "未加载书籍");
         strings.put(LanguageKeys.BOOK_STATS, "统计");
         strings.put(LanguageKeys.BOOK_ENTRIES, "条目");
         strings.put(LanguageKeys.BOOK_LOAD_ERROR, "加载书籍失败");
         strings.put(LanguageKeys.BOOK_CLEARED, "书籍已清除");
+
+        strings.put(LanguageKeys.BOOK_SAVE_TITLE, "保存书籍");
+        strings.put(LanguageKeys.BOOK_SAVE_HEADER, "书籍有未保存的更改");
+        strings.put(LanguageKeys.BOOK_SAVE_CONTENT, "您想在退出前保存更改吗？");
+        strings.put(LanguageKeys.BOOK_SAVED, "书籍 {%s} 已保存");
+        strings.put(LanguageKeys.BOOK_SAVE_ERROR, "保存书籍错误");
+        strings.put(LanguageKeys.BOOK_NOT_LOADED, "书籍未加载");
+        strings.put(LanguageKeys.BOOK_NO_CHANGES, "没有更改需要保存");
+        strings.put(LanguageKeys.BOOK_NO_PATH, "未找到书籍路径");
+        strings.put(LanguageKeys.BOOK_SAVING, "正在保存书籍");
+        strings.put(LanguageKeys.BOOK_SAVING_MSG, "请稍候...");
+        strings.put(LanguageKeys.BOOK_NO_UNDO, "没有可撤销的操作");
 
         //Меню книги
         strings.put(LanguageKeys.MENU_BOOKS, "书籍");
@@ -366,6 +380,8 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.MENU_BOOKS_INFO_SIZE, "大小");
         strings.put(LanguageKeys.MENU_BOOKS_INFO_ENTRIES, "条目数");
         strings.put(LanguageKeys.MENU_BOOKS_INFO_VARIATIONS, "变例数");
+        strings.put(LanguageKeys.MENU_BOOKS_SAVE, "保存书籍");
+        strings.put(LanguageKeys.MENU_BOOKS_UNDO_MOVE, "撤销添加的着法");
 
         // ========== NOTIFICATIONS ==========
         strings.put(LanguageKeys.NOTIFICATION_INFO, "信息");
@@ -455,8 +471,8 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.ENGINE_NOT_ANALYZED, "引擎尚未分析此局面");
         strings.put(LanguageKeys.ENGINE_ILLEGAL_MOVE, "引擎建议非法着法");
         strings.put(LanguageKeys.ENGINE_MOVE_ERROR, "执行着法错误");
-        strings.put(LanguageKeys.ENGINE_BOOK_MODE_NO_ANALYSIS, "在棋谱模式下引擎不能走棋");
-        strings.put(LanguageKeys.ENGINE_BOOK_MODE_NO_MOVE, "在棋谱模式下分析被禁用");
+        strings.put(LanguageKeys.ENGINE_BOOK_MODE_NO_ANALYSIS, "在棋谱模式下分析被禁用");
+        strings.put(LanguageKeys.ENGINE_BOOK_MODE_NO_MOVE, "在棋谱模式下引擎不能走棋");
 
         // ========== ANALYSIS PANEL ==========
         strings.put(LanguageKeys.ANALYSIS_TITLE, "引擎分析");
@@ -1204,7 +1220,7 @@ public class ZhLanguage implements Language {
         shortcutsContent.append("  Ctrl+S - 保存 PGN\n");
         shortcutsContent.append("  Ctrl+E - 导出当前对局\n");
         shortcutsContent.append("  Ctrl+Shift+V - 从剪贴板导入\n");
-        shortcutsContent.append("  Ctrl+P - 摆盘\n");
+        shortcutsContent.append("  Ctrl+P - 设置局面\n");
         shortcutsContent.append("  Alt+F4 - 退出\n");
 
         // 📝 编辑
@@ -1244,15 +1260,18 @@ public class ZhLanguage implements Language {
         shortcutsContent.append("  Ctrl+Shift+Tab - 上一个浏览器\n");
         shortcutsContent.append("  Ctrl+W - 关闭浏览器\n");
 
-        // 📖 开局库
-        shortcutsContent.append("\n📖 开局库:\n");
-        shortcutsContent.append("  Ctrl+B - 加载开局库\n");
-        shortcutsContent.append("  Ctrl+Shift+B - 清除开局库\n");
+        // 📖 书籍
+        shortcutsContent.append("\n📖 书籍:\n");
+        shortcutsContent.append("  Ctrl+Shift+B - 加载书籍\n");
+        shortcutsContent.append("  Ctrl+Shift+C - 清除书籍\n");
+        shortcutsContent.append("  Ctrl+Shift+S - 保存书籍\n");
+        shortcutsContent.append("  Alt+Z - 撤销书籍走法\n");
+        shortcutsContent.append("  Home - 返回到棋谱初始局面\n");
 
         // 🗄️ 数据库
         shortcutsContent.append("\n🗄️ 数据库:\n");
         shortcutsContent.append("  Ctrl+D - 连接数据库\n");
-        shortcutsContent.append("  Ctrl+I - 导入到数据库\n");
+        shortcutsContent.append("  Ctrl+I - 导入数据库\n");
         shortcutsContent.append("  Ctrl+Shift+F - 搜索数据库\n");
 
         // 🪟 窗口

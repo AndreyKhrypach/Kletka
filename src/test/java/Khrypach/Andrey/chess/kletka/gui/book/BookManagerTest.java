@@ -18,9 +18,12 @@
 package Khrypach.Andrey.chess.kletka.gui.book;
 
 import Khrypach.Andrey.chess.kletka.database.model.GameTree;
+import Khrypach.Andrey.chess.kletka.gui.model.ParentNode;
 import Khrypach.Andrey.chess.kletka.gui.model.RootNode;
 import Khrypach.Andrey.chess.kletka.gui.model.Variation;
 import Khrypach.Andrey.chess.kletka.gui.settings.AppPreferences;
+import com.github.bhlangonijr.chesslib.Board;
+import com.github.bhlangonijr.chesslib.move.Move;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -243,7 +246,7 @@ class BookManagerTest {
     // ======================================================================
 
     @Test
-    void loadBook_ShouldBuildValidGameTree() {
+    void loadBook_ShouldCreateEmptyTree() {
         bookManager.loadBook(testBookPath);
 
         GameTree tree = bookManager.getCurrentBookTree();
@@ -252,13 +255,85 @@ class BookManagerTest {
         RootNode root = tree.getRootNode();
         assertNotNull(root, "Корневой узел не должен быть null");
 
+        // Ленивая модель: после loadBook дерево пустое
         List<Variation> variations = root.getSubVariations();
-        assertFalse(variations.isEmpty(), "Должны быть варианты");
+        assertTrue(variations.isEmpty(),
+                "После loadBook дерево должно быть пустым (ленивая модель)");
 
-        // Проверяем, что есть главная линия
+        // Главная линия существует как объект, но пустая
         Variation mainLine = tree.getMainLine();
         assertNotNull(mainLine, "Главная линия не должна быть null");
-        assertTrue(mainLine.isMainLine(), "Главная линия должна быть отмечена");
+    }
+
+    @Test
+    void loadVariationsForNode_ShouldPopulateRootVariations() {
+        bookManager.loadBook(testBookPath);
+
+        GameTree tree = bookManager.getCurrentBookTree();
+        RootNode root = tree.getRootNode();
+        Board startBoard = new Board();
+
+        // Загружаем продолжения из книги для корня
+        bookManager.loadVariationsForNode(root, startBoard);
+
+        List<Variation> variations = root.getSubVariations();
+        assertFalse(variations.isEmpty(),
+                "После loadVariationsForNode должны появиться варианты");
+
+        // Проверяем, что next установлен на самый весомый ход
+        ParentNode next = root.getNext();
+        assertNotNull(next, "next должен быть установлен после загрузки уровня");
+        assertFalse(next.isRoot(), "next не должен быть корнем");
+
+        // Проверяем, что первая variation помечена как mainLine
+        boolean hasMainLine = variations.stream().anyMatch(Variation::isMainLine);
+        assertTrue(hasMainLine, "Должна быть variation с флагом mainLine");
+
+        // Проверяем, что у узлов проставлен absolutePly
+        for (Variation var : variations) {
+            ParentNode first = var.getFirstNode();
+            assertNotNull(first);
+            assertTrue(first.getAbsolutePly() >= 1,
+                    "Первый ход должен иметь absolutePly >= 1, получено: "
+                            + first.getAbsolutePly());
+        }
+    }
+
+    @Test
+    void loadVariationsForNode_ShouldBeIdempotent() {
+        bookManager.loadBook(testBookPath);
+
+        GameTree tree = bookManager.getCurrentBookTree();
+        RootNode root = tree.getRootNode();
+        Board startBoard = new Board();
+
+        bookManager.loadVariationsForNode(root, startBoard);
+        int countAfterFirst = root.getSubVariations().size();
+
+        // Повторный вызов не должен дублировать варианты
+        bookManager.loadVariationsForNode(root, startBoard);
+        int countAfterSecond = root.getSubVariations().size();
+
+        assertEquals(countAfterFirst, countAfterSecond,
+                "Повторный вызов не должен добавлять варианты");
+    }
+
+    @Test
+    void loadVariationsForNode_ShouldNotLoadWhenNoEntries() {
+        bookManager.loadBook(testBookPath);
+
+        GameTree tree = bookManager.getCurrentBookTree();
+        RootNode root = tree.getRootNode();
+
+        // Позиция, которой точно нет в книге (после 1. a3, например)
+        Board board = new Board();
+        board.doMove(new Move(com.github.bhlangonijr.chesslib.Square.A2,
+                com.github.bhlangonijr.chesslib.Square.A3));
+
+        bookManager.loadVariationsForNode(root, board);
+
+        assertTrue(root.getSubVariations().isEmpty(),
+                "Для позиции вне книги не должно быть вариантов");
     }
 
     // ======================================================================

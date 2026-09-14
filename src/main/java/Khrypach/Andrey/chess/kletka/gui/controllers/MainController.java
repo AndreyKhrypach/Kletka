@@ -112,6 +112,7 @@ public class MainController {
     private IndexingProgressDialog progressDialog;
     @Getter
     private int loadedGameHash;
+    @Getter
     private int startBodyHash = 0;
     private int loadedFullHash = 0;
 
@@ -132,9 +133,23 @@ public class MainController {
         }
 
         primaryStage.addEventFilter(WindowEvent.WINDOW_CLOSE_REQUEST, event -> {
-            if (hasBodyChanges()) {
+            BookManager bookManager = BookManager.getInstance();
+                if (hasBodyChanges()) {
+                    event.consume();
+                    showSaveDialogBeforeNewGameWithCallback(() -> {
+                        closePgnBrowser();
+                        if (engineManager != null) {
+                            engineManager.stopEngine();
+                        }
+                        Platform.exit();
+                    });
+                    return;
+                }
+
+            // Проверяем изменения в книге
+            if (bookManager.isBookLoaded() && bookManager.hasUnsavedChanges()) {
                 event.consume();
-                showSaveDialogBeforeNewGameWithCallback(() -> {
+                showSaveBookDialogBeforeExit(() -> {
                     closePgnBrowser();
                     if (engineManager != null) {
                         engineManager.stopEngine();
@@ -191,9 +206,107 @@ public class MainController {
         return notationView;
     }
 
+    /**
+     * Показывает диалог сохранения книги перед выходом
+     */
+    private void showSaveBookDialogBeforeExit(Runnable onComplete) {
+        BookManager bookManager = BookManager.getInstance();
+
+        log.info("=== BEFORE EXIT DIALOG ===");
+        log.info("hasUnsavedChanges: {}", bookManager.hasUnsavedChanges());
+        log.info("dirtyEntries size: {}", bookManager.getBookEditor().getDirtyCount());
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle(lang.get(LanguageKeys.BOOK_SAVE_TITLE));
+        alert.setHeaderText(lang.get(LanguageKeys.BOOK_SAVE_HEADER));
+        alert.setContentText(lang.get(LanguageKeys.BOOK_SAVE_CONTENT));
+
+        ButtonType saveButton = new ButtonType(lang.get(SAVE_GAME_SAVE));
+        ButtonType noSaveButton = new ButtonType(lang.get(SAVE_GAME_DONT_SAVE));
+        ButtonType cancelButton = new ButtonType(lang.get(SAVE_GAME_CANCEL), ButtonBar.ButtonData.CANCEL_CLOSE);
+
+        alert.getButtonTypes().setAll(saveButton, noSaveButton, cancelButton);
+
+        alert.showAndWait().ifPresent(response -> {
+            if (response == saveButton) {
+                // Сохраняем книгу
+                try {
+                    bookManager.saveBook();
+                    boardView.updateBookUnsavedIndicator(false);
+                    if (menuFactory != null) {
+                        menuFactory.updateBooksMenu();
+                    }
+                    showNotification(String.format(
+                            lang.get(LanguageKeys.BOOK_SAVED),
+                            bookManager.getCurrentBookPath().getFileName().toString()
+                    ));
+                } catch (IOException e) {
+                    log.error("Failed to save book on exit", e);
+                    showError(lang.get(LanguageKeys.BOOK_SAVE_ERROR), e.getMessage());
+                }
+            } else if (response == noSaveButton) {
+                // Очищаем изменения без сохранения
+                bookManager.clearUnsavedChanges();
+                boardView.updateBookUnsavedIndicator(false);
+            } else {
+                // Cancel - ничего не делаем
+                return;
+            }
+
+            if (onComplete != null) {
+                onComplete.run();
+            }
+        });
+    }
+
     public void resetGame() {
         log.debug("Resetting game via MainController");
 
+        // ========== ЕСЛИ ЗАГРУЖЕНА КНИГА — ВЫГРУЖАЕМ ==========
+        BookManager bookManager = BookManager.getInstance();
+        if (bookManager.isBookLoaded()) {
+            // Проверяем, есть ли несохраненные изменения
+            if (bookManager.hasUnsavedChanges()) {
+                // Показываем диалог сохранения
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle(lang.get(LanguageKeys.BOOK_SAVE_TITLE));
+                alert.setHeaderText(lang.get(LanguageKeys.BOOK_SAVE_HEADER));
+                alert.setContentText(lang.get(LanguageKeys.BOOK_SAVE_CONTENT));
+
+                ButtonType saveButton = new ButtonType(lang.get(SAVE_GAME_SAVE));
+                ButtonType noSaveButton = new ButtonType(lang.get(SAVE_GAME_DONT_SAVE));
+                ButtonType cancelButton = new ButtonType(lang.get(SAVE_GAME_CANCEL), ButtonBar.ButtonData.CANCEL_CLOSE);
+
+                alert.getButtonTypes().setAll(saveButton, noSaveButton, cancelButton);
+
+                ButtonType result = alert.showAndWait().orElse(cancelButton);
+
+                if (result == cancelButton) {
+                    return; // Отмена — ничего не делаем
+                }
+
+                if (result == saveButton) {
+                    try {
+                        bookManager.saveBook();
+                        boardView.updateBookUnsavedIndicator(false);
+                        showNotification(String.format(
+                                lang.get(LanguageKeys.BOOK_SAVED),
+                                bookManager.getCurrentBookPath().getFileName().toString()
+                        ));
+                    } catch (IOException e) {
+                        log.error("Failed to save book", e);
+                        showError(lang.get(LanguageKeys.BOOK_SAVE_ERROR), e.getMessage());
+                        return;
+                    }
+                }
+                // Если noSaveButton — просто продолжаем без сохранения
+            }
+
+            // ========== ВЫГРУЖАЕМ КНИГУ ==========
+            clearBookInternal();
+        }
+
+        // ========== СУЩЕСТВУЮЩАЯ ЛОГИКА СБРОСА ==========
         // Останавливаем анализ перед сбросом
         if (boardView.getAnalysisPanel() != null && boardView.getAnalysisPanel().isAnalyzingActive()) {
             boardView.getAnalysisPanel().stopAnalysis();
@@ -272,6 +385,47 @@ public class MainController {
 
     public void openLastDatabase() {
         showFutureImplementationMessage();
+    }
+
+    /**
+     * Внутренний метод для выгрузки книги без показа уведомлений
+     * Используется при сбросе игры
+     */
+    private void clearBookInternal() {
+        // 1. Останавливаем анализ
+        if (boardView.getAnalysisPanel() != null &&
+                boardView.getAnalysisPanel().isAnalyzingActive()) {
+            boardView.getAnalysisPanel().stopAnalysis();
+        }
+
+        // 2. Очищаем книгу из менеджера
+        BookManager.getInstance().clearBook();
+
+        if (menuFactory != null) {
+            menuFactory.updateBooksMenu();
+        }
+
+        // 3. Переключаем режим на PGN
+        if (boardView.getNavController() != null) {
+            boardView.getNavController().setNavigationMode(NavigationMode.PGN);
+            boardView.getNavController().setBookParser(null);
+            boardView.updateNavigationModeIndicator(NavigationMode.PGN);
+        }
+
+        // 4. Сбрасываем доску в начальную позицию
+        boardView.resetGame();
+
+        // 5. Очищаем нотацию
+        if (notationView != null) {
+            notationView.clearGameData();
+            notationView.refreshDisplay();
+        }
+
+        // 6. Восстанавливаем заголовок
+        primaryStage.setTitle(lang.get(APP_TITLE));
+
+        // 7. Обновляем индикатор режима
+        boardView.updateBookUnsavedIndicator(false);
     }
 
     private void showFutureImplementationMessage() {
@@ -909,9 +1063,11 @@ public class MainController {
 
     private void onGameSelectedFromBrowser(GameData gameData) {
         if (gameData == null) {
-            log.warn("Game selection returned null");
             return;
         }
+
+        log.debug("[LOAD] onGameSelectedFromBrowser: PGN length = {}",
+                gameData.pgn() != null ? gameData.pgn().length() : 0);
 
         if (hasBodyChanges()) {
             boolean shouldContinue = showSaveDialogBeforeLoading();
@@ -970,6 +1126,9 @@ public class MainController {
                     }
 
                     boardView.refreshBoard();
+                    updateGameHashes(gameData);
+                    updateLoadedGameHash(gameData);
+
                     showNotification(String.format("%s %s %s", lang.get(LanguageKeys.MAIN_LOADED_POSITION),
                             gameData.getTypeDisplay(), lang.get(LanguageKeys.MAIN_POSITION_SOLVE_HINT)));
                     return;
@@ -1233,7 +1392,6 @@ public class MainController {
     }
 
 
-
     private String convertUnicodeToPlain(String pgn) {
         if (pgn == null || pgn.isEmpty()) return pgn;
 
@@ -1296,7 +1454,8 @@ public class MainController {
 
     /**
      * Обновляет индекс после сохранения партии
-     * @param pgnPath путь к PGN файлу
+     *
+     * @param pgnPath  путь к PGN файлу
      * @param gameData данные партии
      * @param plainPgn конвертированный PGN (ASCII)
      */
@@ -1305,81 +1464,136 @@ public class MainController {
             PgnIndexManager indexManager = new PgnIndexManager();
             Path indexPath = indexManager.getIndexPath(pgnPath);
 
-            // Если файла нет — создаем его
             if (!Files.exists(pgnPath)) {
                 Files.createFile(pgnPath);
                 log.debug("Created new PGN file: {}", pgnPath);
             }
 
-            String year = gameData.date() != null ? String.valueOf(gameData.date().getYear()) : "";
+            String year = gameData.date() != null
+                    ? String.valueOf(gameData.date().getYear())
+                    : "";
 
-            // Проверяем существование ИНДЕКСА
+            // ========== ПРОВЕРЯЕМ СУЩЕСТВОВАНИЕ ИНДЕКСА ==========
             if (Files.exists(indexPath)) {
-                PgnIndex index = indexManager.loadIndex(pgnPath);
-
-                //  ВСЕГДА добавляем новую запись
-                int newId = index.getNextId();
-                PgnFileEditor editor = new PgnFileEditor(pgnPath, index);
-                GameIndexEntry newEntry = editor.appendGame(plainPgn, newId);
-
-                // Обновляем заголовки
-                newEntry.setWhite(gameData.whitePlayer());
-                newEntry.setBlack(gameData.blackPlayer());
-                newEntry.setEco(gameData.eco());
-                newEntry.setResult(gameData.result());
-                newEntry.setYear(year);
-                newEntry.setEvent(gameData.event());
-                newEntry.setSite(gameData.site());
-                newEntry.setOpening(gameData.opening());
-                newEntry.setVariation(gameData.variation());
-                newEntry.setPlyCount(parsePlyCount(gameData.plyCount()));
-                newEntry.setHash(HashUtils.hashString(plainPgn));
-
-                index.addEntry(newEntry);
-                indexManager.saveIndex(pgnPath, index);
-
-                log.info("Index updated: added game ID {}", newId);
-
+                // ========== ИНДЕКС ЕСТЬ — БЫСТРЫЙ ПУТЬ ==========
+                updateExistingIndex(indexManager, pgnPath, gameData, plainPgn, year);
+                refreshBrowserForPath(pgnPath);
             } else {
-                // ========== НОВЫЙ ИНДЕКС ==========
-                PgnFileEditor editor = new PgnFileEditor(pgnPath, null);
-                GameIndexEntry newEntry = editor.appendGame(plainPgn, 1);
-
-                newEntry.setWhite(gameData.whitePlayer());
-                newEntry.setBlack(gameData.blackPlayer());
-                newEntry.setEco(gameData.eco());
-                newEntry.setResult(gameData.result());
-                newEntry.setYear(year);
-                newEntry.setEvent(gameData.event());
-                newEntry.setSite(gameData.site());
-                newEntry.setOpening(gameData.opening());
-                newEntry.setVariation(gameData.variation());
-                newEntry.setPlyCount(parsePlyCount(gameData.plyCount()));
-                newEntry.setHash(HashUtils.hashString(plainPgn));
-
-                PgnIndex newIndex = PgnIndex.builder()
-                        .version(PgnIndex.FORMAT_VERSION)
-                        .fileHash(indexManager.computeFileHash(pgnPath))
-                        .fileSize(Files.size(pgnPath))
-                        .gameCount(1)
-                        .activeCount(1)
-                        .entries(new java.util.ArrayList<>(List.of(newEntry)))
-                        .build();
-
-                indexManager.saveIndex(pgnPath, newIndex);
-                log.info("Created new index with game");
-            }
-
-            // ========== ОБНОВЛЯЕМ БРАУЗЕР ==========
-            PgnBrowserManager browserManager = PgnBrowserManager.getInstance();
-            PgnFileBrowser browser = browserManager.getBrowser(pgnPath);
-            if (browser != null && browser.isShowing()) {
-                browser.refresh(false);
+                // ========== ИНДЕКСА НЕТ — ПОЛНАЯ ИНДЕКСАЦИЯ С ПРОГРЕССОМ ==========
+                log.info("No index found for {}, running FULL indexing with progress", pgnPath);
+                fullIndexingWithProgress(pgnPath, plainPgn);
             }
 
         } catch (Exception e) {
             log.error("Failed to update index after save: {}", pgnPath, e);
         }
+    }
+
+    /**
+     * Полная индексация с отображением прогресса.
+     * Запускается в отдельном потоке, прогресс обновляется через Platform.runLater().
+     */
+    private void fullIndexingWithProgress(Path pgnPath, String plainPgn) {
+        // 1. Записываем партию в конец PGN-файла
+        try {
+            PgnFileEditor editor = new PgnFileEditor(pgnPath, null);
+            editor.appendGame(plainPgn, 1);
+        } catch (IOException e) {
+            log.error("Failed to append game before indexing", e);
+            showError(lang.get(PGN_SAVE_ERROR), e.getMessage());
+            return;
+        }
+
+        // 2. Показываем диалог прогресса
+        Platform.runLater(() -> {
+            progressDialog = new IndexingProgressDialog();
+            progressDialog.setTitle(lang.get(LanguageKeys.MAIN_INDEXING_TITLE_MSG));
+            progressDialog.show();
+        });
+
+        // 3. Запускаем индексацию в отдельном потоке
+        new Thread(() -> {
+            try {
+                PgnIndexingFacade facade = new PgnIndexingFacade();
+
+                PgnIndex fullIndex = facade.indexFile(pgnPath, progress ->
+                        Platform.runLater(() -> {
+                            if (progressDialog != null) {
+                                progressDialog.updateProgress(progress);
+                            }
+                        })
+                );
+
+                log.info("Full indexing complete: {} games, {} active",
+                        fullIndex.getGameCount(), fullIndex.getActiveCount());
+
+                Platform.runLater(() -> {
+                    if (progressDialog != null) {
+                        progressDialog.close();
+                        progressDialog = null;
+                    }
+                    showNotification(String.format(
+                            lang.get(LanguageKeys.MAIN_INDEXING_COMPLETE),
+                            fullIndex.getGameCount(),
+                            fullIndex.getActiveCount()
+                    ));
+                    refreshBrowserForPath(pgnPath);
+                });
+
+            } catch (IOException e) {
+                log.error("Full indexing failed", e);
+                Platform.runLater(() -> {
+                    if (progressDialog != null) {
+                        progressDialog.close();
+                        progressDialog = null;
+                    }
+                    showError(lang.get(LanguageKeys.MAIN_INDEXING_ERROR_MSG), e.getMessage());
+                });
+            }
+        }).start();
+    }
+
+    /**
+     * Обновляет браузер для указанного пути.
+     */
+    private void refreshBrowserForPath(Path pgnPath) {
+        PgnBrowserManager browserManager = PgnBrowserManager.getInstance();
+        PgnFileBrowser browser = browserManager.getBrowser(pgnPath);
+        if (browser != null && browser.isShowing()) {
+            browser.refresh(false);
+        }
+    }
+
+    /**
+     * Обновляет существующий индекс (быстрый путь).
+     */
+    private void updateExistingIndex(PgnIndexManager indexManager, Path pgnPath,
+                                     GameData gameData, String plainPgn, String year)
+            throws IOException {
+
+        PgnIndex index = indexManager.loadIndex(pgnPath);
+        int newId = index.getNextId();
+
+        PgnFileEditor editor = new PgnFileEditor(pgnPath, index);
+        GameIndexEntry newEntry = editor.appendGame(plainPgn, newId);
+
+        // Заполняем поля
+        newEntry.setWhite(gameData.whitePlayer());
+        newEntry.setBlack(gameData.blackPlayer());
+        newEntry.setEco(gameData.eco());
+        newEntry.setResult(gameData.result());
+        newEntry.setYear(year);
+        newEntry.setEvent(gameData.event());
+        newEntry.setSite(gameData.site());
+        newEntry.setOpening(gameData.opening());
+        newEntry.setVariation(gameData.variation());
+        newEntry.setPlyCount(parsePlyCount(gameData.plyCount()));
+        newEntry.setHash(HashUtils.hashString(plainPgn));
+
+        index.addEntry(newEntry);
+        indexManager.saveIndex(pgnPath, index);
+
+        log.info("Index updated (fast path): added game ID {}", newId);
     }
 
     public void loadNextGameFromBrowser() {
@@ -1738,6 +1952,11 @@ public class MainController {
             return false;
         }
 
+        // ========== В BOOK РЕЖИМЕ НЕ ПРОВЕРЯЕМ PGN ИЗМЕНЕНИЯ ==========
+        if (boardView.getNavController() != null && boardView.getNavController().getNavigationMode() == NavigationMode.BOOK) {
+            return false;
+        }
+
         GameData currentData = notationView.getCurrentGameData();
         if (currentData == null) {
             log.debug("hasBodyChanges: currentData is null");
@@ -1756,18 +1975,50 @@ public class MainController {
     public void updateCurrentGameData() {
         if (notationView == null) return;
 
-        String currentPgn = notationView.getCurrentPGN();
-        if (currentPgn == null || currentPgn.isEmpty()) return;
-
-        try {
-            PgnParser parser = new PgnParser();
-            GameData currentData = parser.parse(currentPgn);
-            if (currentData != null) {
-                notationView.updateGameData(currentData);
-            }
-        } catch (Exception e) {
-            log.warn("Failed to update current GameData: {}", e.getMessage());
+        GameData currentData = notationView.getCurrentGameData();
+        if (currentData == null) {
+            log.debug("updateCurrentGameData: creating new GameData for fresh game");
+            currentData = notationView.createDefaultGameData();
         }
+
+        // Актуальный PGN из дерева (с вариантами)
+        String freshPgn = notationView.getCurrentPGN();
+        if (freshPgn == null || freshPgn.isEmpty()) {
+            log.debug("updateCurrentGameData: freshPgn is empty, skipping");
+            return;
+        }
+
+        // Собираем новый GameData, меняем ТОЛЬКО pgn
+        GameData updated = new GameData(
+                currentData.whitePlayer(),
+                currentData.blackPlayer(),
+                currentData.result(),
+                currentData.whiteElo(),
+                currentData.blackElo(),
+                currentData.event(),
+                currentData.site(),
+                currentData.round(),
+                currentData.subround(),
+                currentData.date(),
+                currentData.eco(),
+                currentData.opening(),
+                currentData.variation(),
+                currentData.annotator(),
+                currentData.whiteTeam(),
+                currentData.blackTeam(),
+                currentData.source(),
+                currentData.whiteFideId(),
+                currentData.blackFideId(),
+                currentData.timeControl(),
+                currentData.plyCount(),
+                freshPgn,                 // ← обновили только это
+                currentData.fen(),
+                currentData.isSetUp(),
+                currentData.positionType(),
+                currentData.deleted()
+        );
+
+        notationView.updateGameData(updated);
     }
 
     public void setupPosition() {
@@ -2036,7 +2287,6 @@ public class MainController {
                 }
             }
 
-            // ===== ЗАГРУЖАЕМ КНИГУ ЧЕРЕЗ BookManager =====
             BookManager bookManager = BookManager.getInstance();
             boolean loaded = bookManager.loadBook(bookFile.toPath());
 
@@ -2045,23 +2295,14 @@ public class MainController {
                 return;
             }
 
-            bookManager.addToRecent(bookFile.getPath());
-            AppPreferences.saveRecentBook(bookFile.getPath());
-
-            if (menuFactory != null) {
-                menuFactory.updateBooksMenu();
-            }
-
-            // Получаем дерево и парсер из BookManager
             GameTree bookTree = bookManager.getCurrentBookTree();
             PolyglotBookParser parser = bookManager.getCurrentParser();
 
-            if (bookTree == null || bookTree.isEmpty()) {
+            if (bookTree == null || parser == null) {
                 showNotification(lang.get(LanguageKeys.BOOK_LOAD_ERROR));
                 return;
             }
 
-            // ===== ПЕРЕДАЁМ ПАРСЕР В НАВИГАТОР =====
             boardView.getNavController().setBookParser(parser);
             bookManager.setCurrentBookPath(bookFile.toPath());
             bookManager.setCurrentBookTree(bookTree);
@@ -2069,7 +2310,7 @@ public class MainController {
             bookManager.addToRecent(bookFile.getPath());
             AppPreferences.saveRecentBook(bookFile.getPath());
 
-            // Загружаем дерево в навигатор
+            // Загружаем пустое дерево в навигатор
             boardView.getNavController().loadGameTree(
                     bookTree.getRootNode(),
                     bookTree.getMainLine(),
@@ -2080,6 +2321,9 @@ public class MainController {
             // Устанавливаем режим книги
             boardView.getNavController().setNavigationMode(NavigationMode.BOOK);
 
+            // Загружаем корневой уровень (первые ходы книги)
+            boardView.getNavController().loadRootLevel();
+
             boardView.requestFocusOnScene();
 
             // Обновляем отображение
@@ -2087,11 +2331,11 @@ public class MainController {
             notationView.refreshFromMainLine();
             notationView.updateNotationDisplayWithVisitor();
 
-            // Обновляем заголовок
             String bookName = bookFile.getName();
+            notationView.getPlayersInfoLabel().setText("📖 " + bookName);
+
             primaryStage.setTitle(lang.get(APP_TITLE) + " - " + bookName + " " + lang.get(LanguageKeys.BOOK_MODE));
 
-            // Показываем уведомление
             String message = String.format(
                     lang.get(LanguageKeys.BOOK_LOADED),
                     bookName,
@@ -2099,10 +2343,9 @@ public class MainController {
             );
             showNotification(message);
 
-            // Обновляем индикатор режима
             boardView.updateNavigationModeIndicator(NavigationMode.BOOK);
+            boardView.updateBookUnsavedIndicator(false);
 
-            // Останавливаем анализ
             if (boardView.getAnalysisPanel() != null &&
                     boardView.getAnalysisPanel().isAnalyzingActive()) {
                 boardView.getAnalysisPanel().stopAnalysis();
@@ -2152,9 +2395,84 @@ public class MainController {
 
         // 7. Обновляем индикатор режима
         boardView.updateNavigationModeIndicator(NavigationMode.PGN);
+        boardView.updateBookUnsavedIndicator(false);
 
         // 8. Показываем уведомление
         showNotification(lang.get(LanguageKeys.BOOK_CLEARED));
+    }
+
+    /**
+     * Сохраняет текущую Polyglot книгу
+     */
+    public void savePolyglotBook() {
+        BookManager bookManager = BookManager.getInstance();
+
+        if (!bookManager.isBookLoaded()) {
+            showNotification(lang.get(LanguageKeys.BOOK_NOT_LOADED));
+            return;
+        }
+        if (!bookManager.hasUnsavedChanges()) {
+            showNotification(lang.get(LanguageKeys.BOOK_NO_CHANGES));
+            return;
+        }
+
+        Path bookPath = bookManager.getCurrentBookPath();
+        if (bookPath == null) {
+            showNotification(lang.get(LanguageKeys.BOOK_NO_PATH));
+            return;
+        }
+
+        try {
+            Alert progressAlert = new Alert(Alert.AlertType.INFORMATION);
+            progressAlert.setTitle(lang.get(LanguageKeys.BOOK_SAVING));
+            progressAlert.setHeaderText(null);
+            progressAlert.setContentText(lang.get(LanguageKeys.BOOK_SAVING_MSG));
+            progressAlert.show();
+
+            // saveBook внутри закрывает mmap, сохраняет, очищает dirtyEntries, снова открывает книгу
+            boardView.getNavController().setBookParser(null);
+            bookManager.saveBook();
+
+            progressAlert.close();
+
+            boardView.updateBookUnsavedIndicator(false);
+
+            if (menuFactory != null) {
+                menuFactory.updateBooksMenu();
+            }
+
+            showNotification(String.format(
+                    lang.get(LanguageKeys.BOOK_SAVED),
+                    bookPath.getFileName().toString()
+            ));
+
+            // После saveBook дерево уже пустое и заново открыто.
+            // Передаём свежий парсер и пустое дерево в навигатор.
+            if (boardView.getNavController() != null) {
+                PolyglotBookParser freshParser = bookManager.getCurrentParser();
+                GameTree freshTree = bookManager.getCurrentBookTree();
+
+                boardView.getNavController().setBookParser(freshParser);
+                boardView.getNavController().loadGameTree(
+                        freshTree.getRootNode(),
+                        freshTree.getMainLine(),
+                        freshTree.getRootVariation(),
+                        freshTree.getInitialBoard()
+                );
+                boardView.getNavController().setNavigationMode(NavigationMode.BOOK);
+                boardView.getNavController().loadRootLevel();
+
+                boardView.refreshBoard();
+                if (notationView != null) {
+                    notationView.refreshFromMainLine();
+                    notationView.updateNotationDisplayWithVisitor();
+                }
+            }
+
+        } catch (IOException e) {
+            log.error("Failed to save book", e);
+            showError(lang.get(LanguageKeys.BOOK_SAVE_ERROR), e.getMessage());
+        }
     }
 
     /**
@@ -2180,7 +2498,17 @@ public class MainController {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(title);
         alert.setHeaderText(null);
-        alert.setContentText(content);
+
+        TextArea textArea = new TextArea(content);
+        textArea.setEditable(false);
+        textArea.setWrapText(true);
+        textArea.setPrefWidth(600);
+        textArea.setPrefHeight(500);
+
+        alert.getDialogPane().setContent(textArea);
+        alert.getDialogPane().setPrefWidth(650);
+        alert.getDialogPane().setPrefHeight(600);
+
         alert.showAndWait();
     }
 

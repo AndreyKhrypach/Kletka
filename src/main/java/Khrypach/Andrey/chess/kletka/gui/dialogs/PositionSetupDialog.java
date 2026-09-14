@@ -91,6 +91,8 @@ public class PositionSetupDialog {
 
     private boolean isUpdatingSideToMove = false;
 
+    private boolean boardFlipped = false;
+
     public PositionSetupDialog(Stage owner, Board initialBoard) {
         this.resultBoard = initialBoard.clone();
         this.sideToMove = initialBoard.getSideToMove();
@@ -316,6 +318,7 @@ public class PositionSetupDialog {
         blackQueenSideCastling.setOnAction(e -> updateFenFromCastling());
 
         Button resetCastlingBtn = getResetCastlingBtn();
+        Button flipBoardBtn = getFlipBoardBtn();
 
         Label moveLabel = new Label(lang.get(SETUP_SIDE_TO_MOVE));
         moveLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
@@ -415,6 +418,7 @@ public class PositionSetupDialog {
                 whiteCastlingLabel, whiteKingSideCastling, whiteQueenSideCastling,
                 blackCastlingLabel, blackKingSideCastling, blackQueenSideCastling,
                 resetCastlingBtn,
+                flipBoardBtn,
                 moveLabel, moveBox,
                 fenLabel, fenField, copyFenBtn,
                 controlLabel, startBtn, clearBtn,
@@ -482,41 +486,50 @@ public class PositionSetupDialog {
         String coordStyle = "-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #f5e6d3; " +
                 "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 1, 0.5, 0, 0);";
 
+        // ========== УЧИТЫВАЕМ ПЕРЕВОРОТ ДОСКИ ==========
         for (int col = 0; col < 8; col++) {
-            Label label = new Label(files[col]);
-            label.setAlignment(Pos.CENTER);
-            label.setPrefSize(TILE_SIZE, 20);
-            label.setStyle(coordStyle);
-            boardGrid.add(label, col + 1, 0);
-        }
+            // Верхние буквы
+            String column = boardFlipped ? files[7 - col] : files[col];
+            Label labelTop = new Label(column);
+            labelTop.setAlignment(Pos.CENTER);
+            labelTop.setPrefSize(TILE_SIZE, 20);
+            labelTop.setStyle(coordStyle);
+            boardGrid.add(labelTop, col + 1, 0);
 
-        for (int col = 0; col < 8; col++) {
-            Label label = new Label(files[col]);
-            label.setAlignment(Pos.CENTER);
-            label.setPrefSize(TILE_SIZE, 20);
-            label.setStyle(coordStyle);
-            boardGrid.add(label, col + 1, 9);
+            // Нижние буквы
+            Label labelBottom = new Label(column);
+            labelBottom.setAlignment(Pos.CENTER);
+            labelBottom.setPrefSize(TILE_SIZE, 20);
+            labelBottom.setStyle(coordStyle);
+            boardGrid.add(labelBottom, col + 1, 9);
         }
 
         for (int row = 0; row < 8; row++) {
-            Label label = new Label(ranks[row]);
-            label.setAlignment(Pos.CENTER);
-            label.setPrefSize(20, TILE_SIZE);
-            label.setStyle(coordStyle);
-            boardGrid.add(label, 0, row + 1);
+            // Левые цифры
+            String rank = boardFlipped ? ranks[7 - row] : ranks[row];
+            Label labelLeft = new Label(rank);
+            labelLeft.setAlignment(Pos.CENTER);
+            labelLeft.setPrefSize(20, TILE_SIZE);
+            labelLeft.setStyle(coordStyle);
+            boardGrid.add(labelLeft, 0, row + 1);
+
+            // Правые цифры
+            Label labelRight = new Label(rank);
+            labelRight.setAlignment(Pos.CENTER);
+            labelRight.setPrefSize(20, TILE_SIZE);
+            labelRight.setStyle(coordStyle);
+            boardGrid.add(labelRight, 9, row + 1);
         }
 
-        for (int row = 0; row < 8; row++) {
-            Label label = new Label(ranks[row]);
-            label.setAlignment(Pos.CENTER);
-            label.setPrefSize(20, TILE_SIZE);
-            label.setStyle(coordStyle);
-            boardGrid.add(label, 9, row + 1);
-        }
-
+        // ========== КЛЕТКИ ==========
         for (int row = 0; row < 8; row++) {
             for (int col = 0; col < 8; col++) {
-                Square square = Square.squareAt((7 - row) * 8 + col);
+                // Определяем "шахматные" координаты с учётом переворота
+                int chessRow = boardFlipped ? row : 7 - row;
+                int chessCol = boardFlipped ? 7 - col : col;
+                Square square = Square.squareAt(chessRow * 8 + chessCol);
+
+                // Передаём displayRow и displayCol для правильной отрисовки цвета
                 StackPane cell = createCell(square, row, col);
                 boardGrid.add(cell, col + 1, row + 1);
             }
@@ -544,11 +557,11 @@ public class PositionSetupDialog {
         StackPane cell = new StackPane();
         cell.setMinSize(TILE_SIZE, TILE_SIZE);
         cell.setPrefSize(TILE_SIZE, TILE_SIZE);
-        cell.setStyle("-fx-border-color: #5a3e1b; -fx-border-width: 1;");
 
+        // Цвет определяется по ОТОБРАЖАЕМЫМ координатам (row, col)
         Color baseColor = (row + col) % 2 == 0 ?
                 Color.rgb(240, 217, 181) : Color.rgb(181, 136, 99);
-        cell.setStyle("-fx-background-color: " + toRgbString(baseColor) + ";");
+        cell.setStyle("-fx-background-color: " + toRgbString(baseColor) + "; -fx-border-color: #5a3e1b; -fx-border-width: 1;");
 
         Piece piece = resultBoard.getPiece(square);
         ImageView pieceImage;
@@ -1194,5 +1207,16 @@ public class PositionSetupDialog {
         fadeIn.setOnFinished(e -> pause.play());
         pause.setOnFinished(e -> fadeOut.play());
         fadeIn.play();
+    }
+
+    private Button getFlipBoardBtn() {
+        Button flipBtn = new Button("🔄 " + lang.get(SETUP_FLIP_BOARD));
+        flipBtn.setStyle("-fx-background-color: #8b5a2b; -fx-text-fill: white; -fx-font-weight: bold;");
+        flipBtn.setMaxWidth(Double.MAX_VALUE);
+        flipBtn.setOnAction(e -> {
+            boardFlipped = !boardFlipped;
+            updateBoardGrid();  // перерисовываем доску
+        });
+        return flipBtn;
     }
 }

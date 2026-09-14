@@ -36,19 +36,24 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
 public class VariationChoiceDialog {
-
+    private static final Logger log = LoggerFactory.getLogger(VariationChoiceDialog.class);
 
     private Choice selectedChoice = null;
     private final List<Choice> choices;
     private ListView<String> listView;
     private final LanguageManager lang = LanguageManager.getInstance();
 
-    public VariationChoiceDialog(List<Choice> choices) {
+    private final javafx.stage.Window owner;
+
+    public VariationChoiceDialog(List<Choice> choices, javafx.stage.Window owner) {
         this.choices = choices;
+        this.owner = owner;
     }
 
     public Choice showAndWait() {
@@ -57,6 +62,10 @@ public class VariationChoiceDialog {
         dialogStage.initStyle(StageStyle.UTILITY);
         dialogStage.setTitle(lang.get(LanguageKeys.DIALOG_VARIATION_TITLE));
         dialogStage.setResizable(false);
+
+        if (owner != null) {
+            dialogStage.initOwner(owner);
+        }
 
         VBox root = new VBox(15);
         root.setPadding(new Insets(20));
@@ -76,8 +85,12 @@ public class VariationChoiceDialog {
             listView.getItems().add(choice.description);
         }
 
+        log.trace("=== VariationChoiceDialog ===");
+        log.trace("  choices.size(): {}", choices.size());
+
         if (!choices.isEmpty()) {
             listView.getSelectionModel().select(0);
+            log.trace("  auto-selected index 0: '{}'", choices.get(0).description());
         }
 
         listView.setOnMouseClicked(e -> {
@@ -110,8 +123,14 @@ public class VariationChoiceDialog {
         scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
             if (event.getCode() == KeyCode.RIGHT || event.getCode() == KeyCode.ENTER) {
                 int index = listView.getSelectionModel().getSelectedIndex();
+                log.trace("ENTER/RIGHT pressed, selected index: {}", index);
                 if (index >= 0) {
                     selectedChoice = choices.get(index);
+
+                    log.trace("Returning choice: desc='{}', isNewVariation={}, varName='{}'",
+                            selectedChoice.description(), selectedChoice.isNewVariation(),
+                            selectedChoice.variation() != null ? selectedChoice.variation().getName() : "null");
+
                     Platform.runLater(dialogStage::close);
                 }
                 event.consume();
@@ -145,16 +164,11 @@ public class VariationChoiceDialog {
             dialogStage.toFront();
         }));
 
-        dialogStage.setOnShown(e -> {
-            javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(
-                    javafx.util.Duration.millis(100)
-            );
-            pause.setOnFinished(ev -> {
-                listView.requestFocus();
-                dialogStage.toFront();
-            });
-            pause.play();
-        });
+        dialogStage.setOnShown(e -> Platform.runLater(() -> {
+            dialogStage.requestFocus();
+            listView.requestFocus();
+            dialogStage.toFront();
+        }));
 
         dialogStage.showAndWait();
         return selectedChoice;
@@ -163,7 +177,7 @@ public class VariationChoiceDialog {
     public record Choice(Variation variation, String description, boolean isNewVariation) {
 
         public Choice(String description, Variation variation, boolean isNewVariation) {
-                this(variation, description, isNewVariation);
-            }
+            this(variation, description, isNewVariation);
         }
+    }
 }

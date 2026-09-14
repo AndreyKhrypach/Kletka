@@ -81,7 +81,9 @@ public class NotationView extends VBox {
     private GameData currentGameData;
 
     private final Label titleLabel;
-    private final Label playersInfoLabel;
+    @Getter
+    @Setter
+    private Label playersInfoLabel;
 
     private final HBox buttonBox;
 
@@ -434,6 +436,11 @@ public class NotationView extends VBox {
     public ContextMenu createContextMenu(Variation variation, MoveNode node) {
         ContextMenu contextMenu = new ContextMenu();
 
+        // ========== ПРОВЕРКА РЕЖИМА ==========
+        boolean isBookMode = navController != null &&
+                navController.getNavigationMode() == NavigationMode.BOOK;
+
+        // ========== 1. АННОТАЦИИ И КОММЕНТАРИИ (ВСЕГДА ДОСТУПНЫ) ==========
         MenuItem annotateItem;
         if (node.getComment() != null && !node.getComment().isEmpty()) {
             annotateItem = new MenuItem("✏️ " + lang.get(CONTEXT_MENU_EDIT_COMMENT));
@@ -461,6 +468,7 @@ public class NotationView extends VBox {
 
         contextMenu.getItems().add(new SeparatorMenuItem());
 
+        // ========== 2. СДЕЛАТЬ ГЛАВНОЙ ЛИНИЕЙ (НЕДОСТУПНО В BOOK РЕЖИМЕ) ==========
         if (variation != navController.getMainLine() && variation != navController.getRootVariation()) {
             MenuItem makeMainItem = new MenuItem(lang.get(CONTEXT_MENU_MAKE_MAIN));
             makeMainItem.setOnAction(e -> {
@@ -469,11 +477,19 @@ public class NotationView extends VBox {
                     updateNotationDisplayWithVisitor();
                 }
             });
+
+            // ========== БЛОКИРУЕМ В BOOK РЕЖИМЕ ==========
+            if (isBookMode) {
+                makeMainItem.setDisable(true);
+                makeMainItem.setText(lang.get(CONTEXT_MENU_MAKE_MAIN) + " " + lang.get(BOOK_MODE_DISABLED));
+            }
             contextMenu.getItems().add(makeMainItem);
         }
 
+        // ========== 3. УДАЛИТЬ ВСЕ ХОДЫ ПОСЛЕ (НЕДОСТУПНО В BOOK РЕЖИМЕ) ==========
         if (node.getNext() != null || !node.getSubVariations().isEmpty()) {
             contextMenu.getItems().add(new SeparatorMenuItem());
+
             MenuItem deleteAfterItem = new MenuItem(lang.get(CONTEXT_MENU_DELETE_AFTER));
             deleteAfterItem.setStyle("-fx-text-fill: #cc0000;");
             deleteAfterItem.setOnAction(e -> {
@@ -491,27 +507,61 @@ public class NotationView extends VBox {
                     }
                 });
             });
+
+            // ========== БЛОКИРУЕМ В BOOK РЕЖИМЕ ==========
+            if (isBookMode) {
+                deleteAfterItem.setDisable(true);
+                deleteAfterItem.setText(lang.get(CONTEXT_MENU_DELETE_AFTER) + " " + lang.get(BOOK_MODE_DISABLED));
+            }
             contextMenu.getItems().add(deleteAfterItem);
         }
 
+        // ========== 4. УДАЛИТЬ ВАРИАНТ (НЕДОСТУПНО В BOOK РЕЖИМЕ) ==========
         if (!variation.isMainLine()) {
             contextMenu.getItems().add(new SeparatorMenuItem());
+
             MenuItem deleteVariationItem = new MenuItem(lang.get(CONTEXT_MENU_DELETE_VARIATION));
             deleteVariationItem.setStyle("-fx-text-fill: #cc0000;");
             deleteVariationItem.setOnAction(e -> deleteCurrentVariation());
+
+            // ========== БЛОКИРУЕМ В BOOK РЕЖИМЕ ==========
+            if (isBookMode) {
+                deleteVariationItem.setDisable(true);
+                deleteVariationItem.setText(lang.get(CONTEXT_MENU_DELETE_VARIATION) + " " + lang.get(BOOK_MODE_DISABLED));
+            }
             contextMenu.getItems().add(deleteVariationItem);
         }
 
+        // ========== 5. РЕЗУЛЬТАТ (НЕДОСТУПНО В BOOK РЕЖИМЕ) ==========
         if (variation == navController.getMainLine()) {
             contextMenu.getItems().add(new SeparatorMenuItem());
+
             MenuItem whiteWin = new MenuItem(lang.get(CONTEXT_MENU_RESULT_WHITE_WIN));
             whiteWin.setOnAction(e -> setGameResult("1-0"));
+
             MenuItem blackWin = new MenuItem(lang.get(CONTEXT_MENU_RESULT_BLACK_WIN));
             blackWin.setOnAction(e -> setGameResult("0-1"));
+
             MenuItem draw = new MenuItem(lang.get(CONTEXT_MENU_RESULT_DRAW));
             draw.setOnAction(e -> setGameResult("1/2-1/2"));
+
             MenuItem unknown = new MenuItem(lang.get(CONTEXT_MENU_RESULT_UNKNOWN));
             unknown.setOnAction(e -> setGameResult("*"));
+
+            // ========== БЛОКИРУЕМ В BOOK РЕЖИМЕ ==========
+            if (isBookMode) {
+                whiteWin.setDisable(true);
+                blackWin.setDisable(true);
+                draw.setDisable(true);
+                unknown.setDisable(true);
+                // Добавляем пояснение
+                String disabledSuffix = " " + lang.get(BOOK_MODE_DISABLED);
+                whiteWin.setText(lang.get(CONTEXT_MENU_RESULT_WHITE_WIN) + disabledSuffix);
+                blackWin.setText(lang.get(CONTEXT_MENU_RESULT_BLACK_WIN) + disabledSuffix);
+                draw.setText(lang.get(CONTEXT_MENU_RESULT_DRAW) + disabledSuffix);
+                unknown.setText(lang.get(CONTEXT_MENU_RESULT_UNKNOWN) + disabledSuffix);
+            }
+
             contextMenu.getItems().addAll(whiteWin, blackWin, draw, unknown);
         }
 
@@ -626,6 +676,13 @@ public class NotationView extends VBox {
 
     public void updateGameData(GameData gameData) {
         this.currentGameData = gameData;
+
+        // ========== ЕСЛИ РЕЖИМ КНИГИ — НЕ ОБНОВЛЯЕМ РЕЗУЛЬТАТ ==========
+        if (navController != null && navController.getNavigationMode() == NavigationMode.BOOK) {
+            updatePlayersInfo(null);
+            // Показываем имя книги через updatePlayersInfo()
+            return;
+        }
 
         if (gameData != null && gameData.result() != null) {
             this.gameResult = gameData.result();
@@ -767,19 +824,16 @@ public class NotationView extends VBox {
     }
 
     private String getMovesFromTree() {
-        if (navController == null) {
-            return "";
-        }
+        if (navController == null) return "";
 
         Variation mainLine = navController.getMainLine();
         RootNode rootNode = (RootNode) navController.getRootVariation().getFirstNode();
 
-        if (rootNode == null || mainLine == null) {
-            return "";
-        }
+        if (rootNode == null || mainLine == null) return "";
 
         PgnExportVisitor pgnVisitor = new PgnExportVisitor();
         VariationTreeTraverser traverser = new VariationTreeTraverser();
+
         return traverser.traverse(rootNode, mainLine, pgnVisitor);
     }
 
@@ -832,6 +886,16 @@ public class NotationView extends VBox {
 
     public void updatePlayersInfo(GameData gameData) {
         if (playersInfoLabel == null) return;
+
+        // ========== ЕСЛИ РЕЖИМ КНИГИ — ПОКАЗЫВАЕМ ИМЯ КНИГИ ==========
+        if (navController != null && navController.getNavigationMode() == NavigationMode.BOOK) {
+            BookManager bookManager = BookManager.getInstance();
+            if (bookManager.isBookLoaded() && bookManager.getCurrentBookPath() != null) {
+                String bookName = bookManager.getCurrentBookPath().getFileName().toString();
+                playersInfoLabel.setText("📖 " + bookName);
+                return;
+            }
+        }
 
         String whiteName = lang.get(LanguageKeys.DEFAULT_PLAYER_NAME);
         String blackName = lang.get(LanguageKeys.DEFAULT_PLAYER_NAME);

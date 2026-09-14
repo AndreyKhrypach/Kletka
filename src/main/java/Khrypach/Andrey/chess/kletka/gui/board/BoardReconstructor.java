@@ -67,7 +67,7 @@ public class BoardReconstructor {
         log.trace("Path size: {}", path.size());
 
         if (path.isEmpty()) {
-            log.warn("Empty path for node: {}", targetNode.getSan());
+            log.trace("Empty path for node: {}", targetNode.getSan());
             return board;
         }
 
@@ -90,7 +90,7 @@ public class BoardReconstructor {
                         board.doMove(move);
                         log.trace("    Applied move: {}", node.getSan());
                     } else {
-                        log.warn("Move NOT legal: {}", node.getSan());
+                        log.trace("Move NOT legal: {}", node.getSan());
                     }
                 } catch (Exception e) {
                     log.error("Error applying move {}: {}", node.getSan(), e.getMessage());

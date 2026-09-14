@@ -131,7 +131,7 @@ public class PgnTokenizer {
                     log.trace("Token #{}: {}", tokenCount, token);
                 }
             } else {
-                log.warn("Failed to parse at position {}: '{}' (0x{})",
+                log.trace("Failed to parse at position {}: '{}' (0x{})",
                         position, current, Integer.toHexString(current));
                 position++;
                 column++;
@@ -289,8 +289,10 @@ public class PgnTokenizer {
             return createToken(tokenValue, startLine, startColumn);
         }
 
-        log.warn("Unknown token at position {}: '{}' (0x{})",
-                position, current, Integer.toHexString(current));
+        log.trace("Unknown token at position {}: '{}' (0x{}). Context: '...{}...'",
+                position, current, Integer.toHexString(current),
+                input.substring(Math.max(0, position - 20), Math.min(input.length(), position + 20)));
+
         position++;
         column++;
         return null;

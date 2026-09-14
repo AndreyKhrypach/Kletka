@@ -323,6 +323,7 @@ public class LanguageKeys {
     public static final String SETUP_FEN_PROMPT = "setup.fenPrompt";
     public static final String SETUP_CONTROL = "setup.control";
     public static final String SETUP_KING_IN_CHECK = "setup.kingInCheck";
+    public static final String SETUP_FLIP_BOARD = "setup.flip.board";
 
     // Навигация
     public static final String NAV_FIRST = "nav.first";
@@ -339,12 +340,26 @@ public class LanguageKeys {
 
     // ========== КНИГИ ==========
     public static final String BOOK_MODE = "book.mode";
+    public static final String BOOK_MODE_DISABLED = "book.mode.disabled";
+
     public static final String BOOK_LOADED = "book.loaded";
     public static final String BOOK_NO_BOOK = "book.no.book";
     public static final String BOOK_STATS = "book.stats";
     public static final String BOOK_ENTRIES = "book.entries";
     public static final String BOOK_LOAD_ERROR = "book.load.error";
     public static final String BOOK_CLEARED = "book.cleared";
+
+    public static final String BOOK_SAVE_TITLE  = "book.save.title";
+    public static final String BOOK_SAVE_HEADER  = "book.save.header";
+    public static final String BOOK_SAVE_CONTENT  = "book.save.content";
+    public static final String BOOK_SAVED  = "book.saved";
+    public static final String BOOK_SAVE_ERROR  = "book.save.error";
+    public static final String BOOK_NOT_LOADED  = "book.not.loaded";
+    public static final String BOOK_NO_CHANGES  = "book.no.changes";
+    public static final String BOOK_NO_PATH  = "book.no.path";
+    public static final String BOOK_SAVING  = "book.saving";
+    public static final String BOOK_SAVING_MSG  = "book.saving.msg";
+    public static final String BOOK_NO_UNDO  = "book.no.undo";
 
     // ========== МЕНЮ "КНИГИ" ==========
     public static final String MENU_BOOKS = "menu.books";
@@ -365,6 +380,8 @@ public class LanguageKeys {
     public static final String MENU_BOOKS_INFO_SIZE = "menu.books.info.size";
     public static final String MENU_BOOKS_INFO_ENTRIES = "menu.books.info.entries";
     public static final String MENU_BOOKS_INFO_VARIATIONS = "menu.books.info.variations";
+    public static final String MENU_BOOKS_SAVE  = "menu.books.save";
+    public static final String MENU_BOOKS_UNDO_MOVE  = "menu.books.undo.move";
 
     // Статус и уведомления
     public static final String NOTIFICATION_INFO = "notification.info";

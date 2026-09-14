@@ -306,6 +306,7 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.SETUP_FEN_PROMPT, "Enter FEN...");
         strings.put(LanguageKeys.SETUP_CONTROL, "Controls:");
         strings.put(LanguageKeys.SETUP_KING_IN_CHECK, "Cannot set %s to move - king is in check!");
+        strings.put(LanguageKeys.SETUP_FLIP_BOARD, "Flip board");
 
         // Navigation
         strings.put(LanguageKeys.NAV_FIRST, "⏮");
@@ -319,13 +320,26 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.NAVIGATION_MODE, "Navigation Mode");
         strings.put(LanguageKeys.NAVIGATION_MODE_PGN, "PGN");
         strings.put(LanguageKeys.NAVIGATION_MODE_BOOK, "Book");
-        strings.put(LanguageKeys.BOOK_MODE, "\uD83D\uDCD6 Book");
+        strings.put(LanguageKeys.BOOK_MODE, "♟ Book");
+        strings.put(LanguageKeys.BOOK_MODE_DISABLED, "disabled in book mode");
         strings.put(LanguageKeys.BOOK_LOADED, "Book loaded");
         strings.put(LanguageKeys.BOOK_NO_BOOK, "No book loaded");
         strings.put(LanguageKeys.BOOK_STATS, "Statistics");
         strings.put(LanguageKeys.BOOK_ENTRIES, "entries");
         strings.put(LanguageKeys.BOOK_LOAD_ERROR, "Failed to load book");
         strings.put(LanguageKeys.BOOK_CLEARED, "Book cleared");
+
+        strings.put(LanguageKeys.BOOK_SAVE_TITLE, "Save book");
+        strings.put(LanguageKeys.BOOK_SAVE_HEADER, "The book has unsaved changes");
+        strings.put(LanguageKeys.BOOK_SAVE_CONTENT, "Do you want to save changes before exiting?");
+        strings.put(LanguageKeys.BOOK_SAVED, "Book {%s} saved");
+        strings.put(LanguageKeys.BOOK_SAVE_ERROR, "Error saving book");
+        strings.put(LanguageKeys.BOOK_NOT_LOADED, "Book not loaded");
+        strings.put(LanguageKeys.BOOK_NO_CHANGES, "No changes to save");
+        strings.put(LanguageKeys.BOOK_NO_PATH, "Book path not found");
+        strings.put(LanguageKeys.BOOK_SAVING, "Saving book");
+        strings.put(LanguageKeys.BOOK_SAVING_MSG, "Please wait...");
+        strings.put(LanguageKeys.BOOK_NO_UNDO, "No actions to undo");
 
         //Меню книги
         strings.put(LanguageKeys.MENU_BOOKS, "Books");
@@ -346,6 +360,8 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.MENU_BOOKS_INFO_SIZE, "Size");
         strings.put(LanguageKeys.MENU_BOOKS_INFO_ENTRIES, "Entries");
         strings.put(LanguageKeys.MENU_BOOKS_INFO_VARIATIONS, "Variations");
+        strings.put(LanguageKeys.MENU_BOOKS_SAVE, "Save book");
+        strings.put(LanguageKeys.MENU_BOOKS_UNDO_MOVE, "Undo added move");
 
         // Notifications
         strings.put(LanguageKeys.NOTIFICATION_INFO, "Information");
@@ -442,8 +458,8 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.ENGINE_NOT_ANALYZED, "Engine hasn't analyzed the position yet");
         strings.put(LanguageKeys.ENGINE_ILLEGAL_MOVE, "Engine proposed an illegal move");
         strings.put(LanguageKeys.ENGINE_MOVE_ERROR, "Error executing move");
-        strings.put(LanguageKeys.ENGINE_BOOK_MODE_NO_ANALYSIS, "Engine cannot make moves in book mode");
-        strings.put(LanguageKeys.ENGINE_BOOK_MODE_NO_MOVE, "Analysis is disabled in book mode");
+        strings.put(LanguageKeys.ENGINE_BOOK_MODE_NO_ANALYSIS, "Analysis is disabled in book mode");
+        strings.put(LanguageKeys.ENGINE_BOOK_MODE_NO_MOVE, "Engine cannot make moves in book mode");
 
         // ========== ENGINE SETUP DIALOG ==========
         strings.put(LanguageKeys.ENGINE_SETUP_DIALOG_TITLE, "Chess Engine Setup");
@@ -1220,7 +1236,7 @@ public class EnLanguage implements Language {
         shortcutsContent.append("  Ctrl+S - Save PGN\n");
         shortcutsContent.append("  Ctrl+E - Export current game\n");
         shortcutsContent.append("  Ctrl+Shift+V - Import from clipboard\n");
-        shortcutsContent.append("  Ctrl+P - Setup position\n");
+        shortcutsContent.append("  Ctrl+P - Set up position\n");
         shortcutsContent.append("  Alt+F4 - Exit\n");
 
         // 📝 Edit
@@ -1235,7 +1251,7 @@ public class EnLanguage implements Language {
         shortcutsContent.append("  Ctrl+= - Zoom in\n");
         shortcutsContent.append("  Ctrl+- - Zoom out\n");
         shortcutsContent.append("  Ctrl+0 - Reset zoom\n");
-        shortcutsContent.append("  H - Show/hide notation\n");
+        shortcutsContent.append("  H - Toggle notation\n");
 
         // 🧭 Navigation
         shortcutsContent.append("\n🧭 Navigation:\n");
@@ -1262,14 +1278,17 @@ public class EnLanguage implements Language {
 
         // 📖 Books
         shortcutsContent.append("\n📖 Books:\n");
-        shortcutsContent.append("  Ctrl+B - Load book\n");
-        shortcutsContent.append("  Ctrl+Shift+B - Clear book\n");
+        shortcutsContent.append("  Ctrl+Shift+B - Load book\n");
+        shortcutsContent.append("  Ctrl+Shift+C - Clear book\n");
+        shortcutsContent.append("  Ctrl+Shift+S - Save book\n");
+        shortcutsContent.append("  Alt+Z - Undo book move\n");
+        shortcutsContent.append("  Home - Return to initial book position\n");
 
         // 🗄️ Database
         shortcutsContent.append("\n🗄️ Database:\n");
-        shortcutsContent.append("  Ctrl+D - Connect to DB\n");
-        shortcutsContent.append("  Ctrl+I - Import to DB\n");
-        shortcutsContent.append("  Ctrl+Shift+F - Search in DB\n");
+        shortcutsContent.append("  Ctrl+D - Connect to database\n");
+        shortcutsContent.append("  Ctrl+I - Import to database\n");
+        shortcutsContent.append("  Ctrl+Shift+F - Search database\n");
 
         // 🪟 Windows
         shortcutsContent.append("\n🪟 Windows:\n");

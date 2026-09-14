@@ -41,16 +41,12 @@ public class VariationNamingService {
      * 4. Если родитель заканчивается на ЦИФРУ или ")" → добавляем БУКВУ (A1a), A1b)...)
      */
     public String generateUniqueName(Variation parentVariation, int siblingIndex) {
-        log.debug("generateUniqueName: parent='{}', siblingIndex={}",
-                parentVariation != null ? parentVariation.getName() : "null", siblingIndex);
 
         // ========== СЛУЧАЙ 1: Корневой уровень ==========
         if (parentVariation == null ||
                 parentVariation.getName().equals(languageManager.get(LanguageKeys.ROOT))) {
             char letter = getUppercaseLetter(siblingIndex);
-            String result = letter + ")";
-            log.debug("generateUniqueName → root level: {} (index={})", result, siblingIndex);
-            return result;
+            return letter + ")";
         }
 
         String parentName = parentVariation.getName();
@@ -59,9 +55,7 @@ public class VariationNamingService {
         if (parentName.equals(languageManager.get(LanguageKeys.MAIN_LINE)) ||
                 parentName.equals("~")) {
             char letter = getLowercaseLetter(siblingIndex);
-            String result = letter + ")";
-            log.debug("generateUniqueName → main line parent: {} (index={})", result, siblingIndex);
-            return result;
+            return letter + ")";
         }
 
         // ========== УДАЛЯЕМ ТОЛЬКО ПОСЛЕДНЮЮ СКОБКУ ==========
@@ -73,9 +67,7 @@ public class VariationNamingService {
         // ========== ЕСЛИ ПОСЛЕ УДАЛЕНИЯ СКОБКИ ИМЯ ПУСТОЕ ==========
         if (cleanParentName.isEmpty()) {
             char letter = getLowercaseLetter(siblingIndex);
-            String result = letter + ")";
-            log.debug("generateUniqueName → empty parent: {} (index={})", result, siblingIndex);
-            return result;
+            return letter + ")";
         }
 
         // ========== ОПРЕДЕЛЯЕМ ПОСЛЕДНИЙ СИМВОЛ ==========
@@ -86,19 +78,13 @@ public class VariationNamingService {
         if (parentEndsWithLetter) {
             // Буква → цифра
             suffix = String.valueOf(siblingIndex);
-            log.debug("generateUniqueName → parent ends with letter '{}', adding digit '{}'",
-                    lastChar, suffix);
         } else {
             // Цифра → буква
             char letter = getLowercaseLetter(siblingIndex);
             suffix = String.valueOf(letter);
-            log.debug("generateUniqueName → parent ends with digit '{}', adding letter '{}'",
-                    lastChar, suffix);
         }
 
-        String result = cleanParentName + suffix + ")";
-        log.debug("generateUniqueName → result: '{}'", result);
-        return result;
+        return cleanParentName + suffix + ")";
     }
 
     /**
@@ -180,7 +166,6 @@ public class VariationNamingService {
 
             String newName = generateUniqueName(null, siblingCounter);
             var.setName(newName);
-            log.debug("Generated root variation name: {} (counter={})", newName, siblingCounter);
             siblingCounter++;
 
             // ========== ИСПРАВЛЕНИЕ: parent = var ==========
@@ -226,8 +211,6 @@ public class VariationNamingService {
                 String newName = generateUniqueName(current, counter + 1);
                 subVar.setName(newName);
                 subVar.setNameGenerated(true);
-                log.debug("Generated nested variation name: {} (parent={}, counter={})",
-                        newName, current.getName(), counter);
 
                 updateNamesRecursive(subVar);
                 counter++;

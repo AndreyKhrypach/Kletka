@@ -20,6 +20,7 @@
 
 package Khrypach.Andrey.chess.kletka.gui.menu;
 
+import Khrypach.Andrey.chess.kletka.gui.KletkaGui;
 import Khrypach.Andrey.chess.kletka.gui.board.BoardTheme;
 import Khrypach.Andrey.chess.kletka.gui.board.ChessBoardView;
 import Khrypach.Andrey.chess.kletka.gui.board.NotationView;
@@ -35,10 +36,14 @@ import Khrypach.Andrey.chess.kletka.gui.model.Variation;
 import Khrypach.Andrey.chess.kletka.gui.settings.AppPreferences;
 import Khrypach.Andrey.chess.kletka.pgn.index.manager.PgnBrowserManager;
 import Khrypach.Andrey.chess.kletka.pgn.index.ui.PgnFileBrowser;
+import javafx.application.HostServices;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuItem;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
@@ -55,19 +60,24 @@ import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.List;
 
 import static Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys.*;
 
 public class CustomMenuBarFactory {
 
     private static final Logger log = LoggerFactory.getLogger(CustomMenuBarFactory.class);
+
+    private static final String GITHUB_URI = "https://github.com/AndreyKhrypach/Kletka";
 
     private final LanguageManager lang = LanguageManager.getInstance();
 
@@ -729,7 +739,8 @@ public class CustomMenuBarFactory {
         menu.setStyle("-fx-open-on-hover: false;");
 
         MenuItem loadBookItem = new MenuItem(lang.get(MENU_BOOKS_LOAD));
-        loadBookItem.setAccelerator(new KeyCodeCombination(KeyCode.B, KeyCombination.CONTROL_DOWN));
+        loadBookItem.setAccelerator(new KeyCodeCombination(KeyCode.B,
+                KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN));
         loadBookItem.setOnAction(e -> {
             if (controller != null) {
                 controller.openPolyglotBook();
@@ -738,8 +749,34 @@ public class CustomMenuBarFactory {
         });
         menu.getItems().add(loadBookItem);
 
+        MenuItem saveBookItem = new MenuItem(lang.get(MENU_BOOKS_SAVE));
+        saveBookItem.setAccelerator(new KeyCodeCombination(KeyCode.S,
+                KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN));
+        saveBookItem.setOnAction(e -> {
+            if (controller != null) {
+                controller.savePolyglotBook();
+            }
+            returnFocusToBoard();
+        });
+
+        // Добавляем после loadBookItem
+        menu.getItems().add(1, saveBookItem);
+
+        // ========== ОТМЕНА ХОДА В КНИГЕ ==========
+        MenuItem undoBookItem = new MenuItem(lang.get(MENU_BOOKS_UNDO_MOVE));
+        undoBookItem.setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCombination.ALT_DOWN));
+        undoBookItem.setOnAction(e -> {
+            ChessBoardView boardView = controller.getBoardView();
+            if (boardView != null) {
+                boardView.undoBookMove();
+            }
+            returnFocusToBoard();
+        });
+        // Добавляем после "Сохранить книгу"
+        menu.getItems().add(undoBookItem);
+
         MenuItem clearBookItem = new MenuItem(lang.get(MENU_BOOKS_CLEAR));
-        clearBookItem.setAccelerator(new KeyCodeCombination(KeyCode.B, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN));
+        clearBookItem.setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN));
         clearBookItem.setOnAction(e -> {
             if (controller != null) {
                 controller.clearBook();
@@ -1365,11 +1402,16 @@ public class CustomMenuBarFactory {
     }
 
     private void openGitHubPage() {
-        try {
-            String url = "https://github.com/AndreyKhrypach/Kletka";
-            java.awt.Desktop.getDesktop().browse(java.net.URI.create(url));
-        } catch (Exception e) {
-            showError(lang.get(MENU_HELP_GITHUB_ERROR));
+        HostServices hs = KletkaGui.hostServices();
+        if (hs != null) {
+            hs.showDocument(GITHUB_URI);
+        } else {
+            // Fallback
+            try {
+                Desktop.getDesktop().browse(URI.create(GITHUB_URI));
+            } catch (Exception e) {
+                showError(lang.get(MENU_HELP_GITHUB_ERROR));
+            }
         }
     }
 

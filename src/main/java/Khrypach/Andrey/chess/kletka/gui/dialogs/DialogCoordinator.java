@@ -20,6 +20,7 @@
 
 package Khrypach.Andrey.chess.kletka.gui.dialogs;
 
+import Khrypach.Andrey.chess.kletka.gui.board.ChessBoardView;
 import Khrypach.Andrey.chess.kletka.gui.board.ChessSymbols;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageManager;
@@ -31,6 +32,8 @@ import com.github.bhlangonijr.chesslib.Piece;
 import com.github.bhlangonijr.chesslib.Side;
 import com.github.bhlangonijr.chesslib.move.Move;
 import lombok.Getter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,7 +43,11 @@ import java.util.List;
  * Отвечает за создание и показ диалогов, а также за формирование списка выборов
  */
 public class DialogCoordinator {
+
+    private static final Logger log = LoggerFactory.getLogger(DialogCoordinator.class);
     private final LanguageManager languageManager = LanguageManager.getInstance();
+
+    private final ChessBoardView boardView;
 
     private final Variation rootVariation;
     @Getter
@@ -52,7 +59,8 @@ public class DialogCoordinator {
     @Getter
     private ParentNode currentNode;
 
-    public DialogCoordinator(RootNode rootNode, Variation rootVariation, Variation mainLine) {
+    public DialogCoordinator(ChessBoardView boardView, RootNode rootNode, Variation rootVariation, Variation mainLine) {
+        this.boardView = boardView;
         this.rootNode = rootNode;
         this.rootVariation = rootVariation;
         this.mainLine = mainLine;
@@ -76,34 +84,55 @@ public class DialogCoordinator {
                                                             boolean isCapture, Piece promotionPiece) {
         if (move == null) return null;
 
+        String currentUci = move.getFrom().toString().toLowerCase() +
+                move.getTo().toString().toLowerCase();
+        if (promotionPiece != null) currentUci += getPromotionChar(promotionPiece);
+
+        log.trace("=== DIALOG COORDINATOR showVariationDialog ===");
+        log.trace("  move: {}", currentUci);
+        log.trace("  currentVariation: {} (id={}, isMainLine={})",
+                currentVariation != null ? currentVariation.getName() : "null",
+                currentVariation != null ? currentVariation.getId() : -1,
+                currentVariation != null && currentVariation.isMainLine());
+        log.trace("  currentNode: {} (isRoot={})",
+                currentNode != null ? currentNode.getSan() : "null",
+                currentNode != null && currentNode.isRoot());
+        log.trace("  currentNode.getNext(): {}",
+                currentNode != null && currentNode.getNext() != null
+                        ? currentNode.getNext().getSan() : "null");
+        log.trace("  currentNode.getSubVariations().size(): {}",
+                currentNode != null ? currentNode.getSubVariations().size() : 0);
+
         String moveDesc = getMoveDescription(move, piece, isCapture, promotionPiece);
         String sideStr = piece.getPieceSide() == Side.WHITE ?
                 languageManager.get(LanguageKeys.GAME_WHITE) : languageManager.get(LanguageKeys.GAME_BLACK);
 
         // Случай 1: В корне
         if (currentVariation == rootVariation || (currentNode != null && currentNode.isRoot())) {
+            log.trace("  → CASE 1: ROOT (showRootVariationCreationDialog)");
             return showRootVariationCreationDialog(moveDesc, sideStr);
         }
 
         // Случай 2: Есть следующий ход - создаем вариант
         if (currentNode != null && currentNode.getNext() != null) {
+            log.trace("  → CASE 2: NEXT EXISTS (showVariationCreationDialog)");
             return showVariationCreationDialog(moveDesc, sideStr);
         }
 
         // Случай 3: Есть подварианты с таким же ходом
         if (currentNode != null && !currentNode.getSubVariations().isEmpty()) {
-            String currentUci = move.getFrom().toString().toLowerCase() +
+            String currentUci2 = move.getFrom().toString().toLowerCase() +
                     move.getTo().toString().toLowerCase();
-            if (promotionPiece != null) currentUci += getPromotionChar(promotionPiece);
+            if (promotionPiece != null) currentUci2 += getPromotionChar(promotionPiece);
 
             for (Variation subVar : currentNode.getSubVariations()) {
                 if (!subVar.isEmpty()) {
                     ParentNode firstMove = subVar.getFirstNode();
                     if (firstMove != null && !firstMove.isRoot() &&
-                            firstMove.getUciMove().equals(currentUci)) {
-                        // Показываем диалог выбора варианта на развилке
+                            firstMove.getUciMove().equals(currentUci2)) {
+                        log.trace("  → CASE 3: BRANCH CHOICE (showBranchChoiceDialog), matched var='{}'",
+                                subVar.getName());
                         boolean isWhiteTurn = (currentNode.getAbsolutePly() % 2 == 0);
-                        // Добавляем все варианты с этого узла
                         List<Variation> variations = new ArrayList<>(currentNode.getSubVariations());
                         return showBranchChoiceDialog(variations, isWhiteTurn);
                     }
@@ -111,12 +140,18 @@ public class DialogCoordinator {
             }
         }
 
-        // Случай 4: Просто создаем новый вариант (если нет next и нет подвариантов)
+        // Случай 4: Просто создаем новый вариант
         if (currentNode != null && currentNode.getNext() == null) {
+            log.trace("  → CASE 4: SIMPLE (showSimpleVariationCreationDialog)");
             return showSimpleVariationCreationDialog(moveDesc, sideStr);
         }
 
         return null;
+    }
+
+    private javafx.stage.Window getDialogOwner() {
+        if (boardView == null) return null;
+        return boardView.getPrimaryStage();
     }
 
     /**
@@ -128,7 +163,7 @@ public class DialogCoordinator {
                 String.format(languageManager.get(LanguageKeys.DIALOG_VARIATION_NEW), sideStr, moveDesc),
                 null, true));
 
-        VariationChoiceDialog dialog = new VariationChoiceDialog(choices);
+        VariationChoiceDialog dialog = new VariationChoiceDialog(choices, getDialogOwner());
         return dialog.showAndWait();
     }
 
@@ -162,7 +197,7 @@ public class DialogCoordinator {
             }
         }
 
-        VariationChoiceDialog dialog = new VariationChoiceDialog(choices);
+        VariationChoiceDialog dialog = new VariationChoiceDialog(choices, getDialogOwner());
         return dialog.showAndWait();
     }
 
@@ -207,7 +242,8 @@ public class DialogCoordinator {
                     false));
         }
 
-        VariationChoiceDialog dialog = new VariationChoiceDialog(choices);
+        VariationChoiceDialog dialog = new VariationChoiceDialog(choices, getDialogOwner());
+
         return dialog.showAndWait();
     }
 
@@ -266,7 +302,8 @@ public class DialogCoordinator {
             ));
         }
 
-        VariationChoiceDialog dialog = new VariationChoiceDialog(choices);
+        VariationChoiceDialog dialog = new VariationChoiceDialog(choices, getDialogOwner());
+
         return dialog.showAndWait();
     }
 

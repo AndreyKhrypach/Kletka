@@ -325,6 +325,7 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.SETUP_FEN_PROMPT, "Введите FEN...");
         strings.put(LanguageKeys.SETUP_CONTROL, "Управление:");
         strings.put(LanguageKeys.SETUP_KING_IN_CHECK, "Невозможно поставить ход %s - король под шахом!");
+        strings.put(LanguageKeys.SETUP_FLIP_BOARD, "Перевернуть доску");
 
         // Навигация
         strings.put(LanguageKeys.NAV_FIRST, "⏮");
@@ -339,13 +340,27 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.NAVIGATION_MODE, "Режим навигации");
         strings.put(LanguageKeys.NAVIGATION_MODE_PGN, "PGN");
         strings.put(LanguageKeys.NAVIGATION_MODE_BOOK, "Книга");
-        strings.put(LanguageKeys.BOOK_MODE, "\uD83D\uDCD6 Книга");
+        strings.put(LanguageKeys.BOOK_MODE, "♟ Книга");
+        strings.put(LanguageKeys.BOOK_MODE_DISABLED, "недоступно в режиме книги");
+
         strings.put(LanguageKeys.BOOK_LOADED, "Книга загружена");
         strings.put(LanguageKeys.BOOK_NO_BOOK, "Книга не загружена");
         strings.put(LanguageKeys.BOOK_STATS, "Статистика");
         strings.put(LanguageKeys.BOOK_ENTRIES, "записей");
         strings.put(LanguageKeys.BOOK_LOAD_ERROR, "Ошибка загрузки книги");
         strings.put(LanguageKeys.BOOK_CLEARED, "Книга выгружена");
+
+        strings.put(LanguageKeys.BOOK_SAVE_TITLE, "Сохранение книги");
+        strings.put(LanguageKeys.BOOK_SAVE_HEADER, "В книге есть несохраненные изменения");
+        strings.put(LanguageKeys.BOOK_SAVE_CONTENT, "Хотите сохранить изменения перед выходом?");
+        strings.put(LanguageKeys.BOOK_SAVED, "Книга {%s} сохранена");
+        strings.put(LanguageKeys.BOOK_SAVE_ERROR, "Ошибка сохранения книги");
+        strings.put(LanguageKeys.BOOK_NOT_LOADED, "Книга не загружена");
+        strings.put(LanguageKeys.BOOK_NO_CHANGES, "Нет изменений для сохранения");
+        strings.put(LanguageKeys.BOOK_NO_PATH, "Путь к книге не найден");
+        strings.put(LanguageKeys.BOOK_SAVING, "Сохранение книги");
+        strings.put(LanguageKeys.BOOK_SAVING_MSG, "Пожалуйста, подождите...");
+        strings.put(LanguageKeys.BOOK_NO_UNDO, "Нет действий для отмены");
 
         //Меню книги
         strings.put(LanguageKeys.MENU_BOOKS, "Книги");
@@ -366,6 +381,8 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.MENU_BOOKS_INFO_SIZE, "Размер");
         strings.put(LanguageKeys.MENU_BOOKS_INFO_ENTRIES, "Записей");
         strings.put(LanguageKeys.MENU_BOOKS_INFO_VARIATIONS, "Вариантов");
+        strings.put(LanguageKeys.MENU_BOOKS_SAVE, "Сохранить книгу");
+        strings.put(LanguageKeys.MENU_BOOKS_UNDO_MOVE, "Отменить добавленный ход");
 
         // Уведомления
         strings.put(LanguageKeys.NOTIFICATION_INFO, "Информация");
@@ -462,8 +479,8 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.ENGINE_NOT_ANALYZED, "Движок ещё не проанализировал позицию");
         strings.put(LanguageKeys.ENGINE_ILLEGAL_MOVE, "Движок предложил нелегальный ход");
         strings.put(LanguageKeys.ENGINE_MOVE_ERROR, "Ошибка выполнения хода");
-        strings.put(LanguageKeys.ENGINE_BOOK_MODE_NO_ANALYSIS, "В режиме книги движок не может выполнять ходы");
-        strings.put(LanguageKeys.ENGINE_BOOK_MODE_NO_MOVE, "В режиме книги анализ отключен");
+        strings.put(LanguageKeys.ENGINE_BOOK_MODE_NO_ANALYSIS, "В режиме книги анализ отключен");
+        strings.put(LanguageKeys.ENGINE_BOOK_MODE_NO_MOVE, "В режиме книги движок не может выполнять ходы");
 
         // ========== ANALYSIS PANEL ==========
         strings.put(LanguageKeys.ANALYSIS_TITLE, "Анализ движка");
@@ -1265,10 +1282,13 @@ public class RuLanguage implements Language {
         shortcutsContent.append("  Ctrl+Shift+Tab - Предыдущий браузер\n");
         shortcutsContent.append("  Ctrl+W - Закрыть браузер\n");
 
-        // 📖 Книги
+        // 📖 Книги (ОБНОВЛЕНО!)
         shortcutsContent.append("\n📖 Книги:\n");
-        shortcutsContent.append("  Ctrl+B - Открыть/загрузить книгу\n");
-        shortcutsContent.append("  Ctrl+Shift+B - Очистить книгу\n");
+        shortcutsContent.append("  Ctrl+Shift+B - Открыть/загрузить книгу\n");
+        shortcutsContent.append("  Ctrl+Shift+C - Очистить книгу\n");
+        shortcutsContent.append("  Ctrl+Shift+S - Сохранить книгу\n");
+        shortcutsContent.append("  Alt+Z - Отменить добавленный ход в книге\n");
+        shortcutsContent.append("  Home - Вернуться к изначальной позиции в книге\n");
 
         // 🗄️ База данных
         shortcutsContent.append("\n🗄️ База данных:\n");
