@@ -148,7 +148,6 @@ sun.misc.Unsafe.invokeCleaner(mappedByteBuffer);
 <img src="screenshots/zh/book_loaded_zh.png" alt="已加载的 Polyglot 开局库">
 
 ---
----
 
 ## 📦 安装
 
@@ -236,7 +235,7 @@ brew install stockfish
 ## 📄 许可证
 
 本项目采用 GNU General Public License v3.0 许可证。
-详见 [LICENSE](LICENSE)。
+详见 [LICENSE](https://github.com/AndreyKhrypach/Kletka/blob/master/LICENSE)。
 
 ---
 

@@ -1,13 +1,13 @@
-# ♟️ Kletka — Кроссплатформенный шахматный анализатор
+# ♟️ Клетка — Кроссплатформенный шахматный анализатор
 
-## 🌐 **Website:** [https://andreykhrypach.github.io/Kletka/](https://andreykhrypach.github.io/Kletka/)
+## 🌐 **Веб сайт:** [https://andreykhrypach.github.io/Kletka/](https://andreykhrypach.github.io/Kletka/)
 
 **Читать на:**
 [🇬🇧 English](README.md) |
 [🇷🇺 Русский](README.ru.md) |
 [🇨🇳 中文](README.zh.md)
 
-**Kletka** — это кроссплатформенный шахматный анализатор с поддержкой PGN файлов, вариантов, аннотаций и движка Stockfish. Программа имеет современный настраиваемый интерфейс и доступна для Windows, Linux и macOS.
+**Клетка** — это кроссплатформенный шахматный анализатор с поддержкой PGN файлов, вариантов, аннотаций и движка Stockfish. Программа имеет современный настраиваемый интерфейс и доступна для Windows, Linux и macOS.
 
 ## 📝 Журнал изменений
 
@@ -29,7 +29,7 @@
 
 ## 📚 Дебютные книги (Polyglot)
 
-Kletka поддерживает **дебютные книги Polyglot** (файлы `.bin`), что позволяет вам интерактивно изучать шахматные дебюты.
+Клетка поддерживает **дебютные книги Polyglot** (файлы `.bin`), что позволяет вам интерактивно изучать шахматные дебюты.
 
 ### Как использовать дебютные книги:
 
@@ -42,7 +42,7 @@ Kletka поддерживает **дебютные книги Polyglot** (фай
 
 ### Системные требования для книг
 
-Для работы с дебютными книгами Kletka требует:
+Для работы с дебютными книгами Клетка требует:
 
     Java 17 LTS (рекомендуется Liberica Full JDK)
 
@@ -53,7 +53,7 @@ Kletka поддерживает **дебютные книги Polyglot** (фай
 --add-opens java.base/sun.misc=ALL-UNNAMED
 ```
 
-**Примечание:** Если вы запускаете Kletka из командной строки, используйте:
+**Примечание:** Если вы запускаете Клетка из командной строки, используйте:
 
 ```bash
 java --add-opens java.base/sun.nio.ch=ALL-UNNAMED \
@@ -65,7 +65,7 @@ java --add-opens java.base/sun.nio.ch=ALL-UNNAMED \
 
 ### 🔧 Технические детали: Memory-Mapped Files
 
-Kletka использует **memory-mapped files** (`MappedByteBuffer`) для молниеносно быстрой работы с Polyglot книгами, даже на HDD.
+Клетка использует **memory-mapped files** (`MappedByteBuffer`) для молниеносно быстрой работы с Polyglot книгами, даже на HDD.
 
 **Важно:** Mapped byte buffer **не освобождается** сборщиком мусора JVM, пока на него есть ссылка. Чтобы вы могли **удалить, переместить или заменить** файл книги во время работы Kletka, приложение явно вызывает:
 
@@ -85,8 +85,9 @@ sun.misc.Unsafe.invokeCleaner(mappedByteBuffer);
 На **Debian Trixie / Ubuntu 24.04+** с **Wayland** диалоги могут не получать фокус
 (клавиатура работает, мышь — нет). Это **известный баг JavaFX 17 + GTK 3 + Wayland**.
 
-**Решение:** уже включено в Kletka — приложение запускается с флагом
+**Решение:** уже включено в Клетку — приложение запускается с флагом
 `-Djdk.gtk.version=2`, который использует GTK 2 через XWayland.
+
 ---
 
 ### Рекомендуемые книги:
@@ -141,7 +142,6 @@ sun.misc.Unsafe.invokeCleaner(mappedByteBuffer);
 <img src="screenshots/ru/book_loaded_ru.png" alt="Загруженная Polyglot книга">
 
 ---
----
 
 ## 📦 Установка
 
@@ -195,13 +195,13 @@ mvn clean package -P mac
 
 ## 🧠 Настройка Stockfish
 
-Kletka использует движок Stockfish для анализа. Вам нужно установить его отдельно.
+Клетка использует движок Stockfish для анализа. Вам нужно установить его отдельно.
 
 ### Windows
 
 1. Скачайте Stockfish с официального сайта: https://stockfishchess.org/download/
 2. Распакуйте архив
-3. В Kletka перейдите в **Движок → Настроить движок** и выберите файл `stockfish.exe`
+3. В Клетка перейдите в **Движок → Настроить движок** и выберите файл `stockfish.exe`
 
 ### Linux (Debian/Ubuntu)
 
@@ -209,7 +209,7 @@ Kletka использует движок Stockfish для анализа. Вам
 sudo apt install stockfish
 ```
 
-Затем в Kletka перейдите в **Движок → Настроить движок** и выберите бинарный файл stockfish.
+Затем в Клетка перейдите в **Движок → Настроить движок** и выберите бинарный файл stockfish.
 
 ### macOS
 
@@ -217,14 +217,14 @@ sudo apt install stockfish
 brew install stockfish
 ```
 
-Затем в Kletka перейдите в Движок → Настроить движок и выберите бинарный файл stockfish.
+Затем в Клетка перейдите в Движок → Настроить движок и выберите бинарный файл stockfish.
 
 ---
 
 ## 📄 Лицензия
 
 Этот проект распространяется под лицензией GNU General Public License v3.0.
-Подробнее см. файл [LICENSE](LICENSE).
+Подробнее см. файл [LICENSE](https://github.com/AndreyKhrypach/Kletka/blob/master/LICENSE).
 
 ---
 

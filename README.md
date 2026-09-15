@@ -124,7 +124,6 @@ Other popular sources:
 <img src="screenshots/en/book_loaded_en.png" alt="Polyglot Book Loaded">
 
 ---
----
 
 ## 📦 Installation
 
@@ -204,7 +203,7 @@ Then in Kletka, go to Engine → Configure Engine and select the stockfish binar
 ## 📄 License
 
 This project is licensed under the GNU General Public License v3.0.
-See the LICENSE file for details.
+See the [LICENSE]([LICENSE](https://github.com/AndreyKhrypach/Kletka/blob/master/LICENSE) file for details.
 
 ---
 
