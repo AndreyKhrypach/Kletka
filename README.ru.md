@@ -1,5 +1,7 @@
 # ♟️ Kletka — Кроссплатформенный шахматный анализатор
 
+## 🌐 **Website:** [https://andreykhrypach.github.io/Kletka/](https://andreykhrypach.github.io/Kletka/)
+
 **Читать на:**
 [🇬🇧 English](README.md) |
 [🇷🇺 Русский](README.ru.md) |
@@ -103,50 +105,26 @@ sun.misc.Unsafe.invokeCleaner(mappedByteBuffer);
 
 ---
 
-## 🖥️ Скриншоты
+## 🖥️ Скриншоты 
 
-### English
-| ![Main Window](screenshots/Main_en.png)    | ![PGN file browser](screenshots/Browser_en.png)    |
-|--------------------------------------------|----------------------------------------------------|
-| *Main interface*                           | *PGN browser*                                      |
-
-| ![Book open](screenshots/book_open_en.png) | ![Book loaded](screenshots/book_loaded_en.png)     |
-|--------------------------------------------| -------------------------------------------------- |
-| *Open Polyglot Book*                       | *Polyglot Book Loaded*                             |
+### Краткий обзор
 
 ### Русский
-| ![Главное окно](screenshots/Main_ru.png)        | ![Пгн файл обозреватель](screenshots/Browser_ru.png)  |
+| ![Главное окно](screenshots/ru/Main_ru.png)        | ![Пгн файл обозреватель](screenshots/ru/Browser_ru.png)  |
 |-------------------------------------------------|-------------------------------------------------------|
 | *Главный интерфейс*                             | *Обозреватель PGN*                                    |
 
-| ![Открытие книги](screenshots/book_open_ru.png) | ![Загруженная книга](screenshots/book_loaded_ru.png)  |
+| ![Открытие книги](screenshots/ru/book_open_ru.png) | ![Загруженная книга](screenshots/ru/book_loaded_ru.png)  |
 | -------------------------------------------     | ----------------------------------------------------- |
 | *Открытие полиглот книги*                       | *Загруженная Полиглот книга*                          |
 
-### 中文 (Chinese)
-| ![主窗口](screenshots/Main_zh.png) | ![PGN 浏览器](screenshots/Browser_zh.png) |
-|-------------------------------------|-------------------------------------------|
-| *主界面*                            | *PGN 浏览器*                              |
-
-| ![打开开局库](screenshots/book_open_zh.png) | ![已加载的开局库](screenshots/book_loaded_zh.png)  |
-| ------------------------------------------- | -------------------------------------------------- |
-| *打开 Polyglot 开局库*                      | *已加载的 Polyglot 开局库*                         |
-
 ---
 
-## 🖥️ Скриншоты
-
-### English
-| ![Main Window](screenshots/Main_en.png) | ![PGN file browser](screenshots/Browser_en.png) |
-| ![Book open](screenshots/book_open_en.png) | ![Book loaded](screenshots/book_loaded_en.png)     |
+## 🖥️ Полные скриншоты
 
 ### Русский
-| ![Главное окно](screenshots/Main_ru.png) | ![Пгн файл обозреватель](screenshots/Browser_ru.png) |
-| ![Открытие книги](screenshots/book_open_ru.png) | ![Загруженная книга](screenshots/book_loaded_ru.png)  |
-
-### 中文 (Chinese)
-| ![主窗口](screenshots/Main_zh.png) | ![PGN 浏览器](screenshots/Browser_zh.png) |
-| ![打开开局库](screenshots/book_open_zh.png) | ![已加载的开局库](screenshots/book_loaded_zh.png)  |
+| ![Главное окно](screenshots/ru/Main_ru.png) | ![Пгн файл обозреватель](screenshots/ru/Browser_ru.png) |
+| ![Открытие книги](screenshots/ru/book_open_ru.png) | ![Загруженная книга](screenshots/ru/book_loaded_ru.png)  |
 
 ---
 
