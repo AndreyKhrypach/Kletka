@@ -112,27 +112,42 @@ sun.misc.Unsafe.invokeCleaner(mappedByteBuffer);
 
 ---
 
-## 🖥️ 截图 
+## 🖥️ 截图
 
 ### 快速预览
 
-### 中文 (Chinese)
-| ![主窗口](screenshots/zh/Main_zh.png) | ![PGN 浏览器](screenshots/zh/Browser_zh.png) |
-|-------------------------------------|-------------------------------------------|
-| *主界面*                            | *PGN 浏览器*                              |
-
-| ![打开开局库](screenshots/zh/book_open_zh.png) | ![已加载的开局库](screenshots/zh/book_loaded_zh.png)  |
-| ------------------------------------------- | -------------------------------------------------- |
-| *打开 Polyglot 开局库*                      | *已加载的 Polyglot 开局库*                         |
+<table>
+  <tr>
+    <td><img src="screenshots/zh/Main_zh.png" width="400" alt="主界面"></td>
+    <td><img src="screenshots/zh/Browser_zh.png" width="400" alt="PGN 浏览器"></td>
+  </tr>
+  <tr>
+    <td><em>主界面</em></td>
+    <td><em>PGN 浏览器</em></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/zh/book_open_zh.png" width="400" alt="打开 Polyglot 开局库"></td>
+    <td><img src="screenshots/zh/book_loaded_zh.png" width="400" alt="已加载的 Polyglot 开局库"></td>
+  </tr>
+  <tr>
+    <td><em>打开 Polyglot 开局库</em></td>
+    <td><em>已加载的 Polyglot 开局库</em></td>
+  </tr>
+</table>
 
 ---
 
-## 🖥️ 完整截图
+## 🖥️ 完整尺寸
 
-### 中文 (Chinese)
-| ![主窗口](screenshots/zh/Main_zh.png) | ![PGN 浏览器](screenshots/zh/Browser_zh.png) |
-| ![打开开局库](screenshots/zh/book_open_zh.png) | ![已加载的开局库](screenshots/zh/book_loaded_zh.png)  |
+<img src="screenshots/zh/Main_zh.png" alt="主界面">
 
+<img src="screenshots/zh/Browser_zh.png" alt="PGN 浏览器">
+
+<img src="screenshots/zh/book_open_zh.png" alt="打开 Polyglot 开局库">
+
+<img src="screenshots/zh/book_loaded_zh.png" alt="已加载的 Polyglot 开局库">
+
+---
 ---
 
 ## 📦 安装

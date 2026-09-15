@@ -92,23 +92,38 @@ Other popular sources:
 
 ### Quick Preview
 
-### English
-| ![Main Window](screenshots/en/Main_en.png)    | ![PGN file browser](screenshots/en/Browser_en.png)    |
-|--------------------------------------------|----------------------------------------------------|
-| *Main interface*                           | *PGN browser*                                      |
-
-| ![Book open](screenshots/en/book_open_en.png) | ![Book loaded](screenshots/en/book_loaded_en.png)     |
-|--------------------------------------------| -------------------------------------------------- |
-| *Open Polyglot Book*                       | *Polyglot Book Loaded*                             |
+<table>
+  <tr>
+    <td><img src="screenshots/en/Main_en.png" width="400" alt="Main interface"></td>
+    <td><img src="screenshots/en/Browser_en.png" width="400" alt="PGN browser"></td>
+  </tr>
+  <tr>
+    <td><em>Main interface</em></td>
+    <td><em>PGN browser</em></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/en/book_open_en.png" width="400" alt="Open Polyglot Book"></td>
+    <td><img src="screenshots/en/book_loaded_en.png" width="400" alt="Polyglot Book Loaded"></td>
+  </tr>
+  <tr>
+    <td><em>Open Polyglot Book</em></td>
+    <td><em>Polyglot Book Loaded</em></td>
+  </tr>
+</table>
 
 ---
 
-## 🖥️  Full Size
+## 🖥️ Full Size
 
-### English
-| ![Main Window](screenshots/en/Main_en.png) | ![PGN file browser](screenshots/en/Browser_en.png) |
-| ![Book open](screenshots/en/book_open_en.png) | ![Book loaded](screenshots/en/book_loaded_en.png)     |
+<img src="screenshots/en/Main_en.png" alt="Main interface">
 
+<img src="screenshots/en/Browser_en.png" alt="PGN browser">
+
+<img src="screenshots/en/book_open_en.png" alt="Open Polyglot Book">
+
+<img src="screenshots/en/book_loaded_en.png" alt="Polyglot Book Loaded">
+
+---
 ---
 
 ## 📦 Installation
