@@ -105,27 +105,42 @@ sun.misc.Unsafe.invokeCleaner(mappedByteBuffer);
 
 ---
 
-## 🖥️ Скриншоты 
+## 🖥️ Скриншоты
 
 ### Краткий обзор
 
-### Русский
-| ![Главное окно](screenshots/ru/Main_ru.png)        | ![Пгн файл обозреватель](screenshots/ru/Browser_ru.png)  |
-|-------------------------------------------------|-------------------------------------------------------|
-| *Главный интерфейс*                             | *Обозреватель PGN*                                    |
-
-| ![Открытие книги](screenshots/ru/book_open_ru.png) | ![Загруженная книга](screenshots/ru/book_loaded_ru.png)  |
-| -------------------------------------------     | ----------------------------------------------------- |
-| *Открытие полиглот книги*                       | *Загруженная Полиглот книга*                          |
+<table>
+  <tr>
+    <td><img src="screenshots/ru/Main_ru.png" width="400" alt="Главный интерфейс"></td>
+    <td><img src="screenshots/ru/Browser_ru.png" width="400" alt="Обозреватель PGN"></td>
+  </tr>
+  <tr>
+    <td><em>Главный интерфейс</em></td>
+    <td><em>Обозреватель PGN</em></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/ru/book_open_ru.png" width="400" alt="Открытие Polyglot книги"></td>
+    <td><img src="screenshots/ru/book_loaded_ru.png" width="400" alt="Загруженная Polyglot книга"></td>
+  </tr>
+  <tr>
+    <td><em>Открытие Polyglot книги</em></td>
+    <td><em>Загруженная Polyglot книга</em></td>
+  </tr>
+</table>
 
 ---
 
-## 🖥️ Полные скриншоты
+## 🖥️ Полный размер
 
-### Русский
-| ![Главное окно](screenshots/ru/Main_ru.png) | ![Пгн файл обозреватель](screenshots/ru/Browser_ru.png) |
-| ![Открытие книги](screenshots/ru/book_open_ru.png) | ![Загруженная книга](screenshots/ru/book_loaded_ru.png)  |
+<img src="screenshots/ru/Main_ru.png" alt="Главный интерфейс">
 
+<img src="screenshots/ru/Browser_ru.png" alt="Обозреватель PGN">
+
+<img src="screenshots/ru/book_open_ru.png" alt="Открытие Polyglot книги">
+
+<img src="screenshots/ru/book_loaded_ru.png" alt="Загруженная Polyglot книга">
+
+---
 ---
 
 ## 📦 Установка
