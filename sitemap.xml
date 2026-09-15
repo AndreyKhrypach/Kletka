@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ /*
+  ~  * Copyright (c) 2024 Andrey Khrypach
+  ~  *
+  ~  * This program is free software: you can redistribute it and/or modify
+  ~  * it under the terms of the GNU General Public License as published by
+  ~  * the Free Software Foundation, either version 3 of the License, or
+  ~  * (at your option) any later version.
+  ~  *
+  ~  * This program is distributed in the hope that it will be useful,
+  ~  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+  ~  * GNU General Public License for more details.
+  ~  *
+  ~  * You should have received a copy of the GNU General Public License
+  ~  * along with this program. If not, see <https://www.gnu.org/licenses/>.
+  ~  */
+  ~
+  -->
+
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+        <loc>https://andreykhrypach.github.io/Kletka/</loc>
+        <lastmod>2026-09-15</lastmod>
+        <priority>1.0</priority>
+    </url>
+    <url>
+        <loc>https://andreykhrypach.github.io/Kletka/README.ru</loc>
+        <lastmod>2026-09-15</lastmod>
+        <priority>0.8</priority>
+    </url>
+    <url>
+        <loc>https://andreykhrypach.github.io/Kletka/README.zh</loc>
+        <lastmod>2026-09-15</lastmod>
+        <priority>0.8</priority>
+    </url>
+</urlset>
