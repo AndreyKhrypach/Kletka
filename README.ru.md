@@ -27,6 +27,18 @@
 
 ---
 
+## 📺 Видеоуроки
+
+Пошаговые руководства на нашем YouTube-канале:
+
+- [Kletka: установка на Windows](https://www.youtube.com/watch?v=OSaSA-Qm0GY)
+- [Kletka: настройка Stockfish на Windows](https://www.youtube.com/watch?v=TWhIM4zsmIY)
+- [Kletka: как пользоваться Polyglot книгами](https://www.youtube.com/watch?v=QAz95CSiDy0)
+
+Скоро — новые уроки: Windows, Linux, macOS.
+
+---
+
 ## 📚 Дебютные книги (Polyglot)
 
 Клетка поддерживает **дебютные книги Polyglot** (файлы `.bin`), что позволяет вам интерактивно изучать шахматные дебюты.

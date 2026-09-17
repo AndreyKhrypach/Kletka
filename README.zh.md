@@ -1,6 +1,3 @@
-
-## 📝 内容 README.zh.md:
-
 # ♟️ Kletka — 跨平台国际象棋分析工具
 
 ## 🌐 **Website:** [https://andreykhrypach.github.io/Kletka/](https://andreykhrypach.github.io/Kletka/)
@@ -29,6 +26,18 @@
 - 🎨 可定制的棋盘主题
 - 🌍 多语言支持：英语、俄语、中文
 - 🖥️ 跨平台：Windows、Linux、macOS
+
+---
+
+## 📺 视频教程
+
+我们在 YouTube 频道上的分步指南：
+
+- [Kletka 教程：Windows 安装](https://www.youtube.com/watch?v=OSaSA-Qm0GY)
+- [Kletka 教程：Windows — 设置 Stockfish](https://www.youtube.com/watch?v=TWhIM4zsmIY)
+- [Kletka 教程：如何使用 Polyglot 开局库](https://www.youtube.com/watch?v=QAz95CSiDy0)
+
+更多教程即将推出 — Windows、Linux、macOS。
 
 ---
 
