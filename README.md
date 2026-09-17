@@ -29,6 +29,18 @@ See [CHANGELOG.md](CHANGELOG.md) for a detailed history of changes.
 
 ---
 
+## 📺 Video Tutorials
+
+Step-by-step guides on our YouTube channel:
+
+- [Kletka tutorial: Windows installation](https://www.youtube.com/watch?v=OSaSA-Qm0GY)
+- [Kletka tutorial: Windows — setting up Stockfish](https://www.youtube.com/watch?v=TWhIM4zsmIY)
+- [Kletka tutorial: How to use Polyglot opening books](https://www.youtube.com/watch?v=QAz95CSiDy0)
+
+More tutorials coming soon — Windows, Linux, macOS.
+
+---
+
 ## 📚 Opening Books (Polyglot)
 
 Kletka supports **Polyglot opening books** (`.bin` files), allowing you to explore and study chess openings interactively.
@@ -203,7 +215,7 @@ Then in Kletka, go to Engine → Configure Engine and select the stockfish binar
 ## 📄 License
 
 This project is licensed under the GNU General Public License v3.0.
-See the [LICENSE]([LICENSE](https://github.com/AndreyKhrypach/Kletka/blob/master/LICENSE) file for details.
+See the See the [LICENSE](https://github.com/AndreyKhrypach/Kletka/blob/master/LICENSE) file for details.
 
 ---
 
