@@ -65,7 +65,8 @@ jobs:
 
       - name: Build .deb for ${{ matrix.profile }}
         run: |
-          docker run --rm -v ${{ github.workspace }}:/work -w /work \
+          docker run --rm --user $(id -u):$(id -g) \
+            -v ${{ github.workspace }}:/work -w /work \
             kletka-builder:liberica-full \
             mvn clean package -P ${{ matrix.profile }}
 
