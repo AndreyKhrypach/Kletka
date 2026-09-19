@@ -215,7 +215,7 @@ Then in Kletka, go to Engine → Configure Engine and select the stockfish binar
 ## 📄 License
 
 This project is licensed under the GNU General Public License v3.0.
-See the See the [LICENSE](https://github.com/AndreyKhrypach/Kletka/blob/master/LICENSE) file for details.
+See the [LICENSE](https://github.com/AndreyKhrypach/Kletka/blob/master/LICENSE) file for details.
 
 ---
 

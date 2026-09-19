@@ -92,7 +92,7 @@
 
         <!-- Профиль для Linux -->
         <profile>
-            <id>linux</id>
+            <id>linux-default</id>
             <activation>
                 <os>
                     <family>unix</family>
@@ -101,11 +101,27 @@
             </activation>
             <properties>
                 <jpackage.type>deb</jpackage.type>
-                <jpackage.args>--linux-deb-maintainer "your-email@example.com"
+                <jpackage.args>
+                    --linux-deb-maintainer "your-email@example.com"
                     --linux-menu-group "Games"
                     --linux-shortcut
                     --icon "src/main/resources/icons/linux/256x256/apps/kletka.png"
-                    --linux-package-deps "libc6"
+                    --resource-dir "src/main/resources/linux-debian"
+                </jpackage.args>
+            </properties>
+        </profile>
+
+        <!-- Профиль для Ubuntu (ручная активация через -P linux-ubuntu) -->
+        <profile>
+            <id>linux-ubuntu</id>
+            <properties>
+                <jpackage.type>deb</jpackage.type>
+                <jpackage.args>
+                    --linux-deb-maintainer "your-email@example.com"
+                    --linux-menu-group "Games"
+                    --linux-shortcut
+                    --icon "src/main/resources/icons/linux/256x256/apps/kletka.png"
+                    --resource-dir "src/main/resources/linux-ubuntu"
                 </jpackage.args>
             </properties>
         </profile>

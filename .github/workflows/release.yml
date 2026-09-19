@@ -26,41 +26,72 @@ jobs:
         run: choco install wixtoolset -y
       - name: Build with Maven
         run: mvn clean package -P windows
+
+      - name: Verify installer exists
+        shell: bash
+        run: |
+          if ! ls target/installer/*.exe > /dev/null 2>&1; then
+            echo "Installer not found!"
+            exit 1
+          fi
+
       - name: Upload installer as artifact
         uses: actions/upload-artifact@v6
         with:
           name: kletka-windows
-          path: target/installer/Kletka-1.4.0.exe
+          path: target/installer/*.exe
       - name: Upload installer to release
         uses: softprops/action-gh-release@v3
         with:
-          files: target/installer/Kletka-1.4.0.exe
+          files: target/installer/*.exe
         if: github.event_name == 'release'
 
   build-linux:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - container: debian:trixie
+            profile: linux-debian
+            artifact: kletka-debian
+          - container: ubuntu:24.04
+            profile: linux-ubuntu
+            artifact: kletka-ubuntu
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-java@v5
-        with:
-          distribution: 'liberica'
-          java-version: '17'
-          java-package: 'jdk+fx'
-      - name: Install dependencies
+
+      - name: Build Docker image with Liberica Full
+        run: docker build -t kletka-builder:liberica-full .
+
+      - name: Build .deb for ${{ matrix.profile }}
         run: |
-          sudo apt update
-          sudo apt install fakeroot dpkg -y
-      - name: Build with Maven
-        run: mvn clean package -P linux
+          docker run --rm -v ${{ github.workspace }}:/work -w /work \
+            kletka-builder:liberica-full \
+            mvn clean package -P ${{ matrix.profile }}
+
+      - name: Verify installer exists
+        run: |
+          if ! ls target/installer/*.deb > /dev/null 2>&1; then
+            echo "Installer not found!"
+            exit 1
+          fi
+
+      - name: Rename .deb
+        run: |
+          for f in target/installer/*.deb; do
+            mv "$f" "target/installer/kletka-${{ matrix.artifact }}_$(basename $f | sed 's/^kletka_//')"
+          done
+
       - name: Upload installer as artifact
         uses: actions/upload-artifact@v6
         with:
-          name: kletka-linux
-          path: target/installer/kletka_1.4.0-1_amd64.deb
+          name: ${{ matrix.artifact }}
+          path: target/installer/kletka-${{ matrix.artifact }}_*.deb
+
       - name: Upload installer to release
         uses: softprops/action-gh-release@v3
         with:
-          files: target/installer/kletka_1.4.0-1_amd64.deb
+          files: target/installer/kletka-${{ matrix.artifact }}_*.deb
         if: github.event_name == 'release'
 
   build-macos:
@@ -76,9 +107,22 @@ jobs:
         run: |
           export PATH="$JAVA_HOME/bin:$PATH"
           mvn clean package -P mac
-      # Артефакт для macOS не загружаем (он ломает .dmg)
+
+      - name: Verify installer exists
+        run: |
+          if ! ls target/installer/*.dmg > /dev/null 2>&1; then
+            echo "Installer not found!"
+            exit 1
+          fi
+
+      - name: Upload installer as artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: kletka-macos
+          path: target/installer/*.dmg
+
       - name: Upload installer to release
         uses: softprops/action-gh-release@v3
         with:
-          files: target/installer/Kletka-1.4.0.dmg
+          files: target/installer/*.dmg
         if: github.event_name == 'release'

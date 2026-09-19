@@ -1436,19 +1436,21 @@ public class ChessBoardView extends Application {
     }
 
     public void flipBoard() {
+        if (coachTools != null && coachTools.isPanelExpanded()) {
+            coachTools.togglePanel();
+        }
         boardFlipped = !boardFlipped;
         AppPreferences.saveBoardFlipped(boardFlipped);
         refreshBoard();
     }
 
     public void setShowCoordinates(boolean show) {
+        if (coachTools != null && coachTools.isPanelExpanded()) {
+            coachTools.togglePanel();
+        }
         this.showCoordinates = show;
         AppPreferences.saveShowCoordinates(show);
         refreshBoard();
-        // После перерисовки доски нужно перерисовать и оверлей
-        if (markerOverlay != null) {
-            Platform.runLater(() -> markerOverlay.redraw());
-        }
     }
 
     public void setBoard(Board board) {

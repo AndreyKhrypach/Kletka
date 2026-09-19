@@ -1,0 +1,8 @@
+Package: kletka
+Version: 1.4.0
+Section: Games
+Priority: optional
+Architecture: amd64
+Maintainer: Andrey Khrypach
+Description: Cross-platform chess analyzer
+Depends: libc6, libjpeg-turbo8
