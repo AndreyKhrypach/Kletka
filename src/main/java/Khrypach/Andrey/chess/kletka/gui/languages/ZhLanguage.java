@@ -197,6 +197,10 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.MENU_EDIT_PREFERENCES, "偏好设置");
         strings.put(LanguageKeys.PREFERENCES_TITLE, "偏好设置");
 
+        strings.put(LanguageKeys.MENU_FILE_COPY_POSITION, "复制局面 (FEN + ASCII)");
+        strings.put(LanguageKeys.POSITION_COPY_SUCCESS, "局面已复制到剪贴板");
+        strings.put(LanguageKeys.POSITION_COPY_NO_BOARD, "棋盘不可用");
+
         // ========== SETTINGS ==========
         strings.put(LanguageKeys.PREFERENCES_HEADER, "程序设置");
         strings.put(LanguageKeys.PREFERENCES_SAVE, "保存");
@@ -382,6 +386,14 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.MENU_BOOKS_INFO_VARIATIONS, "变例数");
         strings.put(LanguageKeys.MENU_BOOKS_SAVE, "保存书籍");
         strings.put(LanguageKeys.MENU_BOOKS_UNDO_MOVE, "撤销添加的着法");
+
+        strings.put(LanguageKeys.MENU_BOOKS_EXPORT_TREE, "导出为 Polyglot 开局库...");
+        strings.put(LanguageKeys.BOOK_EXPORT_DIALOG_TITLE, "保存 Polyglot 开局库");
+        strings.put(LanguageKeys.BOOK_EXPORT_SUCCESS, "开局库 \"%s\" 已创建：%d 条记录");
+        strings.put(LanguageKeys.BOOK_EXPORT_EMPTY_RESULT, "没有可导出的走法");
+        strings.put(LanguageKeys.BOOK_EXPORT_ERROR, "导出开局库失败");
+        strings.put(LanguageKeys.BOOK_EXPORT_NO_TREE, "变例树未加载");
+        strings.put(LanguageKeys.BOOK_EXPORT_EMPTY_TREE, "变例树为空 — 没有可导出的内容");
 
         // ========== NOTIFICATIONS ==========
         strings.put(LanguageKeys.NOTIFICATION_INFO, "信息");
@@ -584,18 +596,28 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.ABOUT_CONTENT,
                 """
                     ♔ Kletka 国际象棋分析器 ♔
-                    版本: %s
-                    平台: Java 17, OpenJFX
-                    库: chesslib 1.3.6 (GPL v3)
+                    版本：%s
+                    平台：Java 17、OpenJFX
+                    库：chesslib 1.3.6 (GPL v3)
                     
                     跨平台国际象棋分析器
-                    支持SQLite数据库
+                    支持 SQLite 数据库
                     
-                    © 2026 赫里帕奇·安德烈
+                    © 2026 Khrypach Andrey
                     
-                    许可证: GNU通用公共许可证 v3.0
-                    https://www.gnu.org/licenses/gpl-3.0.html
+                    ---------------------------------------------------
+                    许可证：GNU General Public License v3.0
+                    
+                    本项目为自由软件。
+                    您可以在 GNU General Public License
+                    第 3 版或任何更高版本的条款下
+                    分发和/或修改本项目。
+                    ---------------------------------------------------
                     """);
+
+        strings.put(LanguageKeys.ABOUT_WEBSITE_LINK , "项目网站");
+        strings.put(LanguageKeys.ABOUT_GITHUB_LINK  , "GitHub 仓库");
+        strings.put(LanguageKeys.ABOUT_LICENSE_LINK   , "GPL v3 许可证文本");
 
         // ========== POSITION SET ==========
         strings.put(LanguageKeys.POSITION_SET_SUCCESS, "局面已设置。%s走棋");
@@ -1225,6 +1247,7 @@ public class ZhLanguage implements Language {
 
         // 📝 编辑
         shortcutsContent.append("\n📝 编辑:\n");
+        shortcutsContent.append("  Ctrl+Shift+P - 复制局面\n");
         shortcutsContent.append("  Ctrl+Z - 撤销标记\n");
         shortcutsContent.append("  Ctrl+Y - 重做标记\n");
         shortcutsContent.append("  Ctrl+Shift+O - 偏好设置\n");

@@ -175,6 +175,11 @@ public class LanguageKeys {
     public static final String MENU_EDIT_PREFERENCES = "menu.edit.preferences";
     public static final String PREFERENCES_TITLE = "preferences.title";
 
+    // ========== КОПИРОВАНИЕ ПОЗИЦИИ ==========
+    public static final String MENU_FILE_COPY_POSITION = "menu.file.copy.position";
+    public static final String POSITION_COPY_SUCCESS = "position.copy.success";
+    public static final String POSITION_COPY_NO_BOARD = "position.copy.no.board";
+
     // ========== НАСТРОЙКИ ==========
     public static final String PREFERENCES_HEADER = "preferences.header";
     public static final String PREFERENCES_SAVE = "preferences.save";
@@ -382,6 +387,15 @@ public class LanguageKeys {
     public static final String MENU_BOOKS_INFO_VARIATIONS = "menu.books.info.variations";
     public static final String MENU_BOOKS_SAVE  = "menu.books.save";
     public static final String MENU_BOOKS_UNDO_MOVE  = "menu.books.undo.move";
+
+    // ========== ЭКСПОРТ ДЕРЕВА В КНИГУ ==========
+    public static final String MENU_BOOKS_EXPORT_TREE = "menu.books.export.tree";
+    public static final String BOOK_EXPORT_DIALOG_TITLE = "book.export.dialog.title";
+    public static final String BOOK_EXPORT_SUCCESS = "book.export.success";
+    public static final String BOOK_EXPORT_EMPTY_RESULT = "book.export.empty.result";
+    public static final String BOOK_EXPORT_ERROR = "book.export.error";
+    public static final String BOOK_EXPORT_NO_TREE = "book.export.no.tree";
+    public static final String BOOK_EXPORT_EMPTY_TREE = "book.export.empty.tree";
 
     // Статус и уведомления
     public static final String NOTIFICATION_INFO = "notification.info";
@@ -668,6 +682,10 @@ public class LanguageKeys {
 
     public static final String ABOUT_TITLE = "main.about.title";
     public static final String ABOUT_CONTENT = "main.about.content";
+
+    public static final String ABOUT_WEBSITE_LINK = "about.website.link";
+    public static final String ABOUT_GITHUB_LINK = "about.github.link";
+    public static final String ABOUT_LICENSE_LINK = "about.license.link";
 
     public static final String POSITION_SET_SUCCESS = "main.position.set.success";
 

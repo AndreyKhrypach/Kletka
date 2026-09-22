@@ -47,16 +47,16 @@ jobs:
         if: github.event_name == 'release'
 
   build-linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         include:
           - container: debian:trixie
             profile: linux-debian
-            artifact: kletka-debian
+            artifact: debian
           - container: ubuntu:24.04
             profile: linux-ubuntu
-            artifact: kletka-ubuntu
+            artifact: ubuntu
     steps:
       - uses: actions/checkout@v5
 

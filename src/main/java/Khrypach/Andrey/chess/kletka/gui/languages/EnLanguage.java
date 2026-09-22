@@ -178,6 +178,10 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.MENU_EDIT_PREFERENCES, "Preferences");
         strings.put(LanguageKeys.PREFERENCES_TITLE, "Preferences");
 
+        strings.put(LanguageKeys.MENU_FILE_COPY_POSITION, "Copy Position (FEN + ASCII)");
+        strings.put(LanguageKeys.POSITION_COPY_SUCCESS, "Position copied to clipboard");
+        strings.put(LanguageKeys.POSITION_COPY_NO_BOARD, "Board not available");
+
         // ========== PREFERENCES ==========
         strings.put(LanguageKeys.PREFERENCES_HEADER, "Program Settings");
         strings.put(LanguageKeys.PREFERENCES_SAVE, "Save");
@@ -362,6 +366,14 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.MENU_BOOKS_INFO_VARIATIONS, "Variations");
         strings.put(LanguageKeys.MENU_BOOKS_SAVE, "Save book");
         strings.put(LanguageKeys.MENU_BOOKS_UNDO_MOVE, "Undo added move");
+
+        strings.put(LanguageKeys.MENU_BOOKS_EXPORT_TREE, "Export to Polyglot Book...");
+        strings.put(LanguageKeys.BOOK_EXPORT_DIALOG_TITLE, "Save Polyglot Book");
+        strings.put(LanguageKeys.BOOK_EXPORT_SUCCESS, "Book \"%s\" created: %d entries");
+        strings.put(LanguageKeys.BOOK_EXPORT_EMPTY_RESULT, "No moves to export");
+        strings.put(LanguageKeys.BOOK_EXPORT_ERROR, "Failed to export book");
+        strings.put(LanguageKeys.BOOK_EXPORT_NO_TREE, "Game tree not loaded");
+        strings.put(LanguageKeys.BOOK_EXPORT_EMPTY_TREE, "Tree is empty — nothing to export");
 
         // Notifications
         strings.put(LanguageKeys.NOTIFICATION_INFO, "Information");
@@ -600,9 +612,19 @@ public class EnLanguage implements Language {
                     
                     © 2026 Khrypach Andrey
                     
+                    ---------------------------------------------------
                     License: GNU General Public License v3.0
-                    https://www.gnu.org/licenses/gpl-3.0.html
+                    
+                    This project is free software.
+                    You may distribute and/or modify it
+                    under the terms of the GNU General Public License
+                    version 3 or any later version.
+                    ---------------------------------------------------
                     """);
+
+        strings.put(LanguageKeys.ABOUT_WEBSITE_LINK , "Project Website");
+        strings.put(LanguageKeys.ABOUT_GITHUB_LINK  , "GitHub Repository");
+        strings.put(LanguageKeys.ABOUT_LICENSE_LINK   , "GPL v3 License Text");
 
         strings.put(LanguageKeys.POSITION_SET_SUCCESS, "Position set. %s to move");
 
@@ -1241,6 +1263,7 @@ public class EnLanguage implements Language {
 
         // 📝 Edit
         shortcutsContent.append("\n📝 Edit:\n");
+        shortcutsContent.append("  Ctrl+Shift+P - Копировать позицию\n");
         shortcutsContent.append("  Ctrl+Z - Undo marker\n");
         shortcutsContent.append("  Ctrl+Y - Redo marker\n");
         shortcutsContent.append("  Ctrl+Shift+O - Preferences\n");

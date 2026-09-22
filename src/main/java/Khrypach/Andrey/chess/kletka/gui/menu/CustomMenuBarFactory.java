@@ -102,6 +102,8 @@ public class CustomMenuBarFactory {
     private RadioMenuItem blueThemeItem;
     private ToggleGroup themeToggleGroup;
 
+    private MenuItem openPgnBrowserItem;   // ← новое
+    private MenuItem refreshBrowserItem;   // ← новое
     private MenuItem windowsClipboardStatusItem;
     private MenuItem windowsClearClipboardItem;
     private MenuItem windowsCloseAllItem;
@@ -354,20 +356,6 @@ public class CustomMenuBarFactory {
             returnFocusToBoard();
         });
 
-        MenuItem openPgnBrowserItem = new MenuItem(lang.get(MENU_FILE_OPEN_BROWSER));
-        openPgnBrowserItem.setAccelerator(KeyCombination.keyCombination("Ctrl+B"));
-        openPgnBrowserItem.setOnAction(e -> {
-            controller.showPgnBrowser();
-            returnFocusToBoard();
-        });
-
-        MenuItem refreshBrowserItem = new MenuItem(lang.get(MENU_FILE_REFRESH_BROWSER));
-        refreshBrowserItem.setAccelerator(KeyCombination.keyCombination("Ctrl+R"));
-        refreshBrowserItem.setOnAction(e -> {
-            controller.refreshPgnBrowser();
-            returnFocusToBoard();
-        });
-
         MenuItem savePgnItem = new MenuItem(lang.get(MENU_FILE_SAVE_PGN));
         savePgnItem.setAccelerator(KeyCombination.keyCombination("Ctrl+S"));
         savePgnItem.setOnAction(e -> {
@@ -419,8 +407,6 @@ public class CustomMenuBarFactory {
         menu.getItems().addAll(
                 newGameItem,
                 openPgnItem,
-                openPgnBrowserItem,
-                refreshBrowserItem,
                 savePgnItem,
                 exportCurrentItem,
                 importClipboardItem,
@@ -498,6 +484,17 @@ public class CustomMenuBarFactory {
         ContextMenu menu = new ContextMenu();
         menu.setStyle("-fx-open-on-hover: false;");
 
+        MenuItem copyPositionItem = new MenuItem(lang.get(MENU_FILE_COPY_POSITION));
+        copyPositionItem.setAccelerator(
+                new KeyCodeCombination(KeyCode.P,
+                        KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN));
+        copyPositionItem.setOnAction(e -> {
+            if (controller != null) {
+                controller.copyPositionAsciiToClipboard();
+            }
+            returnFocusToBoard();
+        });
+
         undoMarkerItem = new MenuItem(lang.get(MENU_EDIT_UNDO_MARKER));
         undoMarkerItem.setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCombination.CONTROL_DOWN));
         undoMarkerItem.setOnAction(e -> {
@@ -518,7 +515,6 @@ public class CustomMenuBarFactory {
             returnFocusToBoard();
         });
 
-        SeparatorMenuItem separator = new SeparatorMenuItem();
 
         MenuItem preferencesItem = new MenuItem(lang.get(MENU_EDIT_PREFERENCES));
         preferencesItem.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN));
@@ -527,7 +523,14 @@ public class CustomMenuBarFactory {
             returnFocusToBoard();
         });
 
-        menu.getItems().addAll(undoMarkerItem, redoMarkerItem, separator, preferencesItem);
+        menu.getItems().addAll(
+                copyPositionItem,
+                new SeparatorMenuItem(),
+                undoMarkerItem,
+                redoMarkerItem,
+                new SeparatorMenuItem(),
+                preferencesItem
+        );
 
         updateUndoRedoState(false, false);
 
@@ -671,17 +674,30 @@ public class CustomMenuBarFactory {
     }
 
     private ContextMenu createWindowsMenu() {
-        // ========== СОЗДАЕМ КОНТЕКСТНОЕ МЕНЮ НАПРЯМУЮ, БЕЗ ВЛОЖЕННОГО MENU ==========
         ContextMenu contextMenu = new ContextMenu();
         contextMenu.setStyle("-fx-open-on-hover: false;");
 
-        // Добавляем пункты напрямую в контекстное меню
+        // ========== OPEN PGN BROWSER ==========
+        openPgnBrowserItem = new MenuItem(lang.get(MENU_FILE_OPEN_BROWSER));
+        openPgnBrowserItem.setAccelerator(KeyCombination.keyCombination("Ctrl+B"));
+        openPgnBrowserItem.setOnAction(e -> {
+            controller.showPgnBrowser();
+            returnFocusToBoard();
+        });
+
+        // ========== REFRESH BROWSER ==========
+        refreshBrowserItem = new MenuItem(lang.get(MENU_FILE_REFRESH_BROWSER));
+        refreshBrowserItem.setAccelerator(KeyCombination.keyCombination("Ctrl+R"));
+        refreshBrowserItem.setOnAction(e -> {
+            controller.refreshPgnBrowser();
+            returnFocusToBoard();
+        });
+
+        // ========== CLIPBOARD STATUS ==========
         windowsClipboardStatusItem = new MenuItem(lang.get(MENU_WINDOWS_CLIPBOARD_EMPTY));
         windowsClipboardStatusItem.setDisable(true);
-        contextMenu.getItems().add(windowsClipboardStatusItem);
 
-        contextMenu.getItems().add(new SeparatorMenuItem());
-
+        // ========== CLEAR CLIPBOARD ==========
         windowsClearClipboardItem = new MenuItem(lang.get(MENU_WINDOWS_CLEAR_CLIPBOARD));
         windowsClearClipboardItem.setOnAction(e -> {
             PgnBrowserManager.getInstance().clearClipboard();
@@ -689,10 +705,8 @@ public class CustomMenuBarFactory {
             returnFocusToBoard();
         });
         windowsClearClipboardItem.setDisable(true);
-        contextMenu.getItems().add(windowsClearClipboardItem);
 
-        contextMenu.getItems().add(new SeparatorMenuItem());
-
+        // ========== CLOSE ALL ==========
         windowsCloseAllItem = new MenuItem(lang.get(MENU_WINDOWS_CLOSE_ALL));
         windowsCloseAllItem.setAccelerator(new KeyCodeCombination(KeyCode.W,
                 KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN));
@@ -702,12 +716,11 @@ public class CustomMenuBarFactory {
             returnFocusToBoard();
         });
         windowsCloseAllItem.setDisable(true);
-        contextMenu.getItems().add(windowsCloseAllItem);
 
-        // Сохраняем ссылку на контекстное меню для обновления
+        // Сохраняем ссылку на контекстное меню
         this.windowsContextMenu = contextMenu;
 
-        // Обновляем меню
+        // Обновляем — добавит все пункты в нужном порядке
         updateWindowsMenu();
 
         return contextMenu;
@@ -761,6 +774,16 @@ public class CustomMenuBarFactory {
 
         // Добавляем после loadBookItem
         menu.getItems().add(1, saveBookItem);
+
+        // ========== ЭКСПОРТ ДЕРЕВА В POLYGLOT КНИГУ ==========
+        MenuItem exportTreeItem = new MenuItem(lang.get(MENU_BOOKS_EXPORT_TREE));
+        exportTreeItem.setOnAction(e -> {
+            if (controller != null) {
+                controller.exportTreeToPolyglotBook();
+            }
+            returnFocusToBoard();
+        });
+        menu.getItems().add(exportTreeItem);
 
         // ========== ОТМЕНА ХОДА В КНИГЕ ==========
         MenuItem undoBookItem = new MenuItem(lang.get(MENU_BOOKS_UNDO_MOVE));
@@ -1202,14 +1225,21 @@ public class CustomMenuBarFactory {
             }
 
             try {
-                // Получаем все открытые браузеры
                 Collection<PgnFileBrowser> browsers = PgnBrowserManager.getInstance().getAllBrowsers();
                 PgnFileBrowser activeBrowser = PgnBrowserManager.getInstance().getActiveBrowser();
 
-                // ========== ОЧИЩАЕМ ВСЕ ПУНКТЫ ==========
+                // ========== ОЧИЩАЕМ ==========
                 windowsContextMenu.getItems().clear();
 
-                // ========== ДОБАВЛЯЕМ СЛУЖЕБНЫЕ ПУНКТЫ ==========
+                // ========== СЛУЖЕБНЫЕ ПУНКТЫ (в начале) ==========
+                if (openPgnBrowserItem != null) {
+                    windowsContextMenu.getItems().add(openPgnBrowserItem);
+                }
+                if (refreshBrowserItem != null) {
+                    windowsContextMenu.getItems().add(refreshBrowserItem);
+                }
+                windowsContextMenu.getItems().add(new SeparatorMenuItem());
+
                 if (windowsClipboardStatusItem != null) {
                     windowsContextMenu.getItems().add(windowsClipboardStatusItem);
                 }
@@ -1222,11 +1252,11 @@ public class CustomMenuBarFactory {
                     windowsContextMenu.getItems().add(windowsCloseAllItem);
                 }
 
+                // ========== СПИСОК БРАУЗЕРОВ ==========
                 if (browsers.isEmpty()) {
-                    // Нет открытых браузеров - показываем сообщение
                     MenuItem noBrowsersItem = new MenuItem(lang.get(MENU_WINDOWS_NO_FILES));
                     noBrowsersItem.setDisable(true);
-                    windowsContextMenu.getItems().add(0, noBrowsersItem);
+                    windowsContextMenu.getItems().add(noBrowsersItem);
 
                     if (windowsCloseAllItem != null) {
                         windowsCloseAllItem.setDisable(true);
@@ -1236,18 +1266,14 @@ public class CustomMenuBarFactory {
                         windowsCloseAllItem.setDisable(false);
                     }
 
-                    // ========== ИСПОЛЬЗУЕМ Set ДЛЯ ОТСЛЕЖИВАНИЯ УНИКАЛЬНЫХ ФАЙЛОВ ==========
-                    Set<String> addedFiles = new HashSet<>();
+                    windowsContextMenu.getItems().add(new SeparatorMenuItem());
 
-                    // Добавляем пункты для каждого браузера
+                    Set<String> addedFiles = new HashSet<>();
                     for (PgnFileBrowser browser : browsers) {
                         Path path = browser.getPgnPath();
                         String filePath = path.toString();
 
-                        if (addedFiles.contains(filePath)) {
-                            log.debug("Skipping duplicate: {}", filePath);
-                            continue;
-                        }
+                        if (addedFiles.contains(filePath)) continue;
                         addedFiles.add(filePath);
 
                         MenuItem browserItem = createBrowserMenuItem(browser, path, activeBrowser);
@@ -1259,12 +1285,10 @@ public class CustomMenuBarFactory {
                             updateWindowsMenu();
                         });
 
-                        // Добавляем в начало (перед служебными)
-                        windowsContextMenu.getItems().add(0, browserItem);
+                        windowsContextMenu.getItems().add(browserItem);
                     }
                 }
 
-                // Обновляем статус буфера обмена
                 updateClipboardStatus();
 
             } catch (Exception e) {

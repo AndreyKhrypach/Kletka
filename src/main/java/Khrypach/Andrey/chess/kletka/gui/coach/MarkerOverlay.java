@@ -22,6 +22,7 @@ package Khrypach.Andrey.chess.kletka.gui.coach;
 
 import Khrypach.Andrey.chess.kletka.gui.board.ChessBoardView;
 import Khrypach.Andrey.chess.kletka.gui.coach.tools.ArrowData;
+import Khrypach.Andrey.chess.kletka.gui.coach.tools.CircleData;
 import Khrypach.Andrey.chess.kletka.gui.coach.tools.CrossData;
 import javafx.geometry.Bounds;
 import javafx.geometry.Point2D;
@@ -63,8 +64,9 @@ public class MarkerOverlay extends Pane {
         boolean hasArrows = !coachTools.getArrows().isEmpty();
         boolean hasTempArrow = coachTools.getTempArrow() != null;
         boolean hasCrosses = !coachTools.getCrosses().isEmpty();
+        boolean hasCircles = !coachTools.getCircles().isEmpty();
 
-        if (boardContainer == null || (!hasArrows && !hasTempArrow && !hasCrosses)) {
+        if (boardContainer == null || (!hasArrows && !hasTempArrow && !hasCrosses && !hasCircles)) {
             canvas.setVisible(false);
             return;
         }
@@ -93,6 +95,11 @@ public class MarkerOverlay extends Pane {
             drawCross(gc, cross.getSquare(), cross.getColor().getColor());
         }
 
+        // РИСУЕМ КРУЖКИ
+        for (CircleData circle : coachTools.getCircles().values()) {
+            drawCircle(gc, circle.getSquare(), circle.getColor().getColor());
+        }
+
         // Рисуем все сохраненные стрелки
         for (ArrowData arrow : coachTools.getArrows().values()) {
             drawArrow(gc, arrow.getFromSquare(), arrow.getToSquare(), arrow.getColor().getColor());
@@ -116,10 +123,10 @@ public class MarkerOverlay extends Pane {
         double x = center.getX();
         double y = center.getY();
         // Размер клетки теперь тоже нужно получать динамически
-        double size = boardView.getTileSize() * 0.3;
+        double size = boardView.getTileSize() * 0.20;
 
         gc.setStroke(color);
-        gc.setLineWidth(Math.max(3, boardView.getTileSize() * 0.08));
+        gc.setLineWidth(Math.max(3, boardView.getTileSize() * 0.064));
         gc.setLineCap(StrokeLineCap.ROUND);
 
         gc.strokeLine(x - size, y - size, x + size, y + size);
@@ -168,6 +175,25 @@ public class MarkerOverlay extends Pane {
         double[] xPoints = {endX, arrowX1, arrowX2};
         double[] yPoints = {endY, arrowY1, arrowY2};
         gc.fillPolygon(xPoints, yPoints, 3);
+    }
+
+    /**
+     * Рисует пустой кружок на клетке.
+     */
+    private void drawCircle(GraphicsContext gc, String squareName, Color color) {
+        Point2D center = getSquareCenter(squareName);
+        if (center == null) return;
+
+        double x = center.getX();
+        double y = center.getY();
+        double radius = boardView.getTileSize() * 0.20;   // чуть больше, чем крестик
+
+        gc.setStroke(color);
+        gc.setLineWidth(Math.max(3, boardView.getTileSize() * 0.064));
+        gc.setLineCap(StrokeLineCap.ROUND);
+
+        // Пустой круг (без заливки)
+        gc.strokeOval(x - radius, y - radius, radius * 2, radius * 2);
     }
 
     /**

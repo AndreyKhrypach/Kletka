@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -123,32 +124,24 @@ class EcoServiceTest {
     // ============================================================
 
     @Nested
-    @DisplayName("buildFullPgnFromTree() - Построение PGN из дерева")
-    class BuildFullPgnFromTreeTests {
+    @DisplayName("buildMovesListFromTree() - Построение списка ходов из дерева")
+    class BuildMovesListFromTreeTests {
 
         @Test
-        @DisplayName("Должен возвращать null при null rootNode")
-        void shouldReturnNullForNullRoot() {
-            // when
-            String result = ecoService.buildFullPgnFromTree(null, new Variation());
-
-            // then
-            assertThat(result).isNull();
+        @DisplayName("Должен возвращать пустой список при null rootNode")
+        void shouldReturnEmptyForNullRoot() {
+            assertThat(ecoService.buildMovesListFromTree(null, new Variation())).isEmpty();
         }
 
         @Test
-        @DisplayName("Должен возвращать null при null mainLine")
-        void shouldReturnNullForNullMainLine() {
-            // when
-            String result = ecoService.buildFullPgnFromTree(new RootNode(), null);
-
-            // then
-            assertThat(result).isNull();
+        @DisplayName("Должен возвращать пустой список при null mainLine")
+        void shouldReturnEmptyForNullMainLine() {
+            assertThat(ecoService.buildMovesListFromTree(new RootNode(), null)).isEmpty();
         }
 
         @Test
-        @DisplayName("Должен строить PGN из дерева с одним ходом")
-        void shouldBuildPgnWithOneMove() {
+        @DisplayName("Должен возвращать список с одним ходом")
+        void shouldBuildListWithOneMove() {
             // given
             RootNode root = new RootNode();
             Variation mainLine = new Variation("Main");
@@ -159,15 +152,15 @@ class EcoServiceTest {
             moveNode.setParent(root);
 
             // when
-            String pgn = ecoService.buildFullPgnFromTree(root, mainLine);
+            List<String> moves = ecoService.buildMovesListFromTree(root, mainLine);
 
             // then
-            assertThat(pgn).isEqualTo("1. e4");
+            assertThat(moves).containsExactly("e4");
         }
 
         @Test
-        @DisplayName("Должен строить PGN из дерева с несколькими ходами")
-        void shouldBuildPgnWithMultipleMoves() {
+        @DisplayName("Должен возвращать список с несколькими ходами")
+        void shouldBuildListWithMultipleMoves() {
             // given
             RootNode root = new RootNode();
             Variation mainLine = new Variation("Main");
@@ -182,25 +175,25 @@ class EcoServiceTest {
             node2.setNext(node3);
 
             // when
-            String pgn = ecoService.buildFullPgnFromTree(root, mainLine);
+            List<String> moves = ecoService.buildMovesListFromTree(root, mainLine);
 
             // then
-            assertThat(pgn).isEqualTo("1. e4 e5 2. Nf3");
+            assertThat(moves).containsExactly("e4", "e5", "Nf3");
         }
 
         @Test
-        @DisplayName("Должен возвращать null для пустого дерева")
-        void shouldReturnNullForEmptyTree() {
+        @DisplayName("Должен возвращать пустой список для пустого дерева")
+        void shouldReturnEmptyForEmptyTree() {
             // given
             RootNode root = new RootNode();
             Variation mainLine = new Variation("Main");
             mainLine.setFirstNode(root);
 
             // when
-            String pgn = ecoService.buildFullPgnFromTree(root, mainLine);
+            List<String> moves = ecoService.buildMovesListFromTree(root, mainLine);
 
             // then
-            assertThat(pgn).isNull();
+            assertThat(moves).isEmpty();
         }
 
         @Test
@@ -220,11 +213,11 @@ class EcoServiceTest {
             node2.setNext(node3);
 
             // when
-            String pgn = ecoService.buildFullPgnFromTree(root, mainLine);
+            List<String> moves = ecoService.buildMovesListFromTree(root, mainLine);
 
             // then
-            assertThat(pgn).isEqualTo("1. e4 e5 2. Qh5");
-            assertThat(pgn).doesNotContain("#");
+            assertThat(moves).containsExactly("e4", "e5", "Qh5");
+            assertThat(moves).noneMatch(m -> m.contains("#") || m.contains("+"));
         }
     }
 

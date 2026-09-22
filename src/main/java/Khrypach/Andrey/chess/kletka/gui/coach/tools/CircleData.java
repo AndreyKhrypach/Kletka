@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
+ *  * Copyright (c) 2024 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -19,12 +19,31 @@
  */
 
 package Khrypach.Andrey.chess.kletka.gui.coach.tools;
-/**
- * Типы инструментов
- */
-public enum ToolType {
-    NONE,
-    ARROW,
-    CROSS,
-    CIRCLE
+
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+public class CircleData {
+    private final String square;
+    @Setter
+    private MarkerColor color;
+
+    public CircleData(String square, MarkerColor color) {
+        this.square = square;
+        this.color = color;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        CircleData that = (CircleData) obj;
+        return square.equals(that.getSquare());
+    }
+
+    @Override
+    public int hashCode() {
+        return square.hashCode();
+    }
 }
