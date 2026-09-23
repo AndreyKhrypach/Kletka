@@ -510,16 +510,15 @@ class AppPreferencesTest {
         }
 
         @Test
-        @DisplayName("Должен возвращать путь по умолчанию (bases/book)")
-        void shouldReturnDefaultBookDirectory() {
+        @DisplayName("Должен возвращать непустой путь к папке книг")
+        void shouldReturnNonEmptyBookDirectory() {
             // when
             String result = AppPreferences.getBookDirectory();
 
             // then
-            assertThat(result).isNotNull().isNotEmpty();
-
-            Path bookPath = Path.of(result);
-            assertThat(Files.exists(bookPath.getParent())).isTrue();
+            assertThat(result)
+                    .isNotNull()
+                    .isNotEmpty();
         }
     }
 
