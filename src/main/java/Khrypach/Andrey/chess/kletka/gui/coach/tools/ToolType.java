@@ -25,5 +25,6 @@ package Khrypach.Andrey.chess.kletka.gui.coach.tools;
 public enum ToolType {
     NONE,
     ARROW,
-    CROSS
+    CROSS,
+    CIRCLE
 }

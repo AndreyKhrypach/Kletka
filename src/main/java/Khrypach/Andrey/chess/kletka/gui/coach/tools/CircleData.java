@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
+ *  * Copyright (c) 2024 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -20,20 +20,30 @@
 
 package Khrypach.Andrey.chess.kletka.gui.coach.tools;
 
-import javafx.scene.paint.Color;
 import lombok.Getter;
+import lombok.Setter;
 
 @Getter
-public enum MarkerColor {
-    BLUE(Color.rgb(0, 100, 255, 0.85)),
-    RED(Color.rgb(220, 20, 20, 0.9)),
-    GREEN(Color.rgb(50, 200, 50, 0.85)),
-    BLACK(Color.rgb(0, 0, 0, 0.85));
+public class CircleData {
+    private final String square;
+    @Setter
+    private MarkerColor color;
 
-    private final Color color;
-
-    MarkerColor(Color color) {
+    public CircleData(String square, MarkerColor color) {
+        this.square = square;
         this.color = color;
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        CircleData that = (CircleData) obj;
+        return square.equals(that.getSquare());
+    }
+
+    @Override
+    public int hashCode() {
+        return square.hashCode();
+    }
 }

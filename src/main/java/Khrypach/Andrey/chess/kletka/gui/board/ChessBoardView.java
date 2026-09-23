@@ -564,8 +564,8 @@ public class ChessBoardView extends Application {
         // ========== ГОРЯЧИЕ КЛАВИШИ ДЛЯ КНИГ ==========
 
         // Ctrl+shift+B — Загрузить книгу (открывает диалог выбора)
-        KeyCombination ctrlB = new KeyCodeCombination(KeyCode.B, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN);
-        scene.getAccelerators().put(ctrlB, () -> {
+        KeyCombination ctrlShiftB = new KeyCodeCombination(KeyCode.B, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN);
+        scene.getAccelerators().put(ctrlShiftB, () -> {
             if (mainController != null) {
                 Platform.runLater(() -> mainController.openPolyglotBook());
             }
@@ -586,6 +586,64 @@ public class ChessBoardView extends Application {
         scene.getAccelerators().put(ctrlShiftS, () -> {
             if (mainController != null) {
                 Platform.runLater(() -> mainController.savePolyglotBook());
+            }
+        });
+
+        // Ctrl+Shift+P — Copy Position (FEN + ASCII)
+        KeyCombination ctrlShiftP = new KeyCodeCombination(KeyCode.P,
+                KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN);
+        scene.getAccelerators().put(ctrlShiftP, () -> {
+            if (mainController != null) {
+                Platform.runLater(mainController::copyPositionAsciiToClipboard);
+            }
+        });
+
+        // Ctrl+Shift+V — Import from Clipboard
+        KeyCombination ctrlShiftV = new KeyCodeCombination(KeyCode.V,
+                KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN);
+        scene.getAccelerators().put(ctrlShiftV, () -> {
+            if (mainController != null) {
+                Platform.runLater(mainController::importPgnFromClipboard);
+            }
+        });
+
+        // Ctrl+E — Export Current Game
+        KeyCombination ctrlE = new KeyCodeCombination(KeyCode.E, KeyCombination.CONTROL_DOWN);
+        scene.getAccelerators().put(ctrlE, () -> {
+            if (mainController != null) {
+                Platform.runLater(mainController::exportCurrentGameToPgn);
+            }
+        });
+
+        // Ctrl+H — Shortcuts
+        KeyCombination ctrlH = new KeyCodeCombination(KeyCode.H, KeyCombination.CONTROL_DOWN);
+        scene.getAccelerators().put(ctrlH, () -> {
+            if (mainController != null) {
+                Platform.runLater(mainController::showShortcuts);
+            }
+        });
+
+        // Ctrl+A — Analyze
+        KeyCombination ctrlA = new KeyCodeCombination(KeyCode.A, KeyCombination.CONTROL_DOWN);
+        scene.getAccelerators().put(ctrlA, () -> {
+            if (mainController != null) {
+                Platform.runLater(mainController::showBestMove);
+            }
+        });
+
+        // Ctrl+B — Open PGN Browser
+        KeyCombination ctrlB = new KeyCodeCombination(KeyCode.B, KeyCombination.CONTROL_DOWN);
+        scene.getAccelerators().put(ctrlB, () -> {
+            if (mainController != null) {
+                Platform.runLater(mainController::showPgnBrowser);
+            }
+        });
+
+        // Ctrl+R — Refresh PGN Browser
+        KeyCombination ctrlR = new KeyCodeCombination(KeyCode.R, KeyCombination.CONTROL_DOWN);
+        scene.getAccelerators().put(ctrlR, () -> {
+            if (mainController != null) {
+                Platform.runLater(mainController::refreshPgnBrowser);
             }
         });
     }
@@ -1120,6 +1178,10 @@ public class ChessBoardView extends Application {
                 coachTools.addCross(clickedSquare.name());
                 return;
             }
+            if (tool == ToolType.CIRCLE) {
+                coachTools.addCircle(clickedSquare.name());
+                return;
+            }
         }
 
         if (isTerminalPosition()) {
@@ -1436,19 +1498,21 @@ public class ChessBoardView extends Application {
     }
 
     public void flipBoard() {
+        if (coachTools != null && coachTools.isPanelExpanded()) {
+            coachTools.togglePanel();
+        }
         boardFlipped = !boardFlipped;
         AppPreferences.saveBoardFlipped(boardFlipped);
         refreshBoard();
     }
 
     public void setShowCoordinates(boolean show) {
+        if (coachTools != null && coachTools.isPanelExpanded()) {
+            coachTools.togglePanel();
+        }
         this.showCoordinates = show;
         AppPreferences.saveShowCoordinates(show);
         refreshBoard();
-        // После перерисовки доски нужно перерисовать и оверлей
-        if (markerOverlay != null) {
-            Platform.runLater(() -> markerOverlay.redraw());
-        }
     }
 
     public void setBoard(Board board) {

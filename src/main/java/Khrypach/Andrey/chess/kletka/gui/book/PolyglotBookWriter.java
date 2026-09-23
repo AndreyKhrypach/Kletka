@@ -295,10 +295,13 @@ public class PolyglotBookWriter {
     }
 
     /**
-     * Создаёт новую книгу из списка записей (если файла нет).
-     * @deprecated Будет использоваться в версии 1.5
+     * Создаёт новую книгу из списка записей.
+     * Используется для экспорта дерева вариантов в Polyglot.
+     * <p>
+     * Если файл существует — перезаписывается. Если нет — создаётся.
+     * <p>
+     * Записи сортируются по ключу (требование Polyglot).
      */
-    @Deprecated
     public static void createBook(Path bookPath, List<PolyglotEntry> entries) throws IOException {
         if (entries == null || entries.isEmpty()) {
             log.debug("No entries to create book");

@@ -23,6 +23,7 @@ import Khrypach.Andrey.chess.kletka.gui.model.RootNode;
 import Khrypach.Andrey.chess.kletka.gui.model.Variation;
 import Khrypach.Andrey.chess.kletka.gui.settings.AppPreferences;
 import com.github.bhlangonijr.chesslib.Board;
+import com.github.bhlangonijr.chesslib.Square;
 import com.github.bhlangonijr.chesslib.move.Move;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +32,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -302,7 +304,6 @@ class BookManagerTest {
     @Test
     void loadVariationsForNode_ShouldBeIdempotent() {
         bookManager.loadBook(testBookPath);
-
         GameTree tree = bookManager.getCurrentBookTree();
         RootNode root = tree.getRootNode();
         Board startBoard = new Board();
@@ -310,30 +311,134 @@ class BookManagerTest {
         bookManager.loadVariationsForNode(root, startBoard);
         int countAfterFirst = root.getSubVariations().size();
 
-        // Повторный вызов не должен дублировать варианты
-        bookManager.loadVariationsForNode(root, startBoard);
-        int countAfterSecond = root.getSubVariations().size();
+        // Сохраняем ссылки на объекты
+        var originalVariations = new ArrayList<>(root.getSubVariations());
+        ParentNode originalNext = root.getNext();
 
-        assertEquals(countAfterFirst, countAfterSecond,
-                "Повторный вызов не должен добавлять варианты");
+        // Повторный вызов
+        bookManager.loadVariationsForNode(root, startBoard);
+
+        assertEquals(countAfterFirst, root.getSubVariations().size());
+        assertSame(originalNext, root.getNext(),
+                "next не должен переустанавливаться при повторной загрузке");
+        // Опционально: проверить, что все объекты те же
+        for (int i = 0; i < originalVariations.size(); i++) {
+            assertSame(originalVariations.get(i), root.getSubVariations().get(i),
+                    "Variation[" + i + "] не должен пересоздаваться");
+        }
     }
 
     @Test
     void loadVariationsForNode_ShouldNotLoadWhenNoEntries() {
         bookManager.loadBook(testBookPath);
 
-        GameTree tree = bookManager.getCurrentBookTree();
-        RootNode root = tree.getRootNode();
+        // Создаём НОВЫЙ узел (не root), для позиции которой нет в книге
+        ParentNode emptyNode = new RootNode();  // или из нового дерева
+        Board rareBoard = new Board();
+        rareBoard.doMove(new Move(Square.A2, Square.A3));  // 1.a3 — редкий дебют
 
-        // Позиция, которой точно нет в книге (после 1. a3, например)
-        Board board = new Board();
-        board.doMove(new Move(com.github.bhlangonijr.chesslib.Square.A2,
-                com.github.bhlangonijr.chesslib.Square.A3));
+        bookManager.loadVariationsForNode(emptyNode, rareBoard);
 
-        bookManager.loadVariationsForNode(root, board);
-
-        assertTrue(root.getSubVariations().isEmpty(),
+        assertTrue(emptyNode.getSubVariations().isEmpty(),
                 "Для позиции вне книги не должно быть вариантов");
+    }
+
+    @Test
+    void loadVariationsForNode_ShouldLoadForDifferentNodesWithSamePosition() {
+        bookManager.loadBook(testBookPath);
+
+        // Позиция после 1.d4 d5 2.Nf3 (путь 1)
+        Board board1 = new Board();
+        board1.doMove(new Move(Square.D2, Square.D4));
+        board1.doMove(new Move(Square.D7, Square.D5));
+        board1.doMove(new Move(Square.G1, Square.F3));
+
+        // Позиция после 1.Nf3 d5 2.d4 (путь 2) — ТА ЖЕ позиция
+        Board board2 = new Board();
+        board2.doMove(new Move(Square.G1, Square.F3));
+        board2.doMove(new Move(Square.D7, Square.D5));
+        board2.doMove(new Move(Square.D2, Square.D4));
+
+        // Zobrist-ключи должны совпадать
+        long key1 = ZobristHasher.calculate(board1);
+        long key2 = ZobristHasher.calculate(board2);
+        assertEquals(key1, key2,
+                "Разные пути к одной позиции должны давать одинаковый Zobrist-ключ");
+
+        // Создаём ДВА разных узла для одной позиции
+        GameTree tree1 = new GameTree();
+        GameTree tree2 = new GameTree();
+        ParentNode node1 = tree1.getRootNode();
+        ParentNode node2 = tree2.getRootNode();
+
+        // Загружаем для первого узла
+        bookManager.loadVariationsForNode(node1, board1);
+        int count1 = node1.getSubVariations().size();
+        assertTrue(count1 > 0, "Узел 1 должен получить варианты из книги");
+
+        // Загружаем для ВТОРОГО узла (с тем же ключом!)
+        bookManager.loadVariationsForNode(node2, board2);
+        int count2 = node2.getSubVariations().size();
+
+        assertEquals(count1, count2,
+                "Узел 2 должен получить ТО ЖЕ количество вариантов, что и узел 1");
+        assertFalse(node2.getSubVariations().isEmpty(),
+                "Узел 2 НЕ должен остаться пустым — регрессия глобального кэша!");
+    }
+
+    @Test
+    void loadVariationsForNode_ShouldNotShareStateBetweenTrees() {
+        bookManager.loadBook(testBookPath);
+
+        // Два независимых дерева
+        GameTree tree1 = new GameTree();
+        GameTree tree2 = new GameTree();
+
+        ParentNode root1 = tree1.getRootNode();
+        ParentNode root2 = tree2.getRootNode();
+
+        Board startBoard = new Board();
+
+        // Загружаем для первого
+        bookManager.loadVariationsForNode(root1, startBoard);
+        int count1 = root1.getSubVariations().size();
+
+        // Загружаем для второго — должен получить СВОИ варианты
+        bookManager.loadVariationsForNode(root2, startBoard);
+        int count2 = root2.getSubVariations().size();
+
+        assertTrue(count1 > 0, "root1 должен получить варианты");
+        assertEquals(count1, count2,
+                "root2 должен получить то же количество вариантов (независимое дерево)");
+
+        // Важно: root1 и root2 имеют РАЗНЫЕ объекты Variation
+        assertNotSame(root1.getSubVariations().get(0),
+                root2.getSubVariations().get(0),
+                "Variation должны быть разными объектами");
+    }
+
+    @Test
+    void loadVariationsForNode_ShouldSkipIfNodeAlreadyHasVariations() {
+        bookManager.loadBook(testBookPath);
+        GameTree tree = bookManager.getCurrentBookTree();
+        ParentNode root = tree.getRootNode();
+        Board startBoard = new Board();
+
+        // Первая загрузка
+        bookManager.loadVariationsForNode(root, startBoard);
+        int countAfterFirst = root.getSubVariations().size();
+        assertTrue(countAfterFirst > 0);
+
+        // Сохраняем ссылку на первую Variation
+        Variation firstVariation = root.getSubVariations().get(0);
+
+        // Вторая загрузка — должна быть пропущена
+        bookManager.loadVariationsForNode(root, startBoard);
+
+        assertEquals(countAfterFirst, root.getSubVariations().size(),
+                "Повторная загрузка не должна добавлять варианты");
+        assertSame(firstVariation, root.getSubVariations().get(0),
+                "Объекты Variation не должны пересоздаваться");
     }
 
     // ======================================================================

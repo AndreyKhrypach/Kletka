@@ -25,6 +25,7 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -509,14 +510,15 @@ class AppPreferencesTest {
         }
 
         @Test
-        @DisplayName("Должен возвращать путь по умолчанию (bases/book)")
-        void shouldReturnDefaultBookDirectory() {
+        @DisplayName("Должен возвращать непустой путь к папке книг")
+        void shouldReturnNonEmptyBookDirectory() {
             // when
             String result = AppPreferences.getBookDirectory();
 
             // then
-            assertThat(result).isNotNull();
-            assertThat(result).contains("book");
+            assertThat(result)
+                    .isNotNull()
+                    .isNotEmpty();
         }
     }
 

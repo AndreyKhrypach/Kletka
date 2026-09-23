@@ -49,6 +49,8 @@ public class BookEditor {
      * @return true если запись добавлена, false если уже существует
      */
     public boolean addEntry(long key, PolyglotEntry entry) {
+        log.info("[BOOK EDITOR] addEntry called from: {}",
+                Thread.currentThread().getStackTrace()[2]);
         // Проверяем, есть ли уже такая запись
         if (hasEntry(key, entry.getUciMove())) {
             log.trace("Entry already exists: key=0x{}, move={}",
@@ -95,6 +97,7 @@ public class BookEditor {
      * Очищает все временные изменения (после сохранения)
      */
     public void clear() {
+        log.info("[BOOK EDITOR] clear called. Before: {} entries", dirtyEntries.size());
         int count = getDirtyCount();
         dirtyEntries.clear();
         if (count > 0) {

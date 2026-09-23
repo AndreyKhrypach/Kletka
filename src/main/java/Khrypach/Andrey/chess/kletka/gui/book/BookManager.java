@@ -18,15 +18,11 @@
 package Khrypach.Andrey.chess.kletka.gui.book;
 
 import Khrypach.Andrey.chess.kletka.database.model.GameTree;
-import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
-import Khrypach.Andrey.chess.kletka.gui.languages.LanguageManager;
 import Khrypach.Andrey.chess.kletka.gui.model.MoveNode;
 import Khrypach.Andrey.chess.kletka.gui.model.ParentNode;
-import Khrypach.Andrey.chess.kletka.gui.model.RootNode;
 import Khrypach.Andrey.chess.kletka.gui.model.Variation;
 import Khrypach.Andrey.chess.kletka.gui.settings.AppPreferences;
 import com.github.bhlangonijr.chesslib.Board;
-import com.github.bhlangonijr.chesslib.move.Move;
 import lombok.Getter;
 import lombok.Setter;
 import org.slf4j.Logger;
@@ -53,8 +49,6 @@ public class BookManager {
     private static final Logger log = LoggerFactory.getLogger(BookManager.class);
     private static BookManager instance;
 
-    private final LanguageManager lang = LanguageManager.getInstance();
-
     @Getter
     @Setter
     private Path currentBookPath;
@@ -76,8 +70,6 @@ public class BookManager {
     @Getter
     private final BookEditor bookEditor = new BookEditor();
 
-    // Кэш загруженных позиций (Zobrist ключи)
-    private final Set<Long> loadedKeys = new HashSet<>();
 
     // Стек для undo
     private final Deque<BookAction> undoStack = new ArrayDeque<>();
@@ -93,16 +85,6 @@ public class BookManager {
         return instance;
     }
 
-    // ========== КЭШ ЗАГРУЖЕННЫХ ПОЗИЦИЙ ==========
-
-    public boolean isKeyLoaded(long key) {
-        return loadedKeys.contains(key);
-    }
-
-    public void markKeyLoaded(long key) {
-        loadedKeys.add(key);
-    }
-
     // ========== ЗАГРУЗКА / ВЫГРУЗКА КНИГИ ==========
 
     /**
@@ -116,7 +98,7 @@ public class BookManager {
         }
 
         try {
-            log.info("Opening book (mmap): {}", bookPath);
+            log.debug("Opening book (mmap): {}", bookPath);
 
             PolyglotBookParser parser = new PolyglotBookParser();
             parser.open(bookPath);
@@ -133,13 +115,10 @@ public class BookManager {
             this.bookLoaded = true;
             this.totalEntries = parser.getTotalEntries();
 
-            // Сброс кэша — книга другая
-            loadedKeys.clear();
-
             addToRecent(bookPath.toString());
             AppPreferences.saveRecentBook(bookPath.toString());
 
-            log.info("Book opened: {} entries", totalEntries);
+            log.trace("Book opened: {} entries", totalEntries);
             return true;
 
         } catch (IOException e) {
@@ -152,6 +131,9 @@ public class BookManager {
      * Выгружает книгу и закрывает mmap.
      */
     public void clearBook() {
+        log.info("[BOOK] clearBook called. hasUnsavedChanges before: {}",
+                bookEditor.hasUnsavedChanges());
+
         if (currentParser != null) {
             currentParser.close();
             currentParser = null;
@@ -161,7 +143,6 @@ public class BookManager {
         this.bookLoaded = false;
         this.totalEntries = 0;
 
-        loadedKeys.clear();
         clearUndoStack();
 
         AppPreferences.saveRecentBook(null);
@@ -177,8 +158,8 @@ public class BookManager {
         Path bookPath = getCurrentBookPath();
         if (bookPath == null) return;
 
-        log.info("=== SAVING BOOK ===");
-        log.info("dirtyEntries size BEFORE clear: {}", bookEditor.getDirtyCount());
+        log.debug("=== SAVING BOOK ===");
+        log.debug("dirtyEntries size BEFORE clear: {}", bookEditor.getDirtyCount());
 
         // 1. СНАЧАЛА закрываем mmap — освобождаем файл
         if (currentParser != null) {
@@ -186,7 +167,6 @@ public class BookManager {
             currentParser = null;
         }
         currentBookTree = null;
-        loadedKeys.clear();
 
         // 2. Даём Windows время освободить handle (после unmap + GC)
         System.gc();
@@ -206,7 +186,7 @@ public class BookManager {
         // 5. Перезагружаем книгу
         loadBook(bookPath);
 
-        log.info("=== SAVE COMPLETE ===");
+        log.debug("=== SAVE COMPLETE ===");
     }
 
     // ========== ЛЕНИВАЯ ЗАГРУЗКА УРОВНЯ ==========
@@ -223,16 +203,14 @@ public class BookManager {
             return;
         }
 
-        long key = ZobristHasher.calculate(board);
-        if (loadedKeys.contains(key)) {
-            log.trace("Level already loaded for key 0x{}", Long.toHexString(key));
+        if (!node.getSubVariations().isEmpty()) {
             return;
         }
 
+        long key = ZobristHasher.calculate(board);
         List<PolyglotEntry> entries = currentParser.findAllEntries(key);
+
         if (entries.isEmpty()) {
-            loadedKeys.add(key);
-            log.debug("No entries for key 0x{}", Long.toHexString(key));
             return;
         }
 
@@ -262,20 +240,20 @@ public class BookManager {
         }
 
         int variationId = node.getSubVariations().size();
-        int addedCount = 0;
 
         for (int i = 0; i < limit; i++) {
             PolyglotEntry entry = entries.get(i);
             if (entry.weight() < 1) continue;
 
-            Move move = currentParser.createChesslibMove(entry);
             if (!currentParser.isLegalMove(entry, board)) {
-                log.trace("Move {} not legal, skipping", entry.getUciMove());
+                log.debug("[BOOK]   move {} NOT LEGAL on board, skipping", entry.getUciMove());
                 continue;
             }
 
             String uci = entry.getUciMove();
-            if (existingUcis.contains(uci)) continue;
+            if (existingUcis.contains(uci)) {
+                continue;
+            }
 
             int ply = Math.max(1, node.getAbsolutePly() + 1);
             MoveNode moveNode = currentParser.createMoveNode(entry, board, ply);
@@ -294,7 +272,6 @@ public class BookManager {
 
             node.getSubVariations().add(subVar);
             existingUcis.add(uci);
-            addedCount++;
         }
 
         // Устанавливаем next = самому весомому ходу (первому варианту), если ещё нет
@@ -306,12 +283,6 @@ public class BookManager {
                 firstVar.setMainLine(true);
             }
         }
-
-        // Помечаем, что уровень загружен (даже если ничего не добавили)
-        loadedKeys.add(key);
-
-        log.debug("Loaded {} moves for position 0x{} (total subVariations={})",
-                addedCount, Long.toHexString(key), node.getSubVariations().size());
     }
 
     // ========== ДУБЛИКАТЫ ==========

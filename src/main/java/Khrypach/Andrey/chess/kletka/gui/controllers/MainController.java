@@ -28,9 +28,11 @@ import Khrypach.Andrey.chess.kletka.database.repository.FileSystemRepository;
 import Khrypach.Andrey.chess.kletka.database.repository.GameRepository;
 import Khrypach.Andrey.chess.kletka.database.service.PgnService;
 import Khrypach.Andrey.chess.kletka.engine.UciEngineManager;
+import Khrypach.Andrey.chess.kletka.gui.KletkaGui;
 import Khrypach.Andrey.chess.kletka.gui.board.*;
 import Khrypach.Andrey.chess.kletka.gui.book.BookManager;
 import Khrypach.Andrey.chess.kletka.gui.book.PolyglotBookParser;
+import Khrypach.Andrey.chess.kletka.gui.book.TreeToBookExporter;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.EngineSetupDialog;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.PositionSetupDialog;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
@@ -39,6 +41,7 @@ import Khrypach.Andrey.chess.kletka.gui.logo.LogoGenerator;
 import Khrypach.Andrey.chess.kletka.gui.menu.CustomMenuBarFactory;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.SaveGameDialog;
 import Khrypach.Andrey.chess.kletka.gui.model.NavigationMode;
+import Khrypach.Andrey.chess.kletka.gui.model.RootNode;
 import Khrypach.Andrey.chess.kletka.gui.settings.AppPreferences;
 import Khrypach.Andrey.chess.kletka.pgn.index.PgnFileEditor;
 import Khrypach.Andrey.chess.kletka.pgn.index.PgnIndexManager;
@@ -53,12 +56,20 @@ import Khrypach.Andrey.chess.kletka.pgn.index.util.HashUtils;
 import com.github.bhlangonijr.chesslib.Board;
 import com.github.bhlangonijr.chesslib.Side;
 import com.github.bhlangonijr.chesslib.move.Move;
+import javafx.application.HostServices;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -71,8 +82,10 @@ import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -211,10 +224,6 @@ public class MainController {
      */
     private void showSaveBookDialogBeforeExit(Runnable onComplete) {
         BookManager bookManager = BookManager.getInstance();
-
-        log.info("=== BEFORE EXIT DIALOG ===");
-        log.info("hasUnsavedChanges: {}", bookManager.hasUnsavedChanges());
-        log.info("dirtyEntries size: {}", bookManager.getBookEditor().getDirtyCount());
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle(lang.get(LanguageKeys.BOOK_SAVE_TITLE));
@@ -371,6 +380,96 @@ public class MainController {
         }
     }
 
+    /**
+     * Экспортирует текущее дерево вариантов в новую Polyglot-книгу.
+     * Создаёт .bin файл, который можно загрузить обратно в Kletka или
+     * использовать в любом движке/GUI, поддерживающем Polyglot.
+     */
+    public void exportTreeToPolyglotBook() {
+        // ========== ПРОВЕРКА: ЕСТЬ ЛИ ЧТО ЭКСПОРТИРОВАТЬ ==========
+        if (boardView == null || boardView.getNavController() == null) {
+            showNotification(lang.get(BOOK_EXPORT_NO_TREE));
+            return;
+        }
+
+        MoveNavigationController nav = boardView.getNavController();
+        RootNode rootNode = nav.getRootNode();
+
+        if (rootNode == null) {
+            showNotification(lang.get(BOOK_EXPORT_NO_TREE));
+            return;
+        }
+
+        // Проверяем, что в дереве есть хотя бы один ход
+        boolean hasMoves = !rootNode.getSubVariations().isEmpty();
+        if (!hasMoves && (rootNode.getNext() == null || rootNode.getNext().isRoot())) {
+            showNotification(lang.get(BOOK_EXPORT_EMPTY_TREE));
+            return;
+        }
+
+        // ========== ДИАЛОГ СОХРАНЕНИЯ ФАЙЛА ==========
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle(lang.get(BOOK_EXPORT_DIALOG_TITLE));
+        fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Polyglot Book", "*.bin")
+        );
+
+        // Начальная директория — как у обычной загрузки книги
+        String bookDir = AppPreferences.getBookDirectory();
+        if (bookDir != null && !bookDir.isEmpty()) {
+            File dir = new File(bookDir);
+            if (dir.exists() && dir.isDirectory()) {
+                fileChooser.setInitialDirectory(dir);
+            }
+        }
+
+        // Дефолтное имя файла
+        fileChooser.setInitialFileName("kletka_repertoire.bin");
+
+        File file = fileChooser.showSaveDialog(primaryStage);
+        if (file == null) {
+            return;  // пользователь отменил
+        }
+
+        // ========== ЭКСПОРТ ==========
+        try {
+            // Собираем начальную доску
+            Board initialBoard = nav.getInitialPosition();
+            boolean startWithBlack = nav.isStartWithBlack();
+
+            TreeToBookExporter.ExportResult result =
+                    TreeToBookExporter.exportToBook(
+                            rootNode,
+                            initialBoard,
+                            startWithBlack,
+                            file.toPath()
+                    );
+
+            // ========== УВЕДОМЛЕНИЕ ==========
+            if (result.isEmpty()) {
+                showNotification(lang.get(BOOK_EXPORT_EMPTY_RESULT));
+                return;
+            }
+
+            String message = String.format(
+                    lang.get(BOOK_EXPORT_SUCCESS),
+                    file.getName(),
+                    result.entriesWritten()
+            );
+            showNotification(message);
+
+            log.info("Book exported: {} ({} entries, {} duplicates skipped)",
+                    file.getName(), result.entriesWritten(), result.duplicatesSkipped());
+
+        } catch (IOException e) {
+            log.error("Failed to export tree to book", e);
+            showError(lang.get(BOOK_EXPORT_ERROR), e.getMessage());
+        } catch (Exception e) {
+            log.error("Unexpected error during book export", e);
+            showError(lang.get(BOOK_EXPORT_ERROR), e.getMessage());
+        }
+    }
+
     public void flipBoard() {
         boardView.flipBoard();
     }
@@ -385,6 +484,32 @@ public class MainController {
 
     public void openLastDatabase() {
         showFutureImplementationMessage();
+    }
+
+    /**
+     * Копирует текущую позицию в буфер обмена.
+     * Формат: FEN + ASCII-диаграмма.
+     * Работает в любом режиме (PGN, BOOK), с любой позицией (стартовая, расстановка).
+     */
+    public void copyPositionAsciiToClipboard() {
+        if (boardView == null) {
+            showNotification(lang.get(POSITION_COPY_NO_BOARD));
+            return;
+        }
+
+        Board currentBoard = boardView.getCurrentBoard();
+        if (currentBoard == null) {
+            showNotification(lang.get(POSITION_COPY_NO_BOARD));
+            return;
+        }
+
+        String text = PositionAsciiFormatter.format(currentBoard);
+
+        ClipboardContent content = new ClipboardContent();
+        content.putString(text);
+        Clipboard.getSystemClipboard().setContent(content);
+
+        showNotification(lang.get(POSITION_COPY_SUCCESS));
     }
 
     /**
@@ -869,7 +994,7 @@ public class MainController {
             AppPreferences.saveLastOpenDirectory(file.getParent());
         }
 
-        log.info("Opening PGN file: {}", file.getAbsolutePath());
+        log.debug("Opening PGN file: {}", file.getAbsolutePath());
 
         // Переключаем режим навигации на PGN
         boardView.getNavController().setNavigationMode(NavigationMode.PGN);
@@ -884,7 +1009,7 @@ public class MainController {
             IndexStatus status = facade.checkIndex(pgnPath);
 
             if (status == IndexStatus.NO_INDEX || status == IndexStatus.FILE_CHANGED) {
-                log.info("Index needed, starting automatic indexing...");
+                log.debug("Index needed, starting automatic indexing...");
                 indexPgnFileWithProgress(pgnPath, () -> openPgnWithBrowser(pgnPath));
                 return;
             }
@@ -970,19 +1095,19 @@ public class MainController {
     }
 
     private Path prepareFileEncoding(Path pgnPath) throws IOException {
-        log.info("Checking encoding for: {}", pgnPath);
+        log.debug("Checking encoding for: {}", pgnPath);
 
         byte[] bytes = Files.readAllBytes(pgnPath);
 
         String detectedEncoding = detectEncoding(bytes);
-        log.info("Detected encoding: {}", detectedEncoding);
+        log.debug("Detected encoding: {}", detectedEncoding);
 
         if ("UTF-8".equals(detectedEncoding) || "UTF-8-BOM".equals(detectedEncoding)) {
-            log.info("File is already UTF-8, no conversion needed");
+            log.debug("File is already UTF-8, no conversion needed");
             return pgnPath;
         }
 
-        log.info("Converting from {} to UTF-8", detectedEncoding);
+        log.debug("Converting from {} to UTF-8", detectedEncoding);
 
         String content;
         content = new String(bytes, Charset.forName(detectedEncoding));
@@ -995,7 +1120,7 @@ public class MainController {
         Files.move(pgnPath, backupPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
         Files.move(tempPath, pgnPath);
 
-        log.info("File converted to UTF-8: {}", pgnPath);
+        log.debug("File converted to UTF-8: {}", pgnPath);
         return pgnPath;
     }
 
@@ -1309,7 +1434,7 @@ public class MainController {
             showNotification(lang.get(BOOK_MODE_NO_SAVE));
             return;
         }
-        log.info(">>> savePgnFile called with file: {}", file);
+        log.debug(">>> savePgnFile called with file: {}", file);
 
         if (file == null) {
             FileChooser fileChooser = new FileChooser();
@@ -1480,7 +1605,7 @@ public class MainController {
                 refreshBrowserForPath(pgnPath);
             } else {
                 // ========== ИНДЕКСА НЕТ — ПОЛНАЯ ИНДЕКСАЦИЯ С ПРОГРЕССОМ ==========
-                log.info("No index found for {}, running FULL indexing with progress", pgnPath);
+                log.debug("No index found for {}, running FULL indexing with progress", pgnPath);
                 fullIndexingWithProgress(pgnPath, plainPgn);
             }
 
@@ -1524,7 +1649,7 @@ public class MainController {
                         })
                 );
 
-                log.info("Full indexing complete: {} games, {} active",
+                log.debug("Full indexing complete: {} games, {} active",
                         fullIndex.getGameCount(), fullIndex.getActiveCount());
 
                 Platform.runLater(() -> {
@@ -1593,7 +1718,7 @@ public class MainController {
         index.addEntry(newEntry);
         indexManager.saveIndex(pgnPath, index);
 
-        log.info("Index updated (fast path): added game ID {}", newId);
+        log.debug("Index updated (fast path): added game ID {}", newId);
     }
 
     public void loadNextGameFromBrowser() {
@@ -1777,7 +1902,7 @@ public class MainController {
             return;
         }
 
-        log.info(">>> saveToPgnFile called");
+        log.debug(">>> saveToPgnFile called");
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(lang.get(LanguageKeys.MAIN_SAVE_PGN_FILE_TITLE));
         fileChooser.getExtensionFilters().add(
@@ -2227,9 +2352,11 @@ public class MainController {
         content.setAlignment(Pos.CENTER);
         content.setPadding(new Insets(20));
 
+        // Logo
         Group logo = LogoGenerator.createLogo(300, 225);
         content.getChildren().add(logo);
 
+        // About text
         String version = getVersion();
         String aboutText = String.format(lang.get(ABOUT_CONTENT), version);
 
@@ -2238,9 +2365,53 @@ public class MainController {
         infoLabel.setStyle("-fx-font-size: 12px;");
         content.getChildren().add(infoLabel);
 
+        // ========== ССЫЛКИ ==========
+        HBox linksBox = new HBox(20);
+        linksBox.setAlignment(Pos.CENTER);
+        linksBox.setPadding(new Insets(10, 0, 0, 0));
+
+        Hyperlink websiteLink = createAboutLink(
+                lang.get(ABOUT_WEBSITE_LINK),
+                "https://andreykhrypach.github.io/Kletka/"
+        );
+        Hyperlink githubLink = createAboutLink(
+                lang.get(ABOUT_GITHUB_LINK),
+                "https://github.com/AndreyKhrypach/Kletka"
+        );
+        Hyperlink licenseLink = createAboutLink(
+                lang.get(ABOUT_LICENSE_LINK),
+                "https://www.gnu.org/licenses/gpl-3.0.html"
+        );
+
+        linksBox.getChildren().addAll(websiteLink, githubLink, licenseLink);
+        content.getChildren().add(linksBox);
+
         dialog.getDialogPane().setContent(content);
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
         dialog.showAndWait();
+    }
+
+    /**
+     * Создаёт Hyperlink для диалога About.
+     * Открывает URL в системном браузере при клике.
+     */
+    private Hyperlink createAboutLink(String text, String url) {
+        Hyperlink link = new Hyperlink(text);
+        link.setStyle("-fx-font-size: 12px;");
+        link.setOnAction(e -> {
+            try {
+                HostServices hs = KletkaGui.hostServices();
+                if (hs != null) {
+                    hs.showDocument(url);
+                } else {
+                    // Fallback
+                    Desktop.getDesktop().browse(URI.create(url));
+                }
+            } catch (Exception ex) {
+                log.warn("Failed to open link: {}", url, ex);
+            }
+        });
+        return link;
     }
 
     /**
@@ -2361,43 +2532,58 @@ public class MainController {
      * Очищает загруженную книгу и возвращается в PGN режим
      */
     public void clearBook() {
-        // 1. Останавливаем анализ
-        if (boardView.getAnalysisPanel() != null &&
-                boardView.getAnalysisPanel().isAnalyzingActive()) {
-            boardView.getAnalysisPanel().stopAnalysis();
+        log.debug("[MAIN] clearBook called");
+        BookManager bookManager = BookManager.getInstance();
+
+        // ========== ПРОВЕРКА НЕСОХРАНЁННЫХ ИЗМЕНЕНИЙ КНИГИ ==========
+        if (bookManager.isBookLoaded() && bookManager.hasUnsavedChanges()) {
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+            alert.setTitle(lang.get(LanguageKeys.BOOK_SAVE_TITLE));
+            alert.setHeaderText(lang.get(LanguageKeys.BOOK_SAVE_HEADER));
+            alert.setContentText(lang.get(LanguageKeys.BOOK_SAVE_CONTENT));
+
+            ButtonType saveButton = new ButtonType(lang.get(SAVE_GAME_SAVE));
+            ButtonType noSaveButton = new ButtonType(lang.get(SAVE_GAME_DONT_SAVE));
+            ButtonType cancelButton = new ButtonType(lang.get(SAVE_GAME_CANCEL), ButtonBar.ButtonData.CANCEL_CLOSE);
+
+            alert.getButtonTypes().setAll(saveButton, noSaveButton, cancelButton);
+
+            ButtonType result = alert.showAndWait().orElse(cancelButton);
+
+            if (result == cancelButton) {
+                log.debug("[MAIN] Book clear cancelled by user");
+                return;
+            }
+
+            if (result == saveButton) {
+                try {
+                    boardView.getNavController().setBookParser(null);
+                    bookManager.saveBook();
+                    boardView.updateBookUnsavedIndicator(false);
+                    if (menuFactory != null) {
+                        menuFactory.updateBooksMenu();
+                    }
+                    showNotification(String.format(
+                            lang.get(LanguageKeys.BOOK_SAVED),
+                            bookManager.getCurrentBookPath().getFileName().toString()
+                    ));
+                } catch (IOException e) {
+                    log.error("Failed to save book on clear", e);
+                    showError(lang.get(LanguageKeys.BOOK_SAVE_ERROR), e.getMessage());
+                    return;   // ← Ошибка — не выгружаем
+                }
+            }
+            // Если noSaveButton — просто продолжаем без сохранения
         }
 
-        // 2. Очищаем книгу из менеджера
-        BookManager.getInstance().clearBook();
+        // ========== ВЫГРУЖАЕМ КНИГУ ==========
+        clearBookInternal();
 
-        if (menuFactory != null) {
-            menuFactory.updateBooksMenu();
-        }
+        // Обнуляем хеши
+        startBodyHash = 0;
+        loadedFullHash = 0;
 
-        // 3. Переключаем режим на PGN
-        if (boardView.getNavController() != null) {
-            boardView.getNavController().setNavigationMode(NavigationMode.PGN);
-            boardView.getNavController().setBookParser(null); // ← Убираем парсер
-            boardView.updateNavigationModeIndicator(NavigationMode.PGN);
-        }
-
-        // 4. Сбрасываем доску в начальную позицию
-        resetGame();
-
-        // 5. Очищаем нотацию
-        if (notationView != null) {
-            notationView.clearGameData();
-            notationView.refreshDisplay();
-        }
-
-        // 6. Восстанавливаем заголовок
-        primaryStage.setTitle(lang.get(APP_TITLE));
-
-        // 7. Обновляем индикатор режима
-        boardView.updateNavigationModeIndicator(NavigationMode.PGN);
-        boardView.updateBookUnsavedIndicator(false);
-
-        // 8. Показываем уведомление
+        // Уведомление
         showNotification(lang.get(LanguageKeys.BOOK_CLEARED));
     }
 

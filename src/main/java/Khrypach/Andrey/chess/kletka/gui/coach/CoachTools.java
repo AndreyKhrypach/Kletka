@@ -21,10 +21,7 @@
 package Khrypach.Andrey.chess.kletka.gui.coach;
 
 import Khrypach.Andrey.chess.kletka.gui.board.ChessBoardView;
-import Khrypach.Andrey.chess.kletka.gui.coach.tools.ArrowData;
-import Khrypach.Andrey.chess.kletka.gui.coach.tools.CrossData;
-import Khrypach.Andrey.chess.kletka.gui.coach.tools.MarkerColor;
-import Khrypach.Andrey.chess.kletka.gui.coach.tools.ToolType;
+import Khrypach.Andrey.chess.kletka.gui.coach.tools.*;
 import Khrypach.Andrey.chess.kletka.gui.menu.CustomMenuBarFactory;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -75,6 +72,7 @@ public class CoachTools extends VBox {
     private ToggleButton pencilButton;
     private ToggleButton arrowButton;
     private ToggleButton crossButton;
+    private ToggleButton circleButton;
     private Button blueColorButton;
     private Button redColorButton;
     private Button greenColorButton;
@@ -93,6 +91,9 @@ public class CoachTools extends VBox {
     @Getter
     private final Map<String, CrossData> crosses = new HashMap<>();
     private final Map<String, ArrowData> arrows = new HashMap<>();
+
+    @Getter
+    private final Map<String, CircleData> circles = new HashMap<>();
 
     // ========== ИСТОРИЯ ДЕЙСТВИЙ ДЛЯ ОТМЕНЫ ==========
     private final java.util.Stack<MarkerAction> actionHistory = new java.util.Stack<>();
@@ -170,6 +171,7 @@ public class CoachTools extends VBox {
                 arrowButton.setStyle(buttonSelectedStyle);
                 currentTool = ToolType.ARROW;
                 crossButton.setSelected(false);
+                circleButton.setSelected(false);
             } else {
                 arrowButton.setStyle(buttonStyle);
                 if (currentTool == ToolType.ARROW) currentTool = ToolType.NONE;
@@ -195,9 +197,38 @@ public class CoachTools extends VBox {
                 crossButton.setStyle(buttonSelectedStyle);
                 currentTool = ToolType.CROSS;
                 arrowButton.setSelected(false);
+                circleButton.setSelected(false);
             } else {
                 crossButton.setStyle(buttonStyle);
                 if (currentTool == ToolType.CROSS) currentTool = ToolType.NONE;
+            }
+        });
+
+        circleButton = new ToggleButton();
+        Image circleImage = loadImage("/images/coach/circle.png");
+        if (circleImage != null) {
+            circleButton.setGraphic(new ImageView(circleImage));
+        } else {
+            // Fallback: рисуем пустой кружок текстом
+            javafx.scene.shape.Circle circleIcon = new javafx.scene.shape.Circle(10);
+            circleIcon.setFill(Color.TRANSPARENT);
+            circleIcon.setStroke(Color.BLACK);
+            circleIcon.setStrokeWidth(2);
+            circleButton.setGraphic(circleIcon);
+        }
+        circleButton.setToggleGroup(toolGroup);
+        circleButton.setStyle(buttonStyle);
+        circleButton.setPrefWidth(50);
+        circleButton.setPrefHeight(50);
+        circleButton.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+            if (isSelected) {
+                circleButton.setStyle(buttonSelectedStyle);
+                currentTool = ToolType.CIRCLE;
+                arrowButton.setSelected(false);
+                crossButton.setSelected(false);
+            } else {
+                circleButton.setStyle(buttonStyle);
+                if (currentTool == ToolType.CIRCLE) currentTool = ToolType.NONE;
             }
         });
 
@@ -313,7 +344,7 @@ public class CoachTools extends VBox {
         getChildren().add(pencilButton);
 
         if (panelExpanded) {
-            getChildren().addAll(arrowButton, crossButton);
+            getChildren().addAll(arrowButton, crossButton, circleButton);
 
             javafx.scene.control.Separator sep = new javafx.scene.control.Separator();
             sep.setStyle("-fx-background-color: #1a252f;");
@@ -382,6 +413,23 @@ public class CoachTools extends VBox {
         lastAddedSquare = square;
         lastAddTime = now;
 
+        // ========== ПРОВЕРКА: ЕСТЬ ЛИ УЖЕ КРУЖОК НА ЭТОЙ КЛЕТКЕ? ==========
+        CircleData existingCircle = circles.get(square);
+        if (existingCircle != null) {
+            // Удаляем кружок и ставим крестик
+            pushAction(MarkerAction.deleteCircle(existingCircle));
+            circles.remove(square);
+
+            // Создаём крестик с текущим цветом
+            CrossData newCross = new CrossData(square, currentColor);
+            pushAction(MarkerAction.createCross(newCross));
+            crosses.put(square, newCross);
+            notifyMarkersChanged();
+            updateEraseButtonState();
+            return;
+        }
+
+        // ========== СУЩЕСТВУЮЩАЯ ЛОГИКА ДЛЯ КРЕСТИКОВ ==========
         CrossData existing = crosses.get(square);
         if (existing != null) {
             if (existing.getColor() == currentColor) {
@@ -395,6 +443,50 @@ public class CoachTools extends VBox {
             CrossData newCross = new CrossData(square, currentColor);
             pushAction(MarkerAction.createCross(newCross));
             crosses.put(square, newCross);
+            notifyMarkersChanged();
+        }
+        updateEraseButtonState();
+    }
+
+    public void addCircle(String square) {
+        long now = System.currentTimeMillis();
+        if (square.equals(lastAddedSquare) && (now - lastAddTime) < 200) {
+            log.trace("Duplicate circle click ignored: {}", square);
+            return;
+        }
+        lastAddedSquare = square;
+        lastAddTime = now;
+
+        // ========== ПРОВЕРКА: ЕСТЬ ЛИ УЖЕ КРЕСТИК НА ЭТОЙ КЛЕТКЕ? ==========
+        CrossData existingCross = crosses.get(square);
+        if (existingCross != null) {
+            // Удаляем крестик и ставим кружок
+            pushAction(MarkerAction.deleteCross(existingCross));
+            crosses.remove(square);
+
+            // Создаём кружок с текущим цветом
+            CircleData newCircle = new CircleData(square, currentColor);
+            pushAction(MarkerAction.createCircle(newCircle));
+            circles.put(square, newCircle);
+            notifyMarkersChanged();
+            updateEraseButtonState();
+            return;
+        }
+
+        // ========== СУЩЕСТВУЮЩАЯ ЛОГИКА ДЛЯ КРУЖКОВ ==========
+        CircleData existing = circles.get(square);
+        if (existing != null) {
+            if (existing.getColor() == currentColor) {
+                log.trace("Circle already exists with same color, skipping: {}", square);
+                return;
+            }
+            pushAction(MarkerAction.updateCircle(existing, square, existing.getColor(), currentColor));
+            existing.setColor(currentColor);
+            notifyMarkersChanged();
+        } else {
+            CircleData newCircle = new CircleData(square, currentColor);
+            pushAction(MarkerAction.createCircle(newCircle));
+            circles.put(square, newCircle);
             notifyMarkersChanged();
         }
         updateEraseButtonState();
@@ -439,6 +531,7 @@ public class CoachTools extends VBox {
     public void clearAllMarkers() {
         crosses.clear();
         arrows.clear();
+        circles.clear();
         actionHistory.clear();
         redoHistory.clear();
         tempArrow = null;
@@ -567,6 +660,36 @@ public class CoachTools extends VBox {
                     log.trace("Undo: restored arrow color from {} to {}", action.getFromSquare(), action.getToSquare());
                 }
             }
+            case CREATE_CIRCLE -> {
+                CircleData circle = action.getCircleData();
+                circles.remove(circle.getSquare());
+                notifyMarkersChanged();
+                log.trace("Undo: removed circle at {}", circle.getSquare());
+            }
+            case UPDATE_CIRCLE -> {
+                CircleData circle = circles.get(action.getSquare());
+                if (circle != null) {
+                    circle.setColor(action.getOldColor());
+                    notifyMarkersChanged();
+                    log.trace("Undo: restored circle color at {}", action.getSquare());
+                }
+            }
+            case DELETE_CROSS -> {
+                CrossData cross = action.getCrossData();
+                if (cross != null) {
+                    crosses.put(cross.getSquare(), cross);
+                    notifyMarkersChanged();
+                    log.trace("Undo: restored cross at {}", cross.getSquare());
+                }
+            }
+            case DELETE_CIRCLE -> {
+                CircleData circle = action.getCircleData();
+                if (circle != null) {
+                    circles.put(circle.getSquare(), circle);
+                    notifyMarkersChanged();
+                    log.trace("Undo: restored circle at {}", circle.getSquare());
+                }
+            }
         }
     }
 
@@ -602,7 +725,7 @@ public class CoachTools extends VBox {
             } else {
                 eraseButton.setStyle(buttonStyle);
                 eraseButton.setTooltip(new javafx.scene.control.Tooltip(
-                        "Отменить последний маркер (" + actionHistory.size() + ")" ));
+                        "Отменить последний маркер (" + actionHistory.size() + ")"));
             }
         }
     }
@@ -697,6 +820,38 @@ public class CoachTools extends VBox {
                     log.trace("Redo: restored arrow color from {} to {}", action.getFromSquare(), action.getToSquare());
                 }
             }
+            case CREATE_CIRCLE -> {
+                CircleData circle = action.getCircleData();
+                if (circle != null) {
+                    circles.put(circle.getSquare(), circle);
+                    notifyMarkersChanged();
+                    log.trace("Redo: restored circle at {}", circle.getSquare());
+                }
+            }
+            case UPDATE_CIRCLE -> {
+                CircleData circle = circles.get(action.getSquare());
+                if (circle != null) {
+                    circle.setColor(action.getNewColor());
+                    notifyMarkersChanged();
+                    log.trace("Redo: restored circle color at {}", action.getSquare());
+                }
+            }
+            case DELETE_CROSS -> {
+                CrossData cross = action.getCrossData();
+                if (cross != null) {
+                    crosses.remove(cross.getSquare());
+                    notifyMarkersChanged();
+                    log.trace("Redo: removed cross at {}", cross.getSquare());
+                }
+            }
+            case DELETE_CIRCLE -> {
+                CircleData circle = action.getCircleData();
+                if (circle != null) {
+                    circles.remove(circle.getSquare());
+                    notifyMarkersChanged();
+                    log.trace("Redo: removed circle at {}", circle.getSquare());
+                }
+            }
         }
     }
 
@@ -710,18 +865,20 @@ public class CoachTools extends VBox {
         private final ActionType type;
         private final CrossData crossData;
         private final ArrowData arrowData;
+        private final CircleData circleData;
         private final String square;
         private final String fromSquare;
         private final String toSquare;
         private final MarkerColor oldColor;
         private final MarkerColor newColor;
 
-        private MarkerAction(ActionType type, CrossData crossData, ArrowData arrowData,
+        private MarkerAction(ActionType type, CrossData crossData, ArrowData arrowData, CircleData circleData,
                              String square, String fromSquare, String toSquare,
                              MarkerColor oldColor, MarkerColor newColor) {
             this.type = type;
             this.crossData = crossData;
             this.arrowData = arrowData;
+            this.circleData = circleData;
             this.square = square;
             this.fromSquare = fromSquare;
             this.toSquare = toSquare;
@@ -731,31 +888,56 @@ public class CoachTools extends VBox {
 
         public static MarkerAction createCross(CrossData cross) {
             return new MarkerAction(ActionType.CREATE_CROSS, cross, null,
-                    null, null, null, null, null);
+                    null, null, null, null, null, null);
         }
 
         public static MarkerAction updateCross(CrossData cross, String square,
                                                MarkerColor oldColor, MarkerColor newColor) {
-            return new MarkerAction(ActionType.UPDATE_CROSS, cross, null,
+            return new MarkerAction(ActionType.UPDATE_CROSS, cross, null, null,
                     square, null, null, oldColor, newColor);
         }
 
         public static MarkerAction createArrow(ArrowData arrow) {
-            return new MarkerAction(ActionType.CREATE_ARROW, null, arrow,
+            return new MarkerAction(ActionType.CREATE_ARROW, null, arrow, null,
                     null, null, null, null, null);
         }
 
         public static MarkerAction updateArrow(ArrowData arrow, String fromSquare, String toSquare,
                                                MarkerColor oldColor, MarkerColor newColor) {
-            return new MarkerAction(ActionType.UPDATE_ARROW, null, arrow,
+            return new MarkerAction(ActionType.UPDATE_ARROW, null, arrow, null,
                     null, fromSquare, toSquare, oldColor, newColor);
+        }
+
+        public static MarkerAction createCircle(CircleData circle) {
+            return new MarkerAction(ActionType.CREATE_CIRCLE, null, null, circle,
+                    null, null, null, null, null);
+        }
+
+        public static MarkerAction updateCircle(CircleData circle, String square,
+                                                MarkerColor oldColor, MarkerColor newColor) {
+            return new MarkerAction(ActionType.UPDATE_CIRCLE, null, null, circle,
+                    square, null, null, oldColor, newColor);
+        }
+
+        public static MarkerAction deleteCross(CrossData cross) {
+            return new MarkerAction(ActionType.DELETE_CROSS, cross, null, null,
+                    null, null, null, null, null);
+        }
+
+        public static MarkerAction deleteCircle(CircleData circle) {
+            return new MarkerAction(ActionType.DELETE_CIRCLE, null, null, circle,
+                    null, null, null, null, null);
         }
 
         public enum ActionType {
             CREATE_CROSS,
             UPDATE_CROSS,
+            DELETE_CROSS,
             CREATE_ARROW,
-            UPDATE_ARROW
+            UPDATE_ARROW,
+            CREATE_CIRCLE,
+            UPDATE_CIRCLE,
+            DELETE_CIRCLE
         }
     }
 }

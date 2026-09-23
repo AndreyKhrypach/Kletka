@@ -41,11 +41,11 @@ public class EcoService {
 
     private static EcoService instance;
 
-    // ========== НОВЫЙ ИНДЕКС: Set строк -> Запись о дебюте ==========
+    // ========== ИНДЕКС ПО SET ХОДОВ ==========
+    // Ключ: Set SAN-ходов (без порядка, без номеров).
+    // Значение: запись о дебюте.
+    // При конфликте (одинаковый Set от разных записей) — побеждает первая (по порядку загрузки).
     private final Map<Set<String>, EcoEntry> moveSetIndex = new HashMap<>();
-
-    // Старый индекс для обратной совместимости
-    private final Map<String, EcoEntry> pgnIndex = new HashMap<>();
 
     @Getter
     private boolean initialized = false;
@@ -70,7 +70,8 @@ public class EcoService {
         initialized = true;
 
         if (totalEntries > 0) {
-            log.debug("Loaded {} entries", totalEntries);
+            log.debug("Loaded {} entries, moveSetIndex size: {}",
+                    totalEntries, moveSetIndex.size());
         } else {
             log.error("WARNING: No entries loaded!");
         }
@@ -119,13 +120,11 @@ public class EcoService {
                     if (entry != null && entry.pgn() != null && !entry.pgn().isEmpty()) {
                         String normalizedPgn = normalizePgn(entry.pgn());
 
-                        if (!pgnIndex.containsKey(normalizedPgn)) {
-                            pgnIndex.put(normalizedPgn, entry);
-                        }
-
                         Set<String> moveSet = extractMoveSet(normalizedPgn);
-                        if (!moveSet.isEmpty() && !containsMoveSet(moveSet)) {
-                            moveSetIndex.put(moveSet, entry);
+                        if (!moveSet.isEmpty()) {
+                            // Первая запись побеждает при конфликте (устойчивое поведение).
+                            // Альтернатива — перезаписывать всегда (тогда победит последняя).
+                            moveSetIndex.putIfAbsent(moveSet, entry);
                             count++;
                         }
                     }
@@ -141,8 +140,7 @@ public class EcoService {
     }
 
     /**
-     * Парсит строку TSV формата:
-     * eco	name	pgn
+     * Парсит строку TSV формата: eco \t name \t pgn
      */
     private EcoEntry parseTsvLine(String line, int lineNumber) {
         String[] columns = line.split("\t");
@@ -165,44 +163,30 @@ public class EcoService {
     }
 
     /**
-     * Извлекает Set ходов из PGN строки
-     * Убирает номера ходов и аннотации
+     * Извлекает массив ходов из PGN (без номеров ходов и аннотаций).
      */
-    private Set<String> extractMoveSet(String pgn) {
-        Set<String> moveSet = new HashSet<>();
+    private String[] extractMovesArray(String pgn) {
         if (pgn == null || pgn.isEmpty()) {
-            return moveSet;
+            return new String[0];
         }
-
         String clean = pgn.replaceAll("\\d+\\.", "")
                 .replaceAll("[!?+×#]", "")
                 .trim();
-
-        String[] moves = clean.split("\\s+");
-        for (String move : moves) {
-            String trimmed = move.trim();
-            if (!trimmed.isEmpty()) {
-                moveSet.add(trimmed);
-            }
+        if (clean.isEmpty()) {
+            return new String[0];
         }
-
-        return moveSet;
+        return clean.split("\\s+");
     }
 
     /**
-     * Проверяет, существует ли уже такой Set в индексе
+     * Извлекает Set ходов из PGN строки.
      */
-    private boolean containsMoveSet(Set<String> moveSet) {
-        for (Set<String> existing : moveSetIndex.keySet()) {
-            if (existing.equals(moveSet)) {
-                return true;
-            }
-        }
-        return false;
+    private Set<String> extractMoveSet(String pgn) {
+        return new HashSet<>(Arrays.asList(extractMovesArray(pgn)));
     }
 
     /**
-     * Нормализует PGN строку для использования в качестве ключа
+     * Нормализует PGN строку для использования в качестве ключа.
      */
     private String normalizePgn(String pgn) {
         if (pgn == null) return "";
@@ -214,133 +198,112 @@ public class EcoService {
     }
 
     /**
-     * Строит полную PGN строку от корня до конца главной линии
+     * Строит список SAN-ходов от корня до конца главной линии.
      */
-    public String buildFullPgnFromTree(RootNode rootNode, Variation mainLine) {
-        if (rootNode == null || mainLine == null) {
-            return null;
-        }
-
-        List<ParentNode> allMoves = new ArrayList<>();
-        ParentNode current = rootNode.getNext();
-
-        while (current != null && !current.isRoot()) {
-            allMoves.add(current);
-            current = current.getNext();
-        }
-
-        if (allMoves.isEmpty()) {
-            return null;
-        }
-
-        StringBuilder pgn = new StringBuilder();
-        for (int i = 0; i < allMoves.size(); i++) {
-            ParentNode node = allMoves.get(i);
-            if (node.isRoot()) continue;
-
-            if (i % 2 == 0) {
-                pgn.append((i / 2 + 1)).append(". ");
-            }
-
-            String san = node.getSan();
-            san = san.replace("#", "").replace("+", "");
-            pgn.append(san).append(" ");
-        }
-
-        return pgn.toString().trim();
-    }
-
-    /**
-     * Извлекает Set ходов из дерева
-     */
-    private Set<String> extractMoveSetFromTree(RootNode rootNode, Variation mainLine) {
-        Set<String> moveSet = new HashSet<>();
-        if (rootNode == null || mainLine == null) {
-            return moveSet;
-        }
+    public List<String> buildMovesListFromTree(RootNode rootNode, Variation mainLine) {
+        List<String> moves = new ArrayList<>();
+        if (rootNode == null || mainLine == null) return moves;
 
         ParentNode current = rootNode.getNext();
         while (current != null && !current.isRoot()) {
             String san = current.getSan();
             if (san != null && !san.isEmpty()) {
                 san = san.replace("#", "").replace("+", "");
-                moveSet.add(san);
+                moves.add(san);
             }
             current = current.getNext();
         }
-
-        return moveSet;
+        return moves;
     }
 
     /**
-     * Ищет дебют по дереву
-     * Использует Set ходов для поиска
+     * Строит список SAN-ходов от корня до указанного узла
+     * (по цепочке parent снизу вверх, затем разворачиваем).
+     */
+    private List<String> buildMovesListForNode(ParentNode targetNode) {
+        List<String> moves = new ArrayList<>();
+        if (targetNode == null || targetNode.isRoot()) return moves;
+
+        ParentNode current = targetNode;
+        while (current != null && !current.isRoot()) {
+            String san = current.getSan();
+            if (san != null && !san.isEmpty()) {
+                san = san.replace("#", "").replace("+", "");
+                moves.add(0, san);   // добавляем в начало
+            }
+            current = current.getParent();
+        }
+        return moves;
+    }
+
+    /**
+     * Ищет дебют по дереву вариантов (по главной линии).
+     * <p>
+     * Алгоритм:
+     * <ol>
+     *     <li>Строим список ходов от корня до конца главной линии.</li>
+     *     <li>Для длины N (от полной до 1) строим Set из первых N ходов
+     *         и ищем совпадение в {@link #moveSetIndex}.</li>
+     *     <li>Если найдено — возвращаем. Иначе — null.</li>
+     * </ol>
+     * <p>
+     * Это позволяет корректно определять дебюты при транспозициях:
+     * порядок ходов не важен, важен только Set.
      */
     public EcoEntry findOpeningByPgn(RootNode rootNode, Variation mainLine) {
         if (!initialized || rootNode == null || mainLine == null) {
             return null;
         }
 
-        Set<String> ourMoveSet = extractMoveSetFromTree(rootNode, mainLine);
-        if (ourMoveSet.isEmpty()) {
+        List<String> movesList = buildMovesListFromTree(rootNode, mainLine);
+        return findOpeningByMovesList(movesList);
+    }
+
+    /**
+     * Ищет дебют для конкретного узла дерева (в режиме книги).
+     * Строит путь от корня до узла и ищет совпадение по префиксам Set.
+     */
+    public EcoEntry findOpeningForNode(RootNode rootNode, ParentNode targetNode) {
+        if (!initialized || rootNode == null || targetNode == null || targetNode.isRoot()) {
             return null;
         }
 
-        EcoEntry entry = findEntryByMoveSet(ourMoveSet);
-        if (entry != null) {
-            log.trace("Found by move set: {} - {}", entry.eco(), entry.name());
-            return entry;
-        }
+        List<String> movesList = buildMovesListForNode(targetNode);
+        return findOpeningByMovesList(movesList);
+    }
 
-        String fullPgn = buildFullPgnFromTree(rootNode, mainLine);
-        if (fullPgn == null || fullPgn.isEmpty()) {
+    /**
+     * Ищет дебют по списку ходов.
+     * <p>
+     * Начинает с полной длины, убирает последний ход до тех пор,
+     * пока не найдёт совпадение в {@link #moveSetIndex} (или список не опустеет).
+     * <p>
+     * Логика «дебют только уточняется»: если точного совпадения нет —
+     * возвращаем null, и вызывающий код оставляет предыдущее значение.
+     */
+    private EcoEntry findOpeningByMovesList(List<String> movesList) {
+        if (movesList == null || movesList.isEmpty()) {
             return null;
         }
 
-        String normalizedPgn = normalizePgn(fullPgn);
-        String[] parts = normalizedPgn.split(" ");
-        int MAX_ELEMENTS = 54;
-        int actualLength = Math.min(parts.length, MAX_ELEMENTS);
-
-        List<String> elements = new ArrayList<>(Arrays.asList(parts).subList(0, actualLength));
-
-        while (!elements.isEmpty()) {
-            String testPgn = String.join(" ", elements);
-            testPgn = normalizePgn(testPgn);
-
-            entry = pgnIndex.get(testPgn);
+        for (int end = movesList.size(); end > 0; end--) {
+            Set<String> prefixSet = new HashSet<>(movesList.subList(0, end));
+            EcoEntry entry = moveSetIndex.get(prefixSet);
             if (entry != null) {
-                log.trace("Found by PGN: {} - {}", entry.eco(), entry.name());
+                log.trace("Found opening by prefix Set ({} moves): {} - {}",
+                        end, entry.eco(), entry.name());
                 return entry;
             }
-
-            elements.remove(elements.size() - 1);
         }
 
+        log.trace("No opening found for moves list (length={})", movesList.size());
         return null;
     }
 
     /**
-     * Ищет запись по Set ходов
-     */
-    private EcoEntry findEntryByMoveSet(Set<String> moveSet) {
-        if (moveSet == null || moveSet.isEmpty()) {
-            return null;
-        }
-
-        for (Map.Entry<Set<String>, EcoEntry> entry : moveSetIndex.entrySet()) {
-            if (entry.getKey().equals(moveSet)) {
-                return entry.getValue();
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Получает все записи (для отладки)
+     * Получает все записи (для отладки).
      */
     public Collection<EcoEntry> getEntries() {
-        return moveSetIndex.values();
+        return new HashSet<>(moveSetIndex.values());
     }
 }

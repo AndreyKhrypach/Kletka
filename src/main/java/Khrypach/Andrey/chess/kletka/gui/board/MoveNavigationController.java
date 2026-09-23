@@ -25,7 +25,6 @@ import Khrypach.Andrey.chess.kletka.database.eco.EcoService;
 import Khrypach.Andrey.chess.kletka.engine.UciEngineManager;
 import Khrypach.Andrey.chess.kletka.gui.book.BookManager;
 import Khrypach.Andrey.chess.kletka.gui.book.PolyglotBookParser;
-import Khrypach.Andrey.chess.kletka.gui.book.ZobristHasher;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.DialogCoordinator;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.VariationChoiceDialog;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
@@ -124,7 +123,9 @@ public class MoveNavigationController {
     private VariationManager variationManager;
 
     // Текущий найденный дебют
+    @Getter
     private String currentEco = "";
+    @Getter
     private String currentOpeningName = "";
     private boolean openingFound = false;
 
@@ -537,6 +538,10 @@ public class MoveNavigationController {
         if (boardView != null) {
             boardView.notifyPositionChanged();
         }
+
+        if (navigationMode == NavigationMode.BOOK) {
+            updateOpeningForCurrentPosition();
+        }
     }
 
     /**
@@ -713,6 +718,11 @@ public class MoveNavigationController {
         sendCurrentPositionToEngine();
         boardView.notifyPositionChanged();
 
+        // ========== ОБНОВЛЯЕМ ДЕБЮТ ТОЛЬКО В BOOK-РЕЖИМЕ ==========
+        if (navigationMode == NavigationMode.BOOK) {
+            updateOpeningForCurrentPosition();
+        }
+
         if (hasForkAtNode(currentNode)) {
             boolean isWhiteTurn = (currentNode.getAbsolutePly() % 2 == 0);
             log.debug("  currentNode is fork, showing dialog recursively");
@@ -789,6 +799,11 @@ public class MoveNavigationController {
 
         restoreBoardFromCurrentNode();
         updateNotationView();
+
+        // ========== ОБНОВЛЯЕМ ДЕБЮТ ТОЛЬКО В BOOK-РЕЖИМЕ ==========
+        if (navigationMode == NavigationMode.BOOK) {
+            updateOpeningForCurrentPosition();
+        }
 
         // ========== ЗАГРУЖАЕМ ПОДВАРИАНТЫ ==========
         loadVariationsForNode(currentNode);
@@ -1344,6 +1359,31 @@ public class MoveNavigationController {
         return navButtons;
     }
 
+    /**
+     * Обновляет информацию о дебюте для текущей позиции.
+     * Вызывается ТОЛЬКО из BOOK-методов навигации, т.к. в BOOK-режиме
+     * каждая позиция дерева — это отдельная дебютная линия со своим
+     * названием и ECO-кодом.
+     * В PGN-режиме дебют привязан к главной линии партии и обновляется
+     * отдельно через updateOpeningAfterNewMove().
+     */
+    public void updateOpeningForCurrentPosition() {
+        if (notationView == null) return;
+
+        EcoEntry entry = EcoService.getInstance().findOpeningForNode(rootNode, currentNode);
+
+        if (entry != null) {
+            currentEco = entry.eco();
+            currentOpeningName = entry.name();
+            openingFound = true;
+        } else {
+            currentEco = "";
+            currentOpeningName = "";
+            openingFound = false;
+        }
+        updateOpeningDisplay();
+    }
+
     private Button createNavButton(String symbol, String tooltip) {
         Button btn = new Button(symbol);
         btn.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-min-width: 60px; -fx-min-height: 40px;");
@@ -1452,20 +1492,21 @@ public class MoveNavigationController {
     }
 
     /**
-     * Переход в корневую позицию (в BOOK режиме)
+     * BOOK: переход в корневую позицию (Home).
+     * Здесь ФАКТИЧЕСКИ меняется позиция — обновляем дебют.
      */
     private void goToRootLevel() {
         log.trace("goToRootLevel");
         currentNode = rootNode;
         currentVariation = rootVariation;
 
-        // Загружаем продолжения из книги для корня
         loadVariationsForNode(currentNode);
-
         updateCurrentVariations();
         selectedVariationIndex = 0;
+
         restoreBoardFromRoot();
         updateNotationView();
+        updateOpeningForCurrentPosition();   // <-- ОБНОВЛЯЕМ ДЕБЮТ
         sendCurrentPositionToEngine();
 
         if (boardView != null) {
@@ -1474,8 +1515,8 @@ public class MoveNavigationController {
     }
 
     /**
-     * Выбор текущего варианта (в BOOK режиме)
-     * Переход на следующий уровень с показом всех подвариантов
+     * BOOK: выбор текущего варианта из списка (→ / Enter).
+     * Здесь ФАКТИЧЕСКИ меняется позиция — обновляем дебют.
      */
     public void selectCurrentVariation() {
         if (currentVariations.isEmpty()) return;
@@ -1487,13 +1528,13 @@ public class MoveNavigationController {
             currentNode = firstNode;
             currentVariation = selected;
 
-            // ===== ЗАГРУЖАЕМ ПОДВАРИАНТЫ ДЛЯ НОВОГО УЗЛА =====
-            loadVariationsForNode(currentNode);  // ← ЭТО ДОЛЖНО БЫТЬ!
+            loadVariationsForNode(currentNode);
             updateCurrentVariations();
             selectedVariationIndex = 0;
 
             restoreBoardFromCurrentNode();
             updateNotationView();
+            updateOpeningForCurrentPosition();
             sendCurrentPositionToEngine();
         }
     }
@@ -1605,7 +1646,11 @@ public class MoveNavigationController {
         updateNotationView();
         notifyPositionChanged();
         resetOpening();
-        updateOpeningAfterNewMove();
+        if (navigationMode == NavigationMode.BOOK) {
+            updateOpeningForCurrentPosition();
+        } else {
+            updateOpeningAfterNewMove();
+        }
         updateCurrentVariations();
         selectedVariationIndex = 0;
 
@@ -1744,7 +1789,8 @@ public class MoveNavigationController {
     }
 
     /**
-     * Возврат на предыдущий уровень
+     * BOOK: возврат на уровень выше (←).
+     * Здесь ФАКТИЧЕСКИ меняется позиция — обновляем дебют.
      */
     private void goToParentLevel() {
         log.trace("goToParentLevel - current node: {}",
@@ -1757,7 +1803,6 @@ public class MoveNavigationController {
 
         ParentNode parent = currentNode.getParent();
         if (parent == null || parent.isRoot()) {
-            log.trace("Parent is root - moving to root");
             currentNode = rootNode;
             currentVariation = rootVariation;
         } else {
@@ -1768,14 +1813,13 @@ public class MoveNavigationController {
             }
         }
 
-        // Загружаем продолжения для нового узла
         loadVariationsForNode(currentNode);
-
         updateCurrentVariations();
         selectedVariationIndex = 0;
 
         restoreBoardFromCurrentNode();
         updateNotationView();
+        updateOpeningForCurrentPosition();
         sendCurrentPositionToEngine();
 
         if (boardView != null) {
@@ -1789,32 +1833,32 @@ public class MoveNavigationController {
      */
     private void loadVariationsForNode(ParentNode node) {
         if (node == null) return;
-        if (bookParser == null) {
-            log.trace("bookParser is null, skipping load");
-            return;
-        }
+        if (bookParser == null) return;
 
         BookManager bookManager = BookManager.getInstance();
         if (!bookManager.isBookLoaded()) return;
 
-        // Кэш: если ключ уже загружен — не восстанавливаем доску зря
-        Board board = boardReconstructor.reconstruct(currentVariation, node);
-        long key = ZobristHasher.calculate(board);
-        if (bookManager.isKeyLoaded(key)) {
+        // Проверяем только по узлу
+        if (!node.getSubVariations().isEmpty()) {
+            log.trace("[NAV] node={} already has {} subVariations, skip",
+                    node.isRoot() ? "ROOT" : node.getSan(),
+                    node.getSubVariations().size());
             return;
         }
 
+        Board board = boardReconstructor.reconstruct(currentVariation, node);
         bookManager.loadVariationsForNode(node, board);
     }
 
     /**
-     * Принудительно загружает продолжения из книги для корневого узла.
-     * Вызывается после открытия книги.
+     * BOOK: принудительная загрузка корневого уровня при открытии книги.
+     * Здесь позиция сбрасывается в корень — обновляем дебют.
      */
     public void loadRootLevel() {
         if (navigationMode != NavigationMode.BOOK) return;
         loadVariationsForNode(rootNode);
         updateCurrentVariations();
         selectedVariationIndex = 0;
+        updateOpeningForCurrentPosition();   // <-- ОБНОВЛЯЕМ ДЕБЮТ
     }
 }

@@ -326,6 +326,10 @@ public class NotationView extends VBox {
                 return;
             }
 
+            // ========== ОБНОВЛЯЕМ ЗАГОЛОВОК С ДЕБЮТОМ ==========
+            updateOpeningDisplay(navController.getCurrentEco(),
+                    navController.getCurrentOpeningName());
+
             Variation mainLine = navController.getMainLine();
             RootNode rootNode = (RootNode) navController.getRootVariation().getFirstNode();
 

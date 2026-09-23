@@ -200,6 +200,10 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.MENU_EDIT_PREFERENCES, "Настройки");
         strings.put(LanguageKeys.PREFERENCES_TITLE, "Настройки");
 
+        strings.put(LanguageKeys.MENU_FILE_COPY_POSITION, "Копировать позицию (FEN + ASCII)");
+        strings.put(LanguageKeys.POSITION_COPY_SUCCESS, "Позиция скопирована в буфер обмена");
+        strings.put(LanguageKeys.POSITION_COPY_NO_BOARD, "Доска недоступна");
+
         // ========== НАСТРОЙКИ ==========
         strings.put(LanguageKeys.PREFERENCES_HEADER, "Настройки программы");
         strings.put(LanguageKeys.PREFERENCES_SAVE, "Сохранить");
@@ -383,6 +387,14 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.MENU_BOOKS_INFO_VARIATIONS, "Вариантов");
         strings.put(LanguageKeys.MENU_BOOKS_SAVE, "Сохранить книгу");
         strings.put(LanguageKeys.MENU_BOOKS_UNDO_MOVE, "Отменить добавленный ход");
+
+        strings.put(LanguageKeys.MENU_BOOKS_EXPORT_TREE, "Экспорт в Polyglot книгу...");
+        strings.put(LanguageKeys.BOOK_EXPORT_DIALOG_TITLE, "Сохранить Polyglot книгу");
+        strings.put(LanguageKeys.BOOK_EXPORT_SUCCESS, "Книга \"%s\" создана: %d записей");
+        strings.put(LanguageKeys.BOOK_EXPORT_EMPTY_RESULT, "Нет ходов для экспорта");
+        strings.put(LanguageKeys.BOOK_EXPORT_ERROR, "Ошибка экспорта книги");
+        strings.put(LanguageKeys.BOOK_EXPORT_NO_TREE, "Дерево вариантов не загружено");
+        strings.put(LanguageKeys.BOOK_EXPORT_EMPTY_TREE, "Дерево пустое — нечего экспортировать");
 
         // Уведомления
         strings.put(LanguageKeys.NOTIFICATION_INFO, "Информация");
@@ -590,7 +602,7 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.ABOUT_TITLE, "О программе Kletka");
         strings.put(LanguageKeys.ABOUT_CONTENT,
                 """
-                    ♔ Клетка шахматный анализатор♔
+                    ♔ Клетка шахматный анализатор ♔
                     Версия: %s
                     Платформа: Java 17, OpenJFX
                     Библиотека: chesslib 1.3.6 (GPL v3)
@@ -607,10 +619,12 @@ public class RuLanguage implements Language {
                     Вы можете распространять и/или изменять его
                     в соответствии с условиями GNU General Public License
                     версии 3 или любой более поздней версии.
-                    
-                    Подробнее: https://www.gnu.org/licenses/gpl-3.0.html
                     ---------------------------------------------------
                     """);
+
+        strings.put(LanguageKeys.ABOUT_WEBSITE_LINK , "Веб-сайт проекта");
+        strings.put(LanguageKeys.ABOUT_GITHUB_LINK  , "GitHub репозиторий");
+        strings.put(LanguageKeys.ABOUT_LICENSE_LINK   , "Текст лицензии GPL v3");
 
         strings.put(LanguageKeys.POSITION_SET_SUCCESS, "Позиция установлена. Ход %s");
 
@@ -1247,6 +1261,7 @@ public class RuLanguage implements Language {
 
         // 📝 Правка
         shortcutsContent.append("\n📝 Правка:\n");
+        shortcutsContent.append("  Ctrl+Shift+P - Копировать позицию\n");
         shortcutsContent.append("  Ctrl+Z - Отменить маркер\n");
         shortcutsContent.append("  Ctrl+Y - Вернуть маркер\n");
         shortcutsContent.append("  Ctrl+Shift+O - Настройки\n");
