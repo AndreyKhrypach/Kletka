@@ -1,0 +1,439 @@
+<!--
+  ~ /*
+  ~  * Copyright (c) 2024 Andrey Khrypach
+  ~  *
+  ~  * This program is free software: you can redistribute it and/or modify
+  ~  * it under the terms of the GNU General Public License as published by
+  ~  * the Free Software Foundation, either version 3 of the License, or
+  ~  * (at your option) any later version.
+  ~  *
+  ~  * This program is distributed in the hope that it will be useful,
+  ~  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+  ~  * GNU General Public License for more details.
+  ~  *
+  ~  * You should have received a copy of the GNU General Public License
+  ~  * along with this program. If not, see <https://www.gnu.org/licenses/>.
+  ~  */
+  ~
+  -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kletka — Cross-Platform Chess Analyzer</title>
+    <meta name="description" content="Kletka is a cross-platform chess analysis tool supporting PGN files, Polyglot opening books, and the Stockfish engine. Available for Windows, Linux, and macOS.">
+    <link rel="canonical" href="https://andreykhrypach.github.io/Kletka/">
+    <link rel="alternate" hreflang="en" href="https://andreykhrypach.github.io/Kletka/">
+    <link rel="alternate" hreflang="ru" href="https://andreykhrypach.github.io/Kletka/README.ru.html">
+    <link rel="alternate" hreflang="zh" href="https://andreykhrypach.github.io/Kletka/README.zh.html">
+    <link rel="alternate" hreflang="x-default" href="https://andreykhrypach.github.io/Kletka/">
+
+    <meta property="og:title" content="Kletka — Cross-Platform Chess Analyzer">
+    <meta property="og:description" content="Open-source chess analyzer with PGN, Polyglot opening books, and Stockfish engine.">
+    <meta property="og:image" content="https://andreykhrypach.github.io/Kletka/screenshots/en/Main_en.png">
+    <meta property="og:url" content="https://andreykhrypach.github.io/Kletka/">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="en_US">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Kletka — Cross-Platform Chess Analyzer">
+    <meta name="twitter:description" content="Open-source chess analyzer with PGN, Polyglot opening books, and Stockfish engine.">
+    <meta name="twitter:image" content="https://andreykhrypach.github.io/Kletka/screenshots/en/Main_en.png">
+
+    <style>
+        :root {
+            --bg: #1e1e1e;
+            --fg: #e0e0e0;
+            --accent: #4a9eff;
+            --muted: #888;
+            --card: #2a2a2a;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+        h1 { font-size: 2.2em; margin-bottom: 0.2em; }
+        h2 { font-size: 1.5em; margin-top: 2em; border-bottom: 1px solid #333; padding-bottom: 8px; }
+        h3 { font-size: 1.2em; margin-top: 1.5em; color: var(--accent); }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .lang-switch { margin: 20px 0; font-size: 0.95em; }
+        .lang-switch a { margin-right: 12px; }
+        .btn {
+            display: inline-block;
+            background: var(--accent);
+            color: #fff !important;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 600;
+            margin: 10px 10px 10px 0;
+            text-decoration: none !important;
+        }
+        .btn:hover { opacity: 0.9; }
+        ul { padding-left: 20px; }
+        li { margin: 6px 0; }
+        code {
+            background: #333;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+        pre {
+            background: #2a2a2a;
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+            border: 1px solid #333;
+        }
+        pre code { background: none; padding: 0; }
+        .features li::marker { color: var(--accent); }
+        footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid #333; color: var(--muted); font-size: 0.9em; }
+        table { margin: 20px 0; }
+        table img { max-width: 100%; height: auto; border-radius: 6px; }
+        table td { padding: 8px; text-align: center; vertical-align: top; }
+        .badges { margin: 15px 0; }
+        .badges img { margin-right: 5px; }
+        blockquote {
+            border-left: 3px solid var(--accent);
+            margin: 15px 0;
+            padding: 5px 15px;
+            color: var(--muted);
+            background: #252525;
+            border-radius: 0 4px 4px 0;
+        }
+        hr { border: none; border-top: 1px solid #333; margin: 30px 0; }
+
+        /* Full-size images: constrain to container, clickable, styled */
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            display: block;
+            margin: 20px auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+        a img { border: none; }
+        table img {
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <h1>♟️ Kletka — Cross-Platform Chess Analyzer</h1>
+
+    <p class="badges">
+        <a href="https://github.com/AndreyKhrypach/Kletka/releases/latest">
+            <img src="https://img.shields.io/github/v/release/AndreyKhrypach/Kletka?label=Latest%20Release&color=success&style=flat-square" alt="Latest Release">
+        </a>
+        <a href="https://www.gnu.org/licenses/gpl-3.0">
+            <img src="https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square" alt="License: GPL v3">
+        </a>
+        <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey?style=flat-square" alt="Platform">
+    </p>
+
+    <div class="lang-switch">
+        🌐 <strong>English</strong> ·
+        <a href="README.ru.html">Русский</a> ·
+        <a href="README.zh.html">中文</a>
+    </div>
+
+    <p><strong>Website:</strong> <a href="https://andreykhrypach.github.io/Kletka/">https://andreykhrypach.github.io/Kletka/</a></p>
+
+    <hr>
+
+    <p><strong>Kletka</strong> is a cross-platform chess analysis tool that supports PGN files, variations, annotations, and the Stockfish engine. It features a modern, customizable interface and is available for Windows, Linux, and macOS.</p>
+
+    <p>
+        <a class="btn" href="https://github.com/AndreyKhrypach/Kletka/releases">⬇ Download</a>
+        <a class="btn" href="https://github.com/AndreyKhrypach/Kletka">GitHub Repo</a>
+    </p>
+
+    <h2>📝 Changelog</h2>
+    <p>See <a href="https://github.com/AndreyKhrypach/Kletka/blob/master/CHANGELOG.md">CHANGELOG.md</a> for a detailed history of changes.</p>
+
+    <hr>
+
+    <h2>🚀 Features</h2>
+    <ul class="features">
+        <li>📁 Open, edit, and save PGN files</li>
+        <li>🧩 Full support for variations and annotations</li>
+        <li>📚 <strong>Polyglot opening books</strong> — load, browse, and <strong>edit</strong> opening variations</li>
+        <li>📤 <strong>Export game tree to Polyglot book</strong> — save your personal repertoire</li>
+        <li>🔍 Position analysis with <strong>Stockfish</strong> (UCI engine)</li>
+        <li>🎨 Customizable board themes</li>
+        <li>📋 <strong>Copy position</strong> as FEN + ASCII diagram (Ctrl+Shift+P)</li>
+        <li>🌍 Multilingual: English, Russian, Chinese</li>
+        <li>🖥️ Cross-platform: Windows, Linux, macOS</li>
+    </ul>
+
+    <hr>
+
+    <h2>📺 Video Tutorials</h2>
+    <p>Step-by-step guides on our YouTube channel:</p>
+    <ul>
+        <li><a href="https://www.youtube.com/watch?v=OSaSA-Qm0GY">Kletka tutorial: Windows installation</a></li>
+        <li><a href="https://www.youtube.com/watch?v=TWhIM4zsmIY">Kletka tutorial: Windows — setting up Stockfish</a></li>
+        <li><a href="https://www.youtube.com/watch?v=QAz95CSiDy0">Kletka tutorial: How to use Polyglot opening books</a></li>
+    </ul>
+    <p>More tutorials coming soon — Windows, Linux, macOS.</p>
+
+    <hr>
+
+    <h2>📚 Opening Books (Polyglot)</h2>
+    <p>Kletka supports <strong>Polyglot opening books</strong> (<code>.bin</code> files), allowing you to explore and study chess openings interactively — and to build your own repertoire.</p>
+
+    <h3>How to use opening books:</h3>
+    <ol>
+        <li>Go to <strong>Books → Load Book</strong></li>
+        <li>Select a Polyglot book file (<code>.bin</code>)</li>
+        <li>Navigate through variations using the keyboard:
+            <ul>
+                <li><strong>↑ / ↓</strong> — move between variations</li>
+                <li><strong>→ / Enter</strong> — select a variation</li>
+                <li><strong>←</strong> — go back to the previous position</li>
+            </ul>
+        </li>
+    </ol>
+
+    <h3>How to edit a book:</h3>
+    <p>Kletka allows you to add moves directly to the loaded book:</p>
+    <ul>
+        <li>Play a move on the board — it's automatically added to the book</li>
+        <li>Press <strong>Alt+Z</strong> — undo the last added move</li>
+        <li>Use <strong>Books → Save Book</strong> (Ctrl+Shift+S) — apply changes to the <code>.bin</code> file</li>
+        <li>Use <strong>Books → Clear Book</strong> (Ctrl+Shift+C) — unload the book</li>
+    </ul>
+
+    <h3>Export game tree to Polyglot book:</h3>
+    <p>You can export your current analysis tree as a Polyglot book:</p>
+    <ol>
+        <li>Analyse or set up a position with variations</li>
+        <li>Go to <strong>Books → Export to Polyglot Book…</strong></li>
+        <li>Choose a folder and filename — the book is created in <code>.bin</code> format</li>
+    </ol>
+    <p>All moves from the tree (main line + all variations) go into the book. Transpositions and duplicates are automatically deduplicated.</p>
+    <p>The resulting book can be loaded back into Kletka or used with Stockfish, Leela, ChessBase, Scid, Arena, and other compatible software.</p>
+
+    <h3>System Requirements for Books</h3>
+    <p>For opening book functionality, Kletka requires:</p>
+    <ul>
+        <li><strong>Java 17 LTS</strong> (Liberica Full JDK recommended)</li>
+        <li>JVM arguments (automatically applied when running from the launcher):</li>
+    </ul>
+    <pre><code>--add-opens java.base/sun.nio.ch=ALL-UNNAMED
+--add-opens java.base/sun.misc=ALL-UNNAMED</code></pre>
+    <p><strong>Note:</strong> If you're running Kletka from the command line, use:</p>
+    <pre><code>java --add-opens java.base/sun.nio.ch=ALL-UNNAMED \
+--add-opens java.base/sun.misc=ALL-UNNAMED \
+-jar Kletka.jar</code></pre>
+    <p>These arguments are required for fast Polyglot book operations using memory-mapped files.</p>
+
+    <h3>🔧 Technical Details: Memory-Mapped Files</h3>
+    <p>Kletka uses <strong>memory-mapped files</strong> (<code>MappedByteBuffer</code>) for lightning-fast Polyglot book operations, even on HDD.</p>
+    <blockquote>
+        <strong>Important:</strong> Mapped byte buffer is <strong>not released</strong> by the JVM garbage collector while a reference exists. So that you can <strong>delete, move, or replace</strong> a book file while Kletka is running, the application explicitly calls:
+    </blockquote>
+    <pre><code>sun.misc.Unsafe.invokeCleaner(mappedByteBuffer);</code></pre>
+    <p>This immediately releases the OS-level file lock.</p>
+    <p><strong>What this means for you:</strong></p>
+    <ul>
+        <li>✅ You can safely <strong>delete</strong> and <strong>move</strong> the <code>.bin</code> file after unloading the book</li>
+        <li>✅ You can <strong>replace</strong> the book file with a new one</li>
+        <li>✅ No more "file is locked by another process" errors on Windows</li>
+    </ul>
+
+    <h3>Linux: Known Issues</h3>
+    <p>On <strong>Debian Trixie / Ubuntu 24.04+</strong> with <strong>Wayland</strong>, dialogs may not receive focus (keyboard works, mouse doesn't). This is a <strong>known JavaFX 17 + GTK 3 + Wayland bug</strong>.</p>
+    <p><strong>Solution:</strong> already included in Kletka — the app runs with <code>-Djdk.gtk.version=2</code>, which uses GTK 2 via XWayland.</p>
+
+    <h3>Recommended books:</h3>
+    <p>For best results, we recommend using the <strong><code>uho-pohl.bin</code></strong> opening book, which contains extensive high-quality opening variations.</p>
+
+    <h3>Where to get Polyglot books:</h3>
+    <p>You can download free opening books from the official Polyglot books repository: 🔗 <a href="https://github.com/ChrisWhittington/polyglot-books">Polyglot Books Repository</a></p>
+    <p>Other popular sources:</p>
+    <ul>
+        <li><a href="https://www.chessdb.com/">UHO-Pohl openings</a> — high-quality opening database</li>
+        <li><a href="https://www.chesstempo.com/">ChessTempo's Polyglot books</a></li>
+        <li>Create your own using the Polyglot format</li>
+    </ul>
+
+    <hr>
+
+    <h2>📋 Copy Position (FEN + ASCII)</h2>
+    <p>You can copy the current position to the clipboard in a convenient format — <strong>FEN</strong> plus an <strong>ASCII diagram</strong>:</p>
+    <ul>
+        <li>Menu: <strong>Edit → Copy Position</strong></li>
+        <li>Shortcut: <strong>Ctrl+Shift+P</strong></li>
+    </ul>
+    <p>This is useful for:</p>
+    <ul>
+        <li>Sharing positions in chats, forums, or issue trackers</li>
+        <li>Analyzing positions with AI assistants</li>
+        <li>Documenting positions in text files</li>
+    </ul>
+    <p>The output includes the FEN on the first line and an ASCII diagram below it, wrapped in a Markdown code block for easy pasting.</p>
+
+    <hr>
+
+    <h2>🐛 Known Issues on macOS</h2>
+
+    <h3>Drag-and-drop: piece is grabbed by the corner</h3>
+    <p><strong>Symptoms:</strong></p>
+    <ul>
+        <li>A piece is visually grabbed by the corner instead of the center.</li>
+        <li>To make a move, you need to drag the mouse to the corner of the target square.</li>
+        <li>After dropping, the cursor may disappear until the mouse enters the menu area.</li>
+    </ul>
+    <p><strong>Cause:</strong> Known JavaFX bug <strong>JDK-8333919</strong> — <code>dragViewOffsetX/Y</code> are ignored on macOS.</p>
+    <p><strong>Fix:</strong> Fixed in <strong>JavaFX 23</strong> (requires <strong>JDK 21+</strong>). Kletka currently uses <strong>Java 17</strong> + <strong>JavaFX 17</strong>.</p>
+    <p><strong>Workaround:</strong></p>
+    <ul>
+        <li>Use <strong>click-to-move</strong> (click on a piece → click on a square) instead of drag-and-drop.</li>
+        <li>Or wait for Kletka to migrate to <strong>JDK 25</strong> + <strong>JavaFX 25</strong> (planned in future releases).</li>
+    </ul>
+    <p><strong>Status:</strong> Tracked in issue #XXX. Will be fixed when we migrate to the new stack.</p>
+
+    <hr>
+
+    <h2>🖥️ Screenshots</h2>
+    <h3>Quick Preview</h3>
+    <table>
+        <tr>
+            <td><img src="screenshots/en/Main_en.png" width="400" alt="Main interface"></td>
+            <td><img src="screenshots/en/Browser_en.png" width="400" alt="PGN browser"></td>
+        </tr>
+        <tr>
+            <td><em>Main interface</em></td>
+            <td><em>PGN browser</em></td>
+        </tr>
+        <tr>
+            <td><img src="screenshots/en/book_open_en.png" width="400" alt="Open Polyglot Book"></td>
+            <td><img src="screenshots/en/book_loaded_en.png" width="400" alt="Polyglot Book Loaded"></td>
+        </tr>
+        <tr>
+            <td><em>Open Polyglot Book</em></td>
+            <td><em>Polyglot Book Loaded</em></td>
+        </tr>
+    </table>
+
+    <h3>Full Size</h3>
+    <p><em>Click on an image to open it in full size in a new tab.</em></p>
+    <p>
+        <a href="screenshots/en/Main_en.png" target="_blank" rel="noopener">
+            <img src="screenshots/en/Main_en.png" alt="Main interface">
+        </a>
+    </p>
+    <p>
+        <a href="screenshots/en/Browser_en.png" target="_blank" rel="noopener">
+            <img src="screenshots/en/Browser_en.png" alt="PGN browser">
+        </a>
+    </p>
+    <p>
+        <a href="screenshots/en/book_open_en.png" target="_blank" rel="noopener">
+            <img src="screenshots/en/book_open_en.png" alt="Open Polyglot Book">
+        </a>
+    </p>
+    <p>
+        <a href="screenshots/en/book_loaded_en.png" target="_blank" rel="noopener">
+            <img src="screenshots/en/book_loaded_en.png" alt="Polyglot Book Loaded">
+        </a>
+    </p>
+
+    <hr>
+
+    <h2>📦 Installation</h2>
+
+    <h3>Windows</h3>
+    <p>Download <code>Kletka.exe</code> from the <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a> page and run the installer.</p>
+
+    <h3>macOS</h3>
+    <p>Download <code>Kletka.dmg</code>, open it, and drag <code>Kletka.app</code> to the <code>Applications</code> folder.</p>
+
+    <h3>Linux (Debian/Ubuntu)</h3>
+    <pre><code>sudo dpkg -i kletka*.deb</code></pre>
+
+    <hr>
+
+    <h2>🛠️ Building from Source</h2>
+
+    <h3>Prerequisites</h3>
+    <ul>
+        <li><strong>Java 17</strong> (Liberica Full JDK recommended) — download from <a href="https://bell-sw.com/pages/downloads/#/java-17-lts">BellSoft</a></li>
+        <li><strong>Maven</strong> — install via <code>brew install maven</code> (macOS) or <code>sudo apt install maven</code> (Linux)</li>
+    </ul>
+
+    <h3>Important JVM Arguments for Development</h3>
+    <p>When running from your IDE, add these VM options:</p>
+    <pre><code>--add-opens java.base/sun.nio.ch=ALL-UNNAMED
+--add-opens java.base/sun.misc=ALL-UNNAMED</code></pre>
+    <p>This ensures full Polyglot book support during development.</p>
+    <pre><code>git clone https://github.com/AndreyKhrypach/Kletka.git
+cd Kletka
+mvn clean package</code></pre>
+
+    <h3>Platform-specific builds</h3>
+    <pre><code># Windows
+mvn clean package -P windows
+
+# Linux
+mvn clean package -P linux
+
+# macOS
+mvn clean package -P mac</code></pre>
+
+    <hr>
+
+    <h2>🧠 Setting up Stockfish</h2>
+    <p>Kletka uses the Stockfish UCI engine for analysis. You need to install it separately:</p>
+
+    <h3>Windows</h3>
+    <ol>
+        <li>Download Stockfish from the official website: <a href="https://stockfishchess.org/download/">https://stockfishchess.org/download/</a></li>
+        <li>Extract the archive</li>
+        <li>In Kletka, go to <strong>Engine → Configure Engine</strong> and select the <code>stockfish.exe</code> file</li>
+    </ol>
+
+    <h3>Linux (Debian/Ubuntu)</h3>
+    <pre><code>sudo apt install stockfish</code></pre>
+    <p>Then in Kletka, go to <strong>Engine → Configure Engine</strong> and select the <code>stockfish</code> binary.</p>
+
+    <h3>macOS</h3>
+    <pre><code>brew install stockfish</code></pre>
+    <p>Then in Kletka, go to <strong>Engine → Configure Engine</strong> and select the <code>stockfish</code> binary.</p>
+
+    <hr>
+
+    <h2>📄 License</h2>
+    <p>This project is licensed under the GNU General Public License v3.0. See the <a href="https://github.com/AndreyKhrypach/Kletka/blob/master/LICENSE">LICENSE</a> file for details.</p>
+
+    <hr>
+
+    <h2>👨‍💻 Author</h2>
+    <p>Andrey Khrypach</p>
+
+    <h2>⭐ Support</h2>
+    <p>If you like this project, please ⭐ it on GitHub!</p>
+
+    <footer>
+        <p>© Andrey Khrypach · <a href="https://github.com/AndreyKhrypach/Kletka">GitHub</a> · <a href="README.ru.html">Русский</a> · <a href="README.zh.html">中文</a></p>
+    </footer>
+
+</div>
+</body>
+</html>

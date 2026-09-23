@@ -1,0 +1,443 @@
+<!--
+  ~ /*
+  ~  * Copyright (c) 2024 Andrey Khrypach
+  ~  *
+  ~  * This program is free software: you can redistribute it and/or modify
+  ~  * it under the terms of the GNU General Public License as published by
+  ~  * the Free Software Foundation, either version 3 of the License, or
+  ~  * (at your option) any later version.
+  ~  *
+  ~  * This program is distributed in the hope that it will be useful,
+  ~  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+  ~  * GNU General Public License for more details.
+  ~  *
+  ~  * You should have received a copy of the GNU General Public License
+  ~  * along with this program. If not, see <https://www.gnu.org/licenses/>.
+  ~  */
+  ~
+  -->
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Клетка — Кроссплатформенный шахматный анализатор</title>
+    <meta name="description" content="Клетка — кроссплатформенный шахматный анализатор с поддержкой PGN, дебютных книг Polyglot и движка Stockfish. Доступен для Windows, Linux и macOS.">
+    <link rel="canonical" href="https://andreykhrypach.github.io/Kletka/README.ru.html">
+    <link rel="alternate" hreflang="en" href="https://andreykhrypach.github.io/Kletka/">
+    <link rel="alternate" hreflang="ru" href="https://andreykhrypach.github.io/Kletka/README.ru.html">
+    <link rel="alternate" hreflang="zh" href="https://andreykhrypach.github.io/Kletka/README.zh.html">
+    <link rel="alternate" hreflang="x-default" href="https://andreykhrypach.github.io/Kletka/">
+
+    <meta property="og:title" content="Клетка — Кроссплатформенный шахматный анализатор">
+    <meta property="og:description" content="Открытый шахматный анализатор с PGN, Polyglot книгами и движком Stockfish.">
+    <meta property="og:image" content="https://andreykhrypach.github.io/Kletka/screenshots/ru/Main_ru.png">
+    <meta property="og:url" content="https://andreykhrypach.github.io/Kletka/README.ru.html">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="ru_RU">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Клетка — Кроссплатформенный шахматный анализатор">
+    <meta name="twitter:description" content="Открытый шахматный анализатор с PGN, Polyglot книгами и движком Stockfish.">
+    <meta name="twitter:image" content="https://andreykhrypach.github.io/Kletka/screenshots/ru/Main_ru.png">
+
+    <style>
+        :root {
+            --bg: #1e1e1e;
+            --fg: #e0e0e0;
+            --accent: #4a9eff;
+            --muted: #888;
+            --card: #2a2a2a;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+        h1 { font-size: 2.2em; margin-bottom: 0.2em; }
+        h2 { font-size: 1.5em; margin-top: 2em; border-bottom: 1px solid #333; padding-bottom: 8px; }
+        h3 { font-size: 1.2em; margin-top: 1.5em; color: var(--accent); }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .lang-switch { margin: 20px 0; font-size: 0.95em; }
+        .lang-switch a { margin-right: 12px; }
+        .btn {
+            display: inline-block;
+            background: var(--accent);
+            color: #fff !important;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 600;
+            margin: 10px 10px 10px 0;
+            text-decoration: none !important;
+        }
+        .btn:hover { opacity: 0.9; }
+        ul { padding-left: 20px; }
+        li { margin: 6px 0; }
+        code {
+            background: #333;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+        pre {
+            background: #2a2a2a;
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+            border: 1px solid #333;
+        }
+        pre code { background: none; padding: 0; }
+        .features li::marker { color: var(--accent); }
+        footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid #333; color: var(--muted); font-size: 0.9em; }
+        table { margin: 20px 0; }
+        table img { max-width: 100%; height: auto; border-radius: 6px; }
+        table td { padding: 8px; text-align: center; vertical-align: top; }
+
+        /* Ограничение для картинок вне таблицы (секция "Полный размер") */
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            display: block;
+            margin: 20px auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Ссылки-обёртки вокруг картинок не должны ломать layout */
+        a img { border: none; }
+
+        /* Все картинки в таблице — тоже в блок */
+        table img {
+            display: block;
+            margin: 0 auto;
+        }
+        .badges { margin: 15px 0; }
+        .badges img { margin-right: 5px; }
+        blockquote {
+            border-left: 3px solid var(--accent);
+            margin: 15px 0;
+            padding: 5px 15px;
+            color: var(--muted);
+            background: #252525;
+            border-radius: 0 4px 4px 0;
+        }
+        hr { border: none; border-top: 1px solid #333; margin: 30px 0; }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <h1>♟️ Клетка — Кроссплатформенный шахматный анализатор</h1>
+
+    <p class="badges">
+        <a href="https://github.com/AndreyKhrypach/Kletka/releases/latest">
+            <img src="https://img.shields.io/github/v/release/AndreyKhrypach/Kletka?label=Latest%20Release&color=success&style=flat-square" alt="Latest Release">
+        </a>
+        <a href="https://www.gnu.org/licenses/gpl-3.0">
+            <img src="https://img.shields.io/badge/Лицензия-GPLv3-blue.svg?style=flat-square" alt="Лицензия: GPL v3">
+        </a>
+        <img src="https://img.shields.io/badge/Платформа-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey?style=flat-square" alt="Платформа">
+    </p>
+
+    <div class="lang-switch">
+        🌐 <a href="index.html">English</a> ·
+        <strong>Русский</strong> ·
+        <a href="README.zh.html">中文</a>
+    </div>
+
+    <p><strong>Веб сайт:</strong> <a href="https://andreykhrypach.github.io/Kletka/">https://andreykhrypach.github.io/Kletka/</a></p>
+
+    <hr>
+
+    <p><strong>Клетка</strong> — это кроссплатформенный шахматный анализатор с поддержкой PGN файлов, вариантов, аннотаций и движка Stockfish. Программа имеет современный настраиваемый интерфейс и доступна для Windows, Linux и macOS.</p>
+
+    <p>
+        <a class="btn" href="https://github.com/AndreyKhrypach/Kletka/releases">⬇ Скачать</a>
+        <a class="btn" href="https://github.com/AndreyKhrypach/Kletka">GitHub репозиторий</a>
+    </p>
+
+    <h2>📝 Журнал изменений</h2>
+    <p>Подробную историю изменений смотрите в <a href="https://github.com/AndreyKhrypach/Kletka/blob/master/CHANGELOG.md">CHANGELOG.md</a>.</p>
+
+    <hr>
+
+    <h2>🚀 Возможности</h2>
+    <ul class="features">
+        <li>📁 Открытие, редактирование и сохранение PGN файлов</li>
+        <li>🧩 Полная поддержка вариантов и аннотаций</li>
+        <li>📚 <strong>Дебютные книги Polyglot</strong> — загрузка, просмотр и <strong>редактирование</strong> дебютных вариантов</li>
+        <li>📤 <strong>Экспорт дерева в Polyglot книгу</strong> — сохранение личного репертуара</li>
+        <li>🔍 Анализ позиции с <strong>Stockfish</strong> (UCI движок)</li>
+        <li>🎨 Настраиваемые темы доски</li>
+        <li>📋 <strong>Копирование позиции</strong> в формате FEN + ASCII (Ctrl+Shift+P)</li>
+        <li>🌍 Мультиязычность: Русский, English, 中文</li>
+        <li>🖥️ Кроссплатформенность: Windows, Linux, macOS</li>
+    </ul>
+
+    <hr>
+
+    <h2>📺 Видеоуроки</h2>
+    <p>Пошаговые руководства на нашем YouTube-канале:</p>
+    <ul>
+        <li><a href="https://www.youtube.com/watch?v=OSaSA-Qm0GY">Kletka: установка на Windows</a></li>
+        <li><a href="https://www.youtube.com/watch?v=TWhIM4zsmIY">Kletka: настройка Stockfish на Windows</a></li>
+        <li><a href="https://www.youtube.com/watch?v=QAz95CSiDy0">Kletka: как пользоваться Polyglot книгами</a></li>
+    </ul>
+    <p>Скоро — новые уроки: Windows, Linux, macOS.</p>
+
+    <hr>
+
+    <h2>📚 Дебютные книги (Polyglot)</h2>
+    <p>Клетка поддерживает <strong>дебютные книги Polyglot</strong> (файлы <code>.bin</code>), что позволяет вам интерактивно изучать шахматные дебюты — и создавать <strong>свой</strong> дебютный репертуар.</p>
+
+    <h3>Как использовать дебютные книги:</h3>
+    <ol>
+        <li>Перейдите в меню <strong>Книги → Загрузить книгу</strong></li>
+        <li>Выберите файл Polyglot книги (<code>.bin</code>)</li>
+        <li>Навигация по вариантам с помощью клавиатуры:
+            <ul>
+                <li><strong>↑ / ↓</strong> — перемещение между вариантами</li>
+                <li><strong>→ / Enter</strong> — выбор варианта</li>
+                <li><strong>←</strong> — возврат на предыдущую позицию</li>
+            </ul>
+        </li>
+    </ol>
+
+    <h3>Как редактировать книгу:</h3>
+    <p>Клетка позволяет добавлять ходы прямо в загруженную книгу:</p>
+    <ul>
+        <li>Сделайте ход на доске — он автоматически добавится в книгу</li>
+        <li>Нажмите <strong>Alt+Z</strong> — отменить последний добавленный ход</li>
+        <li><strong>Книги → Сохранить книгу</strong> (Ctrl+Shift+S) — применить изменения в <code>.bin</code> файл</li>
+        <li><strong>Книги → Выгрузить книгу</strong> (Ctrl+Shift+C) — выгрузить книгу</li>
+    </ul>
+
+    <h3>Экспорт дерева в Polyglot книгу:</h3>
+    <p>Вы можете экспортировать текущее дерево анализа в Polyglot книгу:</p>
+    <ol>
+        <li>Проанализируйте или расставьте позицию с вариантами</li>
+        <li>Перейдите в <strong>Книги → Экспорт в Polyglot книгу…</strong></li>
+        <li>Выберите папку и имя файла — книга создаётся в формате <code>.bin</code></li>
+    </ol>
+    <p>Все ходы из дерева (главная линия + все варианты) попадают в книгу. Транспозиции и дубликаты автоматически дедуплицируются.</p>
+    <p>Полученную книгу можно загрузить обратно в Клетку или использовать в Stockfish, Leela, ChessBase, Scid, Arena и других совместимых программах.</p>
+
+    <h3>Системные требования для книг</h3>
+    <p>Для работы с дебютными книгами Клетка требует:</p>
+    <ul>
+        <li><strong>Java 17 LTS</strong> (рекомендуется Liberica Full JDK)</li>
+        <li>Аргументы JVM (автоматически применяются при запуске через лаунчер):</li>
+    </ul>
+    <pre><code>--add-opens java.base/sun.nio.ch=ALL-UNNAMED
+--add-opens java.base/sun.misc=ALL-UNNAMED</code></pre>
+    <p><strong>Примечание:</strong> Если вы запускаете Клетка из командной строки, используйте:</p>
+    <pre><code>java --add-opens java.base/sun.nio.ch=ALL-UNNAMED \
+--add-opens java.base/sun.misc=ALL-UNNAMED \
+-jar Kletka.jar</code></pre>
+    <p>Эти аргументы необходимы для быстрой работы с Polyglot книгами с использованием файлов, отображаемых в память (mmap).</p>
+
+    <h3>🔧 Технические детали: Memory-Mapped Files</h3>
+    <p>Клетка использует <strong>memory-mapped files</strong> (<code>MappedByteBuffer</code>) для молниеносно быстрой работы с Polyglot книгами, даже на HDD.</p>
+    <blockquote>
+        <strong>Важно:</strong> Mapped byte buffer <strong>не освобождается</strong> сборщиком мусора JVM, пока на него есть ссылка. Чтобы вы могли <strong>удалить, переместить или заменить</strong> файл книги во время работы Kletka, приложение явно вызывает:
+    </blockquote>
+    <pre><code>sun.misc.Unsafe.invokeCleaner(mappedByteBuffer);</code></pre>
+    <p>Это немедленно снимает блокировку файла на уровне ОС.</p>
+    <p><strong>Что это значит для вас:</strong></p>
+    <ul>
+        <li>✅ Можно безопасно <strong>удалять</strong> и <strong>перемещать</strong> <code>.bin</code> файл после выгрузки книги</li>
+        <li>✅ Можно <strong>заменять</strong> файл книги на новый</li>
+        <li>✅ Никаких ошибок "файл занят другим процессом" на Windows</li>
+    </ul>
+
+    <h3>Linux: известные проблемы</h3>
+    <p>На <strong>Debian Trixie / Ubuntu 24.04+</strong> с <strong>Wayland</strong> диалоги могут не получать фокус (клавиатура работает, мышь — нет). Это <strong>известный баг JavaFX 17 + GTK 3 + Wayland</strong>.</p>
+    <p><strong>Решение:</strong> уже включено в Клетку — приложение запускается с флагом <code>-Djdk.gtk.version=2</code>, который использует GTK 2 через XWayland.</p>
+
+    <h3>Рекомендуемые книги:</h3>
+    <p>Для наилучших результатов мы рекомендуем использовать книгу <strong><code>uho-pohl.bin</code></strong>, которая содержит обширные качественные дебютные варианты.</p>
+
+    <h3>Где взять Polyglot книги:</h3>
+    <p>Вы можете скачать бесплатные дебютные книги из официального репозитория Polyglot: 🔗 <a href="https://github.com/ChrisWhittington/polyglot-books">Polyglot Books Repository</a></p>
+    <p>Другие популярные источники:</p>
+    <ul>
+        <li><a href="https://www.chessdb.com/">UHO-Pohl openings</a> — качественная база дебютов</li>
+        <li><a href="https://www.chesstempo.com/">ChessTempo's Polyglot books</a></li>
+        <li>Создайте свою собственную книгу в формате Polyglot</li>
+    </ul>
+
+    <hr>
+
+    <h2>📋 Копирование позиции (FEN + ASCII)</h2>
+    <p>Вы можете скопировать текущую позицию в буфер обмена в удобном формате — <strong>FEN</strong> плюс <strong>ASCII-диаграмма</strong>:</p>
+    <ul>
+        <li>Меню: <strong>Правка → Копировать позицию</strong></li>
+        <li>Горячая клавиша: <strong>Ctrl+Shift+P</strong></li>
+    </ul>
+    <p>Это удобно для:</p>
+    <ul>
+        <li>Обмена позициями в чатах, на форумах, в issue-трекерах</li>
+        <li>Анализа позиций с ИИ-ассистентами</li>
+        <li>Документирования позиций в текстовых файлах</li>
+    </ul>
+    <p>Вывод содержит FEN в первой строке и ASCII-диаграмму ниже, обёрнутую в Markdown-блок кода для удобной вставки.</p>
+
+    <hr>
+
+    <h2>🐛 Известные проблемы на macOS</h2>
+
+    <h3>Drag-and-drop: фигура "хватается за угол"</h3>
+    <p><strong>Симптомы:</strong></p>
+    <ul>
+        <li>Фигура визуально берётся за угол, а не за центр.</li>
+        <li>Чтобы сделать ход, мышку нужно вести в угол целевой клетки.</li>
+        <li>После drop курсор может исчезнуть, пока мышь не попадёт в меню.</li>
+    </ul>
+    <p><strong>Причина:</strong> Известный баг JavaFX <strong>JDK-8333919</strong> — на macOS игнорируются смещения <code>dragViewOffsetX/Y</code>.</p>
+    <p><strong>Решение:</strong> Исправлен в <strong>JavaFX 23</strong> (требует <strong>JDK 21+</strong>). Клетка сейчас использует <strong>Java 17</strong> + <strong>JavaFX 17</strong>.</p>
+    <p><strong>Обходной путь:</strong></p>
+    <ul>
+        <li>Используйте <strong>click-to-move</strong> (клик на фигуру → клик на клетку) вместо drag-and-drop.</li>
+        <li>Или дождитесь миграции Клетки на <strong>JDK 25</strong> + <strong>JavaFX 25</strong> (планируется в будущих релизах).</li>
+    </ul>
+    <p><strong>Статус:</strong> Отслеживается в issue #XXX. Будет исправлено при миграции на новый стек.</p>
+
+    <hr>
+
+    <h2>🖥️ Скриншоты</h2>
+    <h3>Краткий обзор</h3>
+    <table>
+        <tr>
+            <td><img src="screenshots/ru/Main_ru.png" width="400" alt="Главный интерфейс"></td>
+            <td><img src="screenshots/ru/Browser_ru.png" width="400" alt="Обозреватель PGN"></td>
+        </tr>
+        <tr>
+            <td><em>Главный интерфейс</em></td>
+            <td><em>Обозреватель PGN</em></td>
+        </tr>
+        <tr>
+            <td><img src="screenshots/ru/book_open_ru.png" width="400" alt="Открытие Polyglot книги"></td>
+            <td><img src="screenshots/ru/book_loaded_ru.png" width="400" alt="Загруженная Polyglot книга"></td>
+        </tr>
+        <tr>
+            <td><em>Открытие Polyglot книги</em></td>
+            <td><em>Загруженная Polyglot книга</em></td>
+        </tr>
+    </table>
+
+    <h3>Полный размер</h3>
+    <p><em>Нажмите на изображение, чтобы открыть его в полном размере в новой вкладке.</em></p>
+    <p>
+        <a href="screenshots/ru/Main_ru.png" target="_blank" rel="noopener">
+            <img src="screenshots/ru/Main_ru.png" alt="Главный интерфейс">
+        </a>
+    </p>
+    <p>
+        <a href="screenshots/ru/Browser_ru.png" target="_blank" rel="noopener">
+            <img src="screenshots/ru/Browser_ru.png" alt="Обозреватель PGN">
+        </a>
+    </p>
+    <p>
+        <a href="screenshots/ru/book_open_ru.png" target="_blank" rel="noopener">
+            <img src="screenshots/ru/book_open_ru.png" alt="Открытие Polyglot книги">
+        </a>
+    </p>
+    <p>
+        <a href="screenshots/ru/book_loaded_ru.png" target="_blank" rel="noopener">
+            <img src="screenshots/ru/book_loaded_ru.png" alt="Загруженная Polyglot книга">
+        </a>
+    </p>
+
+    <hr>
+
+    <h2>📦 Установка</h2>
+
+    <h3>Windows</h3>
+    <p>Скачайте <code>Kletka.exe</code> со страницы <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a> и запустите установщик.</p>
+
+    <h3>macOS</h3>
+    <p>Скачайте <code>Kletka.dmg</code>, откройте его и перетащите <code>Kletka.app</code> в папку <code>Applications</code>.</p>
+
+    <h3>Linux (Debian/Ubuntu)</h3>
+    <pre><code>sudo dpkg -i kletka*.deb</code></pre>
+
+    <hr>
+
+    <h2>🛠️ Сборка из исходников</h2>
+
+    <h3>Требования</h3>
+    <ul>
+        <li><strong>Java 17</strong> (рекомендуется Liberica Full JDK) — скачайте с <a href="https://bell-sw.com/pages/downloads/#/java-17-lts">BellSoft</a></li>
+        <li><strong>Maven</strong> — установите через <code>brew install maven</code> (macOS) или <code>sudo apt install maven</code> (Linux)</li>
+    </ul>
+
+    <h3>Важные аргументы JVM для разработки</h3>
+    <p>При запуске из IDE добавьте следующие параметры VM:</p>
+    <pre><code>--add-opens java.base/sun.nio.ch=ALL-UNNAMED
+--add-opens java.base/sun.misc=ALL-UNNAMED</code></pre>
+    <p>Это обеспечивает полную поддержку Polyglot книг во время разработки.</p>
+    <pre><code>git clone https://github.com/AndreyKhrypach/Kletka.git
+cd Kletka
+mvn clean package</code></pre>
+
+    <h3>Сборка для конкретной платформы</h3>
+    <pre><code># Windows
+mvn clean package -P windows
+
+# Linux
+mvn clean package -P linux
+
+# macOS
+mvn clean package -P mac</code></pre>
+
+    <hr>
+
+    <h2>🧠 Настройка Stockfish</h2>
+    <p>Клетка использует движок Stockfish для анализа. Вам нужно установить его отдельно.</p>
+
+    <h3>Windows</h3>
+    <ol>
+        <li>Скачайте Stockfish с официального сайта: <a href="https://stockfishchess.org/download/">https://stockfishchess.org/download/</a></li>
+        <li>Распакуйте архив</li>
+        <li>В Клетка перейдите в <strong>Движок → Настроить движок</strong> и выберите файл <code>stockfish.exe</code></li>
+    </ol>
+
+    <h3>Linux (Debian/Ubuntu)</h3>
+    <pre><code>sudo apt install stockfish</code></pre>
+    <p>Затем в Клетка перейдите в <strong>Движок → Настроить движок</strong> и выберите бинарный файл <code>stockfish</code>.</p>
+
+    <h3>macOS</h3>
+    <pre><code>brew install stockfish</code></pre>
+    <p>Затем в Клетка перейдите в <strong>Движок → Настроить движок</strong> и выберите бинарный файл <code>stockfish</code>.</p>
+
+    <hr>
+
+    <h2>📄 Лицензия</h2>
+    <p>Этот проект распространяется под лицензией GNU General Public License v3.0. Подробнее см. файл <a href="https://github.com/AndreyKhrypach/Kletka/blob/master/LICENSE">LICENSE</a>.</p>
+
+    <hr>
+
+    <h2>👨‍💻 Автор</h2>
+    <p>Andrey Khrypach</p>
+
+    <h2>⭐ Поддержка</h2>
+    <p>Если вам нравится проект, поставьте ⭐ на GitHub!</p>
+
+    <footer>
+        <p>© Andrey Khrypach · <a href="https://github.com/AndreyKhrypach/Kletka">GitHub</a> · <a href="index.html">English</a> · <a href="README.zh.html">中文</a></p>
+    </footer>
+
+</div>
+</body>
+</html>

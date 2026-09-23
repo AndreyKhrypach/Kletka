@@ -1,0 +1,439 @@
+<!--
+  ~ /*
+  ~  * Copyright (c) 2024 Andrey Khrypach
+  ~  *
+  ~  * This program is free software: you can redistribute it and/or modify
+  ~  * it under the terms of the GNU General Public License as published by
+  ~  * the Free Software Foundation, either version 3 of the License, or
+  ~  * (at your option) any later version.
+  ~  *
+  ~  * This program is distributed in the hope that it will be useful,
+  ~  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+  ~  * GNU General Public License for more details.
+  ~  *
+  ~  * You should have received a copy of the GNU General Public License
+  ~  * along with this program. If not, see <https://www.gnu.org/licenses/>.
+  ~  */
+  ~
+  -->
+
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kletka — 跨平台国际象棋分析工具</title>
+    <meta name="description" content="Kletka 是一款跨平台国际象棋分析工具，支持 PGN 文件、Polyglot 开局库和 Stockfish 引擎。适用于 Windows、Linux 和 macOS。">
+    <link rel="canonical" href="https://andreykhrypach.github.io/Kletka/README.zh.html">
+    <link rel="alternate" hreflang="en" href="https://andreykhrypach.github.io/Kletka/">
+    <link rel="alternate" hreflang="ru" href="https://andreykhrypach.github.io/Kletka/README.ru.html">
+    <link rel="alternate" hreflang="zh" href="https://andreykhrypach.github.io/Kletka/README.zh.html">
+    <link rel="alternate" hreflang="x-default" href="https://andreykhrypach.github.io/Kletka/">
+
+    <meta property="og:title" content="Kletka — 跨平台国际象棋分析工具">
+    <meta property="og:description" content="开源国际象棋分析工具，支持 PGN、Polyglot 开局库和 Stockfish 引擎。">
+    <meta property="og:image" content="https://andreykhrypach.github.io/Kletka/screenshots/zh/Main_zh.png">
+    <meta property="og:url" content="https://andreykhrypach.github.io/Kletka/README.zh.html">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="zh_CN">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Kletka — 跨平台国际象棋分析工具">
+    <meta name="twitter:description" content="开源国际象棋分析工具，支持 PGN、Polyglot 开局库和 Stockfish 引擎。">
+    <meta name="twitter:image" content="https://andreykhrypach.github.io/Kletka/screenshots/zh/Main_zh.png">
+
+    <style>
+        :root {
+            --bg: #1e1e1e;
+            --fg: #e0e0e0;
+            --accent: #4a9eff;
+            --muted: #888;
+            --card: #2a2a2a;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            line-height: 1.7;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+        h1 { font-size: 2.2em; margin-bottom: 0.2em; }
+        h2 { font-size: 1.5em; margin-top: 2em; border-bottom: 1px solid #333; padding-bottom: 8px; }
+        h3 { font-size: 1.2em; margin-top: 1.5em; color: var(--accent); }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .lang-switch { margin: 20px 0; font-size: 0.95em; }
+        .lang-switch a { margin-right: 12px; }
+        .btn {
+            display: inline-block;
+            background: var(--accent);
+            color: #fff !important;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 600;
+            margin: 10px 10px 10px 0;
+            text-decoration: none !important;
+        }
+        .btn:hover { opacity: 0.9; }
+        ul { padding-left: 20px; }
+        li { margin: 6px 0; }
+        code {
+            background: #333;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+        pre {
+            background: #2a2a2a;
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+            border: 1px solid #333;
+        }
+        pre code { background: none; padding: 0; }
+        .features li::marker { color: var(--accent); }
+        footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid #333; color: var(--muted); font-size: 0.9em; }
+        table { margin: 20px 0; }
+        table img { max-width: 100%; height: auto; border-radius: 6px; }
+        table td { padding: 8px; text-align: center; vertical-align: top; }
+        .badges { margin: 15px 0; }
+        .badges img { margin-right: 5px; }
+        blockquote {
+            border-left: 3px solid var(--accent);
+            margin: 15px 0;
+            padding: 5px 15px;
+            color: var(--muted);
+            background: #252525;
+            border-radius: 0 4px 4px 0;
+        }
+        hr { border: none; border-top: 1px solid #333; margin: 30px 0; }
+
+        /* Ограничение для картинок вне таблицы (секция "Полный размер") */
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            display: block;
+            margin: 20px auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+        a img { border: none; }
+        table img {
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <h1>♟️ Kletka — 跨平台国际象棋分析工具</h1>
+
+    <p class="badges">
+        <a href="https://github.com/AndreyKhrypach/Kletka/releases/latest">
+            <img src="https://img.shields.io/github/v/release/AndreyKhrypach/Kletka?label=Latest%20Release&color=success&style=flat-square" alt="Latest Release">
+        </a>
+        <a href="https://www.gnu.org/licenses/gpl-3.0">
+            <img src="https://img.shields.io/badge/许可证-GPLv3-blue.svg?style=flat-square" alt="许可证：GPL v3">
+        </a>
+        <img src="https://img.shields.io/badge/平台-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey?style=flat-square" alt="平台">
+    </p>
+
+    <div class="lang-switch">
+        🌐 <a href="index.html">English</a> ·
+        <a href="README.ru.html">Русский</a> ·
+        <strong>中文</strong>
+    </div>
+
+    <p><strong>官方网站：</strong> <a href="https://andreykhrypach.github.io/Kletka/">https://andreykhrypach.github.io/Kletka/</a></p>
+
+    <hr>
+
+    <p><strong>Kletka</strong> 是一款跨平台国际象棋分析工具，支持 PGN 文件、变着、注释和 Stockfish 引擎。它具有现代可定制的界面，适用于 Windows、Linux 和 macOS。</p>
+
+    <p>
+        <a class="btn" href="https://github.com/AndreyKhrypach/Kletka/releases">⬇ 下载</a>
+        <a class="btn" href="https://github.com/AndreyKhrypach/Kletka">GitHub 仓库</a>
+    </p>
+
+    <h2>📝 更新日志</h2>
+    <p>详细更改历史请参阅 <a href="https://github.com/AndreyKhrypach/Kletka/blob/master/CHANGELOG.md">CHANGELOG.md</a>。</p>
+
+    <hr>
+
+    <h2>🚀 功能特点</h2>
+    <ul class="features">
+        <li>📁 打开、编辑和保存 PGN 文件</li>
+        <li>🧩 完整支持变着和注释</li>
+        <li>📚 <strong>Polyglot 开局库</strong> — 加载、浏览和 <strong>编辑</strong> 开局变着</li>
+        <li>📤 <strong>将变例树导出为 Polyglot 开局库</strong> — 保存个人棋路</li>
+        <li>🔍 使用 <strong>Stockfish</strong> (UCI 引擎) 进行局面分析</li>
+        <li>🎨 可定制的棋盘主题</li>
+        <li>📋 <strong>复制局面</strong> 为 FEN + ASCII 格式 (Ctrl+Shift+P)</li>
+        <li>🌍 多语言支持：英语、俄语、中文</li>
+        <li>🖥️ 跨平台：Windows、Linux、macOS</li>
+    </ul>
+
+    <hr>
+
+    <h2>📺 视频教程</h2>
+    <p>我们在 YouTube 频道上的分步指南：</p>
+    <ul>
+        <li><a href="https://www.youtube.com/watch?v=OSaSA-Qm0GY">Kletka 教程：Windows 安装</a></li>
+        <li><a href="https://www.youtube.com/watch?v=TWhIM4zsmIY">Kletka 教程：Windows — 设置 Stockfish</a></li>
+        <li><a href="https://www.youtube.com/watch?v=QAz95CSiDy0">Kletka 教程：如何使用 Polyglot 开局库</a></li>
+    </ul>
+    <p>更多教程即将推出 — Windows、Linux、macOS。</p>
+
+    <hr>
+
+    <h2>📚 开局库 (Polyglot)</h2>
+    <p>Kletka 支持 <strong>Polyglot 开局库</strong> (<code>.bin</code> 文件)，让您可以交互式地探索和学习国际象棋开局 — 也可以创建您<strong>自己的</strong>棋路。</p>
+
+    <h3>如何使用开局库：</h3>
+    <ol>
+        <li>进入 <strong>书籍 → 加载书籍</strong></li>
+        <li>选择 Polyglot 书籍文件 (<code>.bin</code>)</li>
+        <li>使用键盘浏览变着：
+            <ul>
+                <li><strong>↑ / ↓</strong> — 在变着之间移动</li>
+                <li><strong>→ / Enter</strong> — 选择变着</li>
+                <li><strong>←</strong> — 返回上一位置</li>
+            </ul>
+        </li>
+    </ol>
+
+    <h3>如何编辑开局库：</h3>
+    <p>Kletka 允许您直接将走法添加到已加载的开局库中：</p>
+    <ul>
+        <li>在棋盘上走一步 — 它会自动添加到开局库</li>
+        <li>按 <strong>Alt+Z</strong> — 撤销最后添加的走法</li>
+        <li><strong>书籍 → 保存书籍</strong> (Ctrl+Shift+S) — 将更改应用到 <code>.bin</code> 文件</li>
+        <li><strong>书籍 → 卸载书籍</strong> (Ctrl+Shift+C) — 卸载开局库</li>
+    </ul>
+
+    <h3>将变例树导出为 Polyglot 开局库：</h3>
+    <p>您可以将当前分析树导出为 Polyglot 开局库：</p>
+    <ol>
+        <li>分析或摆好一个带变着的局面</li>
+        <li>进入 <strong>书籍 → 导出为 Polyglot 开局库…</strong></li>
+        <li>选择文件夹和文件名 — 开局库以 <code>.bin</code> 格式创建</li>
+    </ol>
+    <p>树中的所有走法（主线 + 所有变着）都会进入开局库。转置和重复自动去重。</p>
+    <p>生成的开局库可以重新加载到 Kletka，也可以在 Stockfish、Leela、ChessBase、Scid、Arena 等兼容软件中使用。</p>
+
+    <h3>书籍的系统要求</h3>
+    <p>Kletka 的开局书功能需要以下环境：</p>
+    <ul>
+        <li><strong>Java 17 LTS</strong>（推荐使用 Liberica Full JDK）</li>
+        <li>JVM 参数（通过启动器运行时自动应用）：</li>
+    </ul>
+    <pre><code>--add-opens java.base/sun.nio.ch=ALL-UNNAMED
+--add-opens java.base/sun.misc=ALL-UNNAMED</code></pre>
+    <p><strong>注意：</strong> 如果您从命令行运行 Kletka，请使用：</p>
+    <pre><code>java --add-opens java.base/sun.nio.ch=ALL-UNNAMED \
+--add-opens java.base/sun.misc=ALL-UNNAMED \
+-jar Kletka.jar</code></pre>
+    <p>这些参数对于使用内存映射文件进行快速 Polyglot 开局库操作是必需的。</p>
+
+    <h3>🔧 技术细节：内存映射文件</h3>
+    <p>Kletka 使用 <strong>内存映射文件</strong> (<code>MappedByteBuffer</code>) 实现极快的 Polyglot 开局库操作，即使在 HDD 上也是如此。</p>
+    <blockquote>
+        <strong>重要提示：</strong> 只要存在引用，内存映射字节缓冲区就<strong>不会</strong>被 JVM 垃圾回收器释放。为了让您在 Kletka 运行时能够<strong>删除、移动或替换</strong>开局库文件，应用程序会显式调用：
+    </blockquote>
+    <pre><code>sun.misc.Unsafe.invokeCleaner(mappedByteBuffer);</code></pre>
+    <p>这会立即释放操作系统级别的文件锁定。</p>
+    <p><strong>这对您意味着什么：</strong></p>
+    <ul>
+        <li>✅ 卸载开局库后可以安全地<strong>删除</strong>或<strong>移动</strong> <code>.bin</code> 文件</li>
+        <li>✅ 可以将开局库文件<strong>替换</strong>为新文件</li>
+        <li>✅ 在 Windows 上不会再出现"文件被另一个进程占用"的错误</li>
+    </ul>
+
+    <h3>Linux：已知问题</h3>
+    <p>在 <strong>Debian Trixie / Ubuntu 24.04+</strong> 上使用 <strong>Wayland</strong> 时，对话框可能无法获得焦点（键盘可以工作，但鼠标无法工作）。这是 <strong>JavaFX 17 + GTK 3 + Wayland 的已知 bug</strong>。</p>
+    <p><strong>解决方案：</strong> 已在 Kletka 中包含——应用程序启动时带有 <code>-Djdk.gtk.version=2</code> 标志，通过 XWayland 使用 GTK 2。</p>
+
+    <h3>推荐书籍：</h3>
+    <p>为获得最佳效果，我们推荐使用 <strong><code>uho-pohl.bin</code></strong> 开局库，其中包含大量高质量的开局变着。</p>
+
+    <h3>如何获取 Polyglot 书籍：</h3>
+    <p>您可以从官方 Polyglot 书籍仓库下载免费的开局库：🔗 <a href="https://github.com/ChrisWhittington/polyglot-books">Polyglot Books Repository</a></p>
+    <p>其他热门来源：</p>
+    <ul>
+        <li><a href="https://www.chessdb.com/">UHO-Pohl openings</a> — 高质量开局数据库</li>
+        <li><a href="https://www.chesstempo.com/">ChessTempo's Polyglot books</a></li>
+        <li>使用 Polyglot 格式创建自己的书籍</li>
+    </ul>
+
+    <hr>
+
+    <h2>📋 复制局面 (FEN + ASCII)</h2>
+    <p>您可以将当前局面以方便的格式复制到剪贴板 — <strong>FEN</strong> 加上 <strong>ASCII 图表</strong>：</p>
+    <ul>
+        <li>菜单：<strong>编辑 → 复制局面</strong></li>
+        <li>快捷键：<strong>Ctrl+Shift+P</strong></li>
+    </ul>
+    <p>这适用于：</p>
+    <ul>
+        <li>在聊天、论坛或 issue 跟踪器中分享局面</li>
+        <li>与 AI 助手一起分析局面</li>
+        <li>在文本文件中记录局面</li>
+    </ul>
+    <p>输出包含第一行的 FEN 和下方的 ASCII 图表，包裹在 Markdown 代码块中以便粘贴。</p>
+
+    <hr>
+
+    <h2>🐛 macOS 上的已知问题</h2>
+
+    <h3>拖放：棋子被"抓角"</h3>
+    <p><strong>症状：</strong></p>
+    <ul>
+        <li>棋子视觉上被抓角，而不是中心。</li>
+        <li>要完成走子，需要将鼠标拖到目标格子的角落。</li>
+        <li>放下后，光标可能会消失，直到鼠标进入菜单区域。</li>
+    </ul>
+    <p><strong>原因：</strong> JavaFX 已知 bug <strong>JDK-8333919</strong> — 在 macOS 上忽略 <code>dragViewOffsetX/Y</code>。</p>
+    <p><strong>修复：</strong> 已在 <strong>JavaFX 23</strong> 中修复（需要 <strong>JDK 21+</strong>）。Kletka 当前使用 <strong>Java 17</strong> + <strong>JavaFX 17</strong>。</p>
+    <p><strong>解决方法：</strong></p>
+    <ul>
+        <li>使用 <strong>click-to-move</strong>（点击棋子 → 点击目标格）代替拖放。</li>
+        <li>或者等待 Kletka 迁移到 <strong>JDK 25</strong> + <strong>JavaFX 25</strong>（计划在未来版本中）。</li>
+    </ul>
+    <p><strong>状态：</strong> 在 issue #XXX 中跟踪。将在迁移到新堆栈时修复。</p>
+
+    <hr>
+
+    <h2>🖥️ 截图</h2>
+    <h3>快速预览</h3>
+    <table>
+        <tr>
+            <td><img src="screenshots/zh/Main_zh.png" width="400" alt="主界面"></td>
+            <td><img src="screenshots/zh/Browser_zh.png" width="400" alt="PGN 浏览器"></td>
+        </tr>
+        <tr>
+            <td><em>主界面</em></td>
+            <td><em>PGN 浏览器</em></td>
+        </tr>
+        <tr>
+            <td><img src="screenshots/zh/book_open_zh.png" width="400" alt="打开 Polyglot 开局库"></td>
+            <td><img src="screenshots/zh/book_loaded_zh.png" width="400" alt="已加载的 Polyglot 开局库"></td>
+        </tr>
+        <tr>
+            <td><em>打开 Polyglot 开局库</em></td>
+            <td><em>已加载的 Polyglot 开局库</em></td>
+        </tr>
+    </table>
+
+    <h3>完整尺寸</h3>
+    <p><em>点击图片即可在新标签页中打开完整尺寸。</em></p>
+    <p>
+        <a href="screenshots/zh/Main_zh.png" target="_blank" rel="noopener">
+            <img src="screenshots/zh/Main_zh.png" alt="主界面">
+        </a>
+    </p>
+    <p>
+        <a href="screenshots/zh/Browser_zh.png" target="_blank" rel="noopener">
+            <img src="screenshots/zh/Browser_zh.png" alt="PGN 浏览器">
+        </a>
+    </p>
+    <p>
+        <a href="screenshots/zh/book_open_zh.png" target="_blank" rel="noopener">
+            <img src="screenshots/zh/book_open_zh.png" alt="打开 Polyglot 开局库">
+        </a>
+    </p>
+    <p>
+        <a href="screenshots/zh/book_loaded_zh.png" target="_blank" rel="noopener">
+            <img src="screenshots/zh/book_loaded_zh.png" alt="已加载的 Polyglot 开局库">
+        </a>
+    </p>
+
+    <hr>
+
+    <h2>📦 安装</h2>
+
+    <h3>Windows</h3>
+    <p>从 <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a> 页面下载 <code>Kletka.exe</code> 并运行安装程序。</p>
+
+    <h3>macOS</h3>
+    <p>下载 <code>Kletka.dmg</code>，打开并将 <code>Kletka.app</code> 拖到 <code>Applications</code> 文件夹。</p>
+
+    <h3>Linux (Debian/Ubuntu)</h3>
+    <pre><code>sudo dpkg -i kletka*.deb</code></pre>
+
+    <hr>
+
+    <h2>🛠️ 从源码构建</h2>
+
+    <h3>环境要求</h3>
+    <ul>
+        <li><strong>Java 17</strong> (推荐 Liberica Full JDK) — 从 <a href="https://bell-sw.com/pages/downloads/#/java-17-lts">BellSoft</a> 下载</li>
+        <li><strong>Maven</strong> — 通过 <code>brew install maven</code> (macOS) 或 <code>sudo apt install maven</code> (Linux) 安装</li>
+    </ul>
+
+    <h3>开发时的重要 JVM 参数</h3>
+    <p>在 IDE 中运行时，请添加以下 VM 选项：</p>
+    <pre><code>--add-opens java.base/sun.nio.ch=ALL-UNNAMED
+--add-opens java.base/sun.misc=ALL-UNNAMED</code></pre>
+    <p>这可以确保在开发期间完全支持 Polyglot 书籍功能。</p>
+    <pre><code>git clone https://github.com/AndreyKhrypach/Kletka.git
+cd Kletka
+mvn clean package</code></pre>
+
+    <h3>特定平台构建</h3>
+    <pre><code># Windows
+mvn clean package -P windows
+
+# Linux
+mvn clean package -P linux
+
+# macOS
+mvn clean package -P mac</code></pre>
+
+    <hr>
+
+    <h2>🧠 配置 Stockfish</h2>
+    <p>Kletka 使用 Stockfish UCI 引擎进行分析。您需要单独安装它。</p>
+
+    <h3>Windows</h3>
+    <ol>
+        <li>从官方网站下载 Stockfish：<a href="https://stockfishchess.org/download/">https://stockfishchess.org/download/</a></li>
+        <li>解压归档文件</li>
+        <li>在 Kletka 中，进入 <strong>引擎 → 配置引擎</strong> 并选择 <code>stockfish.exe</code> 文件</li>
+    </ol>
+
+    <h3>Linux (Debian/Ubuntu)</h3>
+    <pre><code>sudo apt install stockfish</code></pre>
+    <p>然后在 Kletka 中，进入 <strong>引擎 → 配置引擎</strong> 并选择 stockfish 二进制文件。</p>
+
+    <h3>macOS</h3>
+    <pre><code>brew install stockfish</code></pre>
+    <p>然后在 Kletka 中，进入 <strong>引擎 → 配置引擎</strong> 并选择 stockfish 二进制文件。</p>
+
+    <hr>
+
+    <h2>📄 许可证</h2>
+    <p>本项目采用 GNU General Public License v3.0 许可证。详见 <a href="https://github.com/AndreyKhrypach/Kletka/blob/master/LICENSE">LICENSE</a>。</p>
+
+    <hr>
+
+    <h2>👨‍💻 作者</h2>
+    <p>Andrey Khrypach</p>
+
+    <h2>⭐ 支持</h2>
+    <p>如果您喜欢这个项目，请在 GitHub 上给它一个星标！</p>
+
+    <footer>
+        <p>© Andrey Khrypach · <a href="https://github.com/AndreyKhrypach/Kletka">GitHub</a> · <a href="index.html">English</a> · <a href="README.ru.html">Русский</a></p>
+    </footer>
+
+</div>
+</body>
+</html>
