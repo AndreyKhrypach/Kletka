@@ -106,15 +106,6 @@ public class AppPreferences {
         return config.getEnginePath();
     }
 
-    // ========== ПОСЛЕДНИЙ ОТКРЫТЫЙ PGN ==========
-    public static void saveLastOpenedPgn(String path) {
-        config.setLastOpenedPgn(path);
-    }
-
-    public static String getLastOpenedPgn() {
-        return config.getLastOpenedPgn();
-    }
-
     // ========== ДИРЕКТОРИЯ БАЗ ==========
     public static Path getBasesDirectory() {
         return config.getBasesDirectory();

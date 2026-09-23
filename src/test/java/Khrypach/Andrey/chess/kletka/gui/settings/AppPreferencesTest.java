@@ -25,6 +25,7 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -515,8 +516,10 @@ class AppPreferencesTest {
             String result = AppPreferences.getBookDirectory();
 
             // then
-            assertThat(result).isNotNull();
-            assertThat(result).contains("book");
+            assertThat(result).isNotNull().isNotEmpty();
+
+            Path bookPath = Path.of(result);
+            assertThat(Files.exists(bookPath.getParent())).isTrue();
         }
     }
 

@@ -25,7 +25,6 @@ import Khrypach.Andrey.chess.kletka.database.eco.EcoService;
 import Khrypach.Andrey.chess.kletka.engine.UciEngineManager;
 import Khrypach.Andrey.chess.kletka.gui.book.BookManager;
 import Khrypach.Andrey.chess.kletka.gui.book.PolyglotBookParser;
-import Khrypach.Andrey.chess.kletka.gui.book.ZobristHasher;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.DialogCoordinator;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.VariationChoiceDialog;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
@@ -1365,7 +1364,6 @@ public class MoveNavigationController {
      * Вызывается ТОЛЬКО из BOOK-методов навигации, т.к. в BOOK-режиме
      * каждая позиция дерева — это отдельная дебютная линия со своим
      * названием и ECO-кодом.
-     *
      * В PGN-режиме дебют привязан к главной линии партии и обновляется
      * отдельно через updateOpeningAfterNewMove().
      */

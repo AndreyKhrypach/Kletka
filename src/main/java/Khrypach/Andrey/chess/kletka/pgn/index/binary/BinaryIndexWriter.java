@@ -17,8 +17,6 @@
 
 package Khrypach.Andrey.chess.kletka.pgn.index.binary;
 
-import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
-import Khrypach.Andrey.chess.kletka.gui.languages.LanguageManager;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.GameIndexEntry;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.PgnIndex;
 import org.slf4j.Logger;
@@ -38,7 +36,6 @@ import java.util.List;
 public class BinaryIndexWriter {
 
     private static final Logger log = LoggerFactory.getLogger(BinaryIndexWriter.class);
-    private final LanguageManager lang = LanguageManager.getInstance();
 
     /**
      * Записывает индекс в бинарный файл
@@ -114,7 +111,7 @@ public class BinaryIndexWriter {
         }
         Files.move(tempPath, outputPath);
 
-        log.info("Binary index written: {} bytes", Files.size(outputPath));
+        log.debug("Binary index written: {} bytes", Files.size(outputPath));
     }
 
     /**
