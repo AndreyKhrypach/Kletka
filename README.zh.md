@@ -39,11 +39,16 @@
 
 我们在 YouTube 频道上的分步指南：
 
+**Windows：**
 - [Kletka 教程：Windows 安装](https://www.youtube.com/watch?v=OSaSA-Qm0GY)
 - [Kletka 教程：Windows — 设置 Stockfish](https://www.youtube.com/watch?v=TWhIM4zsmIY)
 - [Kletka 教程：如何使用 Polyglot 开局库](https://www.youtube.com/watch?v=QAz95CSiDy0)
 
-更多教程即将推出 — Windows、Linux、macOS。
+**Linux：**
+- [Kletka：在 Linux 上安装](https://www.youtube.com/watch?v=NXeR6J0_rXA)
+- [Kletka：在 Linux 上设置 Stockfish](https://www.youtube.com/watch?v=m-qWoTGNIXg)
+
+更多教程即将推出 — macOS。
 
 ---
 
