@@ -39,9 +39,14 @@
 
 Пошаговые руководства на нашем YouTube-канале:
 
+**Windows:**
 - [Kletka: установка на Windows](https://www.youtube.com/watch?v=OSaSA-Qm0GY)
 - [Kletka: настройка Stockfish на Windows](https://www.youtube.com/watch?v=TWhIM4zsmIY)
 - [Kletka: как пользоваться Polyglot книгами](https://www.youtube.com/watch?v=QAz95CSiDy0)
+
+**Linux:**
+- [Kletka: установка на Linux](https://www.youtube.com/watch?v=NXeR6J0_rXA)
+- [Kletka: настройка Stockfish на Linux](https://www.youtube.com/watch?v=m-qWoTGNIXg)
 
 Скоро — новые уроки: Windows, Linux, macOS.
 

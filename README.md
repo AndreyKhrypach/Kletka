@@ -39,11 +39,16 @@ See [CHANGELOG.md](CHANGELOG.md) for a detailed history of changes.
 
 Step-by-step guides on our YouTube channel:
 
+**Windows:**
 - [Kletka tutorial: Windows installation](https://www.youtube.com/watch?v=OSaSA-Qm0GY)
 - [Kletka tutorial: Windows — setting up Stockfish](https://www.youtube.com/watch?v=TWhIM4zsmIY)
 - [Kletka tutorial: How to use Polyglot opening books](https://www.youtube.com/watch?v=QAz95CSiDy0)
 
-More tutorials coming soon — Windows, Linux, macOS.
+**Linux:**
+- [Kletka tutorial: Linux — installation](https://www.youtube.com/watch?v=NXeR6J0_rXA)
+- [Kletka tutorial: Linux — setting up Stockfish](https://www.youtube.com/watch?v=m-qWoTGNIXg)
+
+More tutorials coming soon — macOS.
 
 ---
 
