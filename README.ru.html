@@ -103,25 +103,6 @@
         table { margin: 20px 0; }
         table img { max-width: 100%; height: auto; border-radius: 6px; }
         table td { padding: 8px; text-align: center; vertical-align: top; }
-
-        /* Ограничение для картинок вне таблицы (секция "Полный размер") */
-        img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 6px;
-            display: block;
-            margin: 20px auto;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-        }
-
-        /* Ссылки-обёртки вокруг картинок не должны ломать layout */
-        a img { border: none; }
-
-        /* Все картинки в таблице — тоже в блок */
-        table img {
-            display: block;
-            margin: 0 auto;
-        }
         .badges { margin: 15px 0; }
         .badges img { margin-right: 5px; }
         blockquote {
@@ -133,6 +114,21 @@
             border-radius: 0 4px 4px 0;
         }
         hr { border: none; border-top: 1px solid #333; margin: 30px 0; }
+
+        /* Full-size images: constrain to container, clickable, styled */
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            display: block;
+            margin: 20px auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+        a img { border: none; }
+        table img {
+            display: block;
+            margin: 0 auto;
+        }
     </style>
 </head>
 <body>
@@ -181,6 +177,9 @@
         <li>🔍 Анализ позиции с <strong>Stockfish</strong> (UCI движок)</li>
         <li>🎨 Настраиваемые темы доски</li>
         <li>📋 <strong>Копирование позиции</strong> в формате FEN + ASCII (Ctrl+Shift+P)</li>
+        <li>💾 <strong>Сохранение позиции в PGN</strong> — вырезание позиции из партии в отдельный файл задач (Ctrl+Shift+E)</li>
+        <li>🐛 <strong>Отчёт о проблеме</strong> — встроенная форма обратной связи через GitHub (меню Помощь)</li>
+        <li>📦 <strong>Пакеты для Debian, Ubuntu, Fedora, RHEL, openSUSE</strong> — установка в один клик</li>
         <li>🌍 Мультиязычность: Русский, English, 中文</li>
         <li>🖥️ Кроссплатформенность: Windows, Linux, macOS</li>
     </ul>
@@ -200,7 +199,19 @@
         <li><a href="https://www.youtube.com/watch?v=NXeR6J0_rXA">Kletka: установка на Linux</a></li>
         <li><a href="https://www.youtube.com/watch?v=m-qWoTGNIXg">Kletka: настройка Stockfish на Linux</a></li>
     </ul>
-    <p>Скоро — новые уроки: macOS.</p>
+    <p><strong>macOS:</strong></p>
+    <ul>
+        <li><a href="https://www.youtube.com/watch?v=JBtitIr7mF8">Kletka: установка на macOS</a></li>
+        <li><a href="https://www.youtube.com/watch?v=v29AsFNnBEc">Kletka: настройка Stockfish на macOS</a></li>
+    </ul>
+
+    <hr>
+
+    <h2>💬 Сообщество</h2>
+    <ul>
+        <li>🇷🇺 <a href="https://lichess.org/@/KhrypachAndrey/blog/-/Qz4tM8oE">Представляю Клетка — шахматный анализатор (Lichess blog)</a></li>
+        <li>🇬🇧 <a href="https://lichess.org/@/KhrypachAndrey/blog/introduce-kletka-chess-analyzer/p73trA8b">Introducing Kletka — chess analyzer (Lichess blog)</a></li>
+    </ul>
 
     <hr>
 
@@ -233,7 +244,7 @@
     <p>Вы можете экспортировать текущее дерево анализа в Polyglot книгу:</p>
     <ol>
         <li>Проанализируйте или расставьте позицию с вариантами</li>
-        <li>Перейдите в <strong>Книги → Экспорт в Polyglot книгу…</strong></li>
+        <li>Перейдите в <strong>Книги → Экспорт в Polyglot книгу...</strong></li>
         <li>Выберите папку и имя файла — книга создаётся в формате <code>.bin</code></li>
     </ol>
     <p>Все ходы из дерева (главная линия + все варианты) попадают в книгу. Транспозиции и дубликаты автоматически дедуплицируются.</p>
@@ -270,6 +281,9 @@
     <h3>Linux: известные проблемы</h3>
     <p>На <strong>Debian Trixie / Ubuntu 24.04+</strong> с <strong>Wayland</strong> диалоги могут не получать фокус (клавиатура работает, мышь — нет). Это <strong>известный баг JavaFX 17 + GTK 3 + Wayland</strong>.</p>
     <p><strong>Решение:</strong> уже включено в Клетку — приложение запускается с флагом <code>-Djdk.gtk.version=2</code>, который использует GTK 2 через XWayland.</p>
+    <p>На <strong>Fedora 41+</strong> диалоги также могут не получать фокус, пока вы не нажмёте <strong>Tab</strong>. Это вызвано <strong>Focus Stealing Prevention</strong> в GNOME на Wayland в сочетании с удалением сессии GNOME X11 в Fedora 41+ (на экране входа больше нет опции "GNOME on Xorg").</p>
+    <p><strong>Обходной путь:</strong> нажмите <strong>Tab</strong> один раз при появлении диалога — после этого фокус будет работать нормально с клавиатурой и мышью.</p>
+    <p>Это <strong>известный баг JavaFX + Wayland</strong>, отслеживается в <a href="https://bugs.openjdk.org/browse/JDK-8353643">JDK-8353643</a>.</p>
 
     <h3>Рекомендуемые книги:</h3>
     <p>Для наилучших результатов мы рекомендуем использовать книгу <strong><code>uho-pohl.bin</code></strong>, которая содержит обширные качественные дебютные варианты.</p>
@@ -373,10 +387,15 @@
     <p>Скачайте <code>Kletka.exe</code> со страницы <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a> и запустите установщик.</p>
 
     <h3>macOS</h3>
-    <p>Скачайте <code>Kletka.dmg</code>, откройте его и перетащите <code>Kletka.app</code> в папку <code>Applications</code>.</p>
+    <p>Скачайте <code>Kletka.dmg</code> со страницы <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a>, откройте его и перетащите <code>Kletka.app</code> в папку <code>Applications</code>.</p>
 
     <h3>Linux (Debian/Ubuntu)</h3>
+    <p>Скачайте <code>Kletka.deb</code> со страницы <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a>.</p>
     <pre><code>sudo dpkg -i kletka*.deb</code></pre>
+
+    <h3>Linux (Fedora / RHEL / Rocky / Alma / openSUSE)</h3>
+    <p>Скачайте <code>Kletka.rpm</code> со страницы <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a>.</p>
+    <pre><code>sudo dnf install kletka*.rpm</code></pre>
 
     <hr>
 
@@ -401,11 +420,16 @@ mvn clean package</code></pre>
     <pre><code># Windows
 mvn clean package -P windows
 
-# Linux
-mvn clean package -P linux
+# Linux (Debian/Ubuntu)
+mvn clean package -P linux-debian
+
+# Linux (Fedora / RHEL / openSUSE)
+mvn clean package -P linux-rpm
 
 # macOS
 mvn clean package -P mac</code></pre>
+    <p><strong>Примечание для RPM-сборки:</strong> на машине сборки должен быть установлен <code>rpm-build</code>:</p>
+    <pre><code>sudo dnf install rpm-build</code></pre>
 
     <hr>
 
@@ -421,6 +445,10 @@ mvn clean package -P mac</code></pre>
 
     <h3>Linux (Debian/Ubuntu)</h3>
     <pre><code>sudo apt install stockfish</code></pre>
+    <p>Затем в Клетка перейдите в <strong>Движок → Настроить движок</strong> и выберите бинарный файл <code>stockfish</code>.</p>
+
+    <h3>Linux (Fedora / RHEL)</h3>
+    <pre><code>sudo dnf install stockfish</code></pre>
     <p>Затем в Клетка перейдите в <strong>Движок → Настроить движок</strong> и выберите бинарный файл <code>stockfish</code>.</p>
 
     <h3>macOS</h3>
@@ -441,7 +469,7 @@ mvn clean package -P mac</code></pre>
     <p>Если вам нравится проект, поставьте ⭐ на GitHub!</p>
 
     <footer>
-        <p>© Andrey Khrypach · <a href="https://github.com/AndreyKhrypach/Kletka">GitHub</a> · <a href="index.html">English</a> · <a href="README.zh.html">中文</a></p>
+        <p>© Andrey Khrypach · <a href="https://github.com/AndreyKhrypach/Kletka">GitHub</a> · <a href="privacy.ru.html">Конфиденциальность</a> · <a href="index.html">English</a> · <a href="README.zh.html">中文</a></p>
     </footer>
 
 </div>

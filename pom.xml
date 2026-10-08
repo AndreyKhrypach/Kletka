@@ -26,7 +26,7 @@
 
     <groupId>Khrypach.Andrey.chess.kletka</groupId>
     <artifactId>Kletka</artifactId>
-    <version>1.5.0</version>
+    <version>1.6.0</version>
     <packaging>jar</packaging>
 
     <name>Kletka Chess Core</name>
@@ -47,7 +47,7 @@
         <chesslib.version>1.3.6</chesslib.version>
         <junit.version>5.10.0</junit.version>
         <javafx.version>17.0.19</javafx.version>
-        <app.version>1.5.0</app.version>
+        <app.version>1.6.0</app.version>
         <win.upgrade.uuid>a1b2c3d4-e5f6-7890-abcd-ef1234567890</win.upgrade.uuid>
 
         <jpackage.type>exe</jpackage.type>
@@ -137,6 +137,20 @@
                     --linux-shortcut
                     --icon "src/main/resources/icons/linux/256x256/apps/kletka.png"
                     --resource-dir "src/main/resources/linux-debian"
+                </jpackage.args>
+            </properties>
+        </profile>
+
+        <!-- Профиль для Fedora / RHEL / CentOS / openSUSE и др. RPM-based (ручная активация через -P linux-rpm) -->
+        <profile>
+            <id>linux-rpm</id>
+            <properties>
+                <jpackage.type>rpm</jpackage.type>
+                <jpackage.args>
+                    --linux-rpm-license-type "GPLv3"
+                    --linux-menu-group "Games"
+                    --linux-shortcut
+                    --icon "src/main/resources/icons/linux/256x256/apps/kletka.png"
                 </jpackage.args>
             </properties>
         </profile>

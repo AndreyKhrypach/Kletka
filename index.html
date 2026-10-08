@@ -177,6 +177,9 @@
         <li>🔍 Position analysis with <strong>Stockfish</strong> (UCI engine)</li>
         <li>🎨 Customizable board themes</li>
         <li>📋 <strong>Copy position</strong> as FEN + ASCII diagram (Ctrl+Shift+P)</li>
+        <li>💾 <strong>Save position to PGN</strong> — extract a position from a game into a puzzle file (Ctrl+Shift+E)</li>
+        <li>🐛 <strong>Report a problem</strong> — built-in feedback form via GitHub (Help menu)</li>
+        <li>📦 <strong>Packages for Debian, Ubuntu, Fedora, RHEL, openSUSE</strong> — one-click install</li>
         <li>🌍 Multilingual: English, Russian, Chinese</li>
         <li>🖥️ Cross-platform: Windows, Linux, macOS</li>
     </ul>
@@ -196,7 +199,19 @@
         <li><a href="https://www.youtube.com/watch?v=NXeR6J0_rXA">Kletka tutorial: Linux installation</a></li>
         <li><a href="https://www.youtube.com/watch?v=m-qWoTGNIXg">Kletka tutorial: Linux — setting up Stockfish</a></li>
     </ul>
-    <p>More tutorials coming soon — macOS.</p>
+    <p><strong>macOS:</strong></p>
+    <ul>
+        <li><a href="https://www.youtube.com/watch?v=JBtitIr7mF8">Kletka tutorial: macOS installation</a></li>
+        <li><a href="https://www.youtube.com/watch?v=v29AsFNnBEc">Kletka tutorial: macOS — setting up Stockfish</a></li>
+    </ul>
+
+    <hr>
+
+    <h2>💬 Community</h2>
+    <ul>
+        <li>🇷🇺 <a href="https://lichess.org/@/KhrypachAndrey/blog/-/Qz4tM8oE">Представляю Клетка — шахматный анализатор (Lichess blog)</a></li>
+        <li>🇬🇧 <a href="https://lichess.org/@/KhrypachAndrey/blog/introduce-kletka-chess-analyzer/p73trA8b">Introducing Kletka — chess analyzer (Lichess blog)</a></li>
+    </ul>
 
     <hr>
 
@@ -266,6 +281,9 @@
     <h3>Linux: Known Issues</h3>
     <p>On <strong>Debian Trixie / Ubuntu 24.04+</strong> with <strong>Wayland</strong>, dialogs may not receive focus (keyboard works, mouse doesn't). This is a <strong>known JavaFX 17 + GTK 3 + Wayland bug</strong>.</p>
     <p><strong>Solution:</strong> already included in Kletka — the app runs with <code>-Djdk.gtk.version=2</code>, which uses GTK 2 via XWayland.</p>
+    <p>On <strong>Fedora 41+</strong>, dialogs may also not receive focus until you press <strong>Tab</strong>. This is caused by <strong>GNOME Focus Stealing Prevention</strong> on Wayland, combined with the removal of the GNOME X11 session in Fedora 41+ (there is no "GNOME on Xorg" option available at the login screen anymore).</p>
+    <p><strong>Workaround:</strong> press <strong>Tab</strong> once when a dialog appears — focus will then work normally with both keyboard and mouse.</p>
+    <p>This is a <strong>known JavaFX + Wayland bug</strong> tracked in <a href="https://bugs.openjdk.org/browse/JDK-8353643">JDK-8353643</a>.</p>
 
     <h3>Recommended books:</h3>
     <p>For best results, we recommend using the <strong><code>uho-pohl.bin</code></strong> opening book, which contains extensive high-quality opening variations.</p>
@@ -369,10 +387,15 @@
     <p>Download <code>Kletka.exe</code> from the <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a> page and run the installer.</p>
 
     <h3>macOS</h3>
-    <p>Download <code>Kletka.dmg</code>, open it, and drag <code>Kletka.app</code> to the <code>Applications</code> folder.</p>
+    <p>Download <code>Kletka.dmg</code> from the <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a> page, open it, and drag <code>Kletka.app</code> to the <code>Applications</code> folder.</p>
 
     <h3>Linux (Debian/Ubuntu)</h3>
+    <p>Download <code>Kletka.deb</code> from the <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a> page.</p>
     <pre><code>sudo dpkg -i kletka*.deb</code></pre>
+
+    <h3>Linux (Fedora / RHEL / Rocky / Alma / openSUSE)</h3>
+    <p>Download <code>Kletka.rpm</code> from the <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a> page.</p>
+    <pre><code>sudo dnf install kletka*.rpm</code></pre>
 
     <hr>
 
@@ -397,11 +420,16 @@ mvn clean package</code></pre>
     <pre><code># Windows
 mvn clean package -P windows
 
-# Linux
-mvn clean package -P linux
+# Linux (Debian/Ubuntu)
+mvn clean package -P linux-debian
+
+# Linux (Fedora / RHEL / openSUSE)
+mvn clean package -P linux-rpm
 
 # macOS
 mvn clean package -P mac</code></pre>
+    <p><strong>Note for RPM builds:</strong> <code>rpm-build</code> must be installed on the build machine:</p>
+    <pre><code>sudo dnf install rpm-build</code></pre>
 
     <hr>
 
@@ -417,6 +445,10 @@ mvn clean package -P mac</code></pre>
 
     <h3>Linux (Debian/Ubuntu)</h3>
     <pre><code>sudo apt install stockfish</code></pre>
+    <p>Then in Kletka, go to <strong>Engine → Configure Engine</strong> and select the <code>stockfish</code> binary.</p>
+
+    <h3>Linux (Fedora / RHEL)</h3>
+    <pre><code>sudo dnf install stockfish</code></pre>
     <p>Then in Kletka, go to <strong>Engine → Configure Engine</strong> and select the <code>stockfish</code> binary.</p>
 
     <h3>macOS</h3>
@@ -437,7 +469,7 @@ mvn clean package -P mac</code></pre>
     <p>If you like this project, please ⭐ it on GitHub!</p>
 
     <footer>
-        <p>© Andrey Khrypach · <a href="https://github.com/AndreyKhrypach/Kletka">GitHub</a> · <a href="README.ru.html">Русский</a> · <a href="README.zh.html">中文</a></p>
+        <p>© Andrey Khrypach · <a href="https://github.com/AndreyKhrypach/Kletka">GitHub</a> · <a href="privacy.html">Privacy</a> · <a href="README.ru.html">Русский</a> · <a href="README.zh.html">中文</a></p>
     </footer>
 
 </div>

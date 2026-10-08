@@ -29,7 +29,7 @@ public class RuLanguage implements Language {
 
     public RuLanguage() {
         // Названия приложения
-        strings.put(LanguageKeys.APP_TITLE, "Kletka - Шахматный анализатор");
+        strings.put(LanguageKeys.APP_TITLE, "Клетка - Шахматный анализатор");
         strings.put(LanguageKeys.APP_VERSION, "Версия: 1.0");
         strings.put(LanguageKeys.APP_PLATFORM, "Платформа: Java 17, OpenJFX");
         strings.put(LanguageKeys.APP_LIBRARY, "Библиотека: chesslib 1.3.6");
@@ -176,6 +176,15 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.MENU_FILE_EXPORT_CURRENT, "Экспорт текущей партии");
         strings.put(LanguageKeys.MENU_FILE_IMPORT_CLIPBOARD, "Импорт из буфера обмена");
 
+        strings.put(LanguageKeys.MENU_FILE_EXPORT_POSITION, "Сохранить позицию как PGN...");
+        strings.put(LanguageKeys.POSITION_EXPORT_DIALOG_TITLE, "Сохранение позиции");
+        strings.put(LanguageKeys.POSITION_EXPORT_DIALOG_HEADER, "Заполните информацию о позиции");
+        strings.put(LanguageKeys.POSITION_EXPORT_FILE_DIALOG_TITLE, "Куда сохранить позицию");
+        strings.put(LanguageKeys.POSITION_EXPORT_ERROR_TITLE, "Ошибка сохранения позиции");
+        strings.put(LanguageKeys.POSITION_EXPORT_NO_BOARD, "Доска не инициализирована");
+        strings.put(LanguageKeys.POSITION_EXPORT_NO_POSITION, "Нет позиции для сохранения");
+        strings.put(LanguageKeys.POSITION_EXPORT_SUCCESS, "Позиция сохранена в %s");
+
         // Пункты меню Help
         strings.put(LanguageKeys.MENU_HELP_SHORTCUTS, "Горячие клавиши");
         strings.put(LanguageKeys.MENU_HELP_ABOUT, "О программе");
@@ -190,8 +199,42 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.MENU_HELP_UPDATE_DOWNLOAD, "Скачать");
         strings.put(LanguageKeys.MENU_HELP_UPDATE_LATER, "Позже");
         strings.put(LanguageKeys.MENU_HELP_NO_UPDATES, "Нет обновлений");
-        strings.put(LanguageKeys.MENU_HELP_NO_UPDATES_MSG, "У вас установлена последняя версия Kletka.");
+        strings.put(LanguageKeys.MENU_HELP_NO_UPDATES_MSG, "У вас установлена последняя версия Клетки.");
         strings.put(LanguageKeys.MENU_HELP_UPDATE_CHECK_ERROR, "Ошибка проверки обновлений");
+
+        // ========== REPORT PROBLEM ==========
+        strings.put(LanguageKeys.MENU_HELP_REPORT_PROBLEM, "Сообщить о проблеме...");
+        strings.put(LanguageKeys.REPORT_TITLE, "Сообщить о проблеме");
+        strings.put(LanguageKeys.REPORT_HEADER, "Помогите нам улучшить Клетку");
+        strings.put(LanguageKeys.REPORT_TYPE_LABEL, "Тип проблемы:");
+        strings.put(LanguageKeys.REPORT_TYPE_BUG, "\uD83D\uDC1B Ошибка / Баг");
+        strings.put(LanguageKeys.REPORT_TYPE_FEATURE, "\uD83D\uDCA1 Предложение ");
+        strings.put(LanguageKeys.REPORT_TYPE_PERFORMANCE, "⚡ Производительность ");
+        strings.put(LanguageKeys.REPORT_TYPE_UI, "\uD83C\uDFA8 Интерфейс / UI/UX");
+        strings.put(LanguageKeys.REPORT_TYPE_DOCUMENTATION, "\uD83D\uDCDD Документация / Перевод");
+        strings.put(LanguageKeys.REPORT_TYPE_OTHER, "❓ Другое ");
+        strings.put(LanguageKeys.REPORT_DESCRIPTION_LABEL, "Описание проблемы:");
+        strings.put(LanguageKeys.REPORT_DESCRIPTION_PROMPT, "Опишите, что произошло. Чем подробнее, тем лучше. Если возможно, укажите шаги для воспроизведения.");
+        strings.put(LanguageKeys.REPORT_INCLUDE_SYSTEM_INFO, "Включить информацию о системе (версия Клетки, ОС, Java, движок)");
+        strings.put(LanguageKeys.REPORT_PRIVACY_NOTICE, "Мы не собираем ваши персональные данные. Информация о системе используется только для отладки.");
+        strings.put(LanguageKeys.REPORT_PRIVACY_LINK, "Политика конфиденциальности");
+        strings.put(LanguageKeys.REPORT_BUTTON_COPY, "Скопировать в буфер");
+        strings.put(LanguageKeys.REPORT_BUTTON_CANCEL, "Отмена");
+        strings.put(LanguageKeys.REPORT_BUTTON_GITHUB, "Перейти на GitHub →");
+        strings.put(LanguageKeys.REPORT_WARNING_TITLE, "Для отправки нужен аккаунт GitHub");
+        strings.put(LanguageKeys.REPORT_WARNING_HEADER, "Сейчас откроется страница создания новой issue на GitHub");
+        strings.put(LanguageKeys.REPORT_WARNING_CONTENT, """
+                Отчёт НЕ будет отправлен автоматически — вы сможете проверить и отредактировать его перед отправкой.
+                
+                Для отправки требуется бесплатный аккаунт GitHub. Если его нет, зарегистрируйтесь за 1–2 минуты: https://github.com/signup
+                
+                После регистрации/входа нажмите «Submit new issue» для отправки отчёта.""");
+        strings.put(LanguageKeys.REPORT_WARNING_CONTINUE, "Продолжить");
+        strings.put(LanguageKeys.REPORT_ERROR_EMPTY_DESCRIPTION, "Пожалуйста, опишите проблему");
+        strings.put(LanguageKeys.REPORT_ERROR_URL_TOO_LONG, "Описание слишком длинное для отправки через браузер. Пожалуйста, сократите его или используйте кнопку «Скопировать в буфер» и создайте issue вручную.");
+        strings.put(LanguageKeys.REPORT_COPIED_TO_CLIPBOARD, "Отчёт скопирован в буфер обмена");
+        strings.put(LanguageKeys.REPORT_OPEN_BROWSER_ERROR, "Не удалось открыть браузер");
+        strings.put(LanguageKeys.ABOUT_PRIVACY_LINK, "Конфиденциальность");
 
         // === Меню Правка ===
         strings.put(LanguageKeys.MENU_EDIT, "Правка");
@@ -599,13 +642,15 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.MAIN_POSITION_LOADED, "Загружена позиция: %s%s");
         strings.put(LanguageKeys.MAIN_GAME_LOADED, "Загружена партия:");
 
-        strings.put(LanguageKeys.ABOUT_TITLE, "О программе Kletka");
+        strings.put(LanguageKeys.ABOUT_TITLE, "О программе Клетка");
         strings.put(LanguageKeys.ABOUT_CONTENT,
                 """
                     ♔ Клетка шахматный анализатор ♔
                     Версия: %s
                     Платформа: Java 17, OpenJFX
                     Библиотека: chesslib 1.3.6 (GPL v3)
+                    
+                    %s
                     
                     Кроссплатформенный шахматный анализатор
                     с поддержкой баз данных SQLite
@@ -625,6 +670,8 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.ABOUT_WEBSITE_LINK , "Веб-сайт проекта");
         strings.put(LanguageKeys.ABOUT_GITHUB_LINK  , "GitHub репозиторий");
         strings.put(LanguageKeys.ABOUT_LICENSE_LINK   , "Текст лицензии GPL v3");
+        strings.put(LanguageKeys.ABOUT_ENGINE_VERSION   , "Движок: %s");
+        strings.put(LanguageKeys.ABOUT_ENGINE_NOT_INSTALLED   , "Stockfish не установлен");
 
         strings.put(LanguageKeys.POSITION_SET_SUCCESS, "Позиция установлена. Ход %s");
 
@@ -661,7 +708,7 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.LOG_STARTING_GUI, "Запуск KletkaGui");
         strings.put(LanguageKeys.LOG_GUI_LOADED, "GUI успешно загружен");
         strings.put(LanguageKeys.LOG_GUI_ERROR, "Ошибка при запуске GUI");
-        strings.put(LanguageKeys.LOG_SHUTTING_DOWN, "Kletka завершает работу...");
+        strings.put(LanguageKeys.LOG_SHUTTING_DOWN, "Клетка завершает работу...");
 
         // ========== SPLASH SCREEN ==========
         strings.put(LanguageKeys.SPLASH_LOADING_ENGINE, "Загрузка движка...");
@@ -717,8 +764,8 @@ public class RuLanguage implements Language {
 
         // Donate dialog
         strings.put(LanguageKeys.DONATE_TITLE, "☕ Поддержать проект");
-        strings.put(LanguageKeys.DONATE_HEADER, "☕ Поддержать проект Kletka");
-        strings.put(LanguageKeys.DONATE_DESCRIPTION, "Спасибо, что используете Kletka!\nВаша поддержка помогает развитию проекта.");
+        strings.put(LanguageKeys.DONATE_HEADER, "☕ Поддержать проект Клетка");
+        strings.put(LanguageKeys.DONATE_DESCRIPTION, "Спасибо, что используете Клетку!\nВаша поддержка помогает развитию проекта.");
         strings.put(LanguageKeys.DONATE_HINT, "💡 Нажмите «Копировать», чтобы скопировать адрес в буфер обмена.");
         strings.put(LanguageKeys.DONATE_CLOSE, "Закрыть");
         strings.put(LanguageKeys.DONATE_PAYPAL, "📧 PayPal");
@@ -1255,6 +1302,7 @@ public class RuLanguage implements Language {
         shortcutsContent.append("  Ctrl+O - Открыть PGN\n");
         shortcutsContent.append("  Ctrl+S - Сохранить PGN\n");
         shortcutsContent.append("  Ctrl+E - Экспорт текущей партии\n");
+        shortcutsContent.append("  Ctrl+Shift+E - Сохранение текущей позиции в Pgn\n");
         shortcutsContent.append("  Ctrl+Shift+V - Импорт из буфера обмена\n");
         shortcutsContent.append("  Ctrl+P - Расстановка позиции\n");
         shortcutsContent.append("  Alt+F4 - Выход\n");

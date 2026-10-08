@@ -1,10 +1,10 @@
-# # ♟️ Kletka — 跨平台国际象棋分析工具
+# ♟️ Kletka — 跨平台国际象棋分析工具
 
 [![Latest Release](https://img.shields.io/github/v/release/AndreyKhrypach/Kletka?label=Latest%20Release&color=success&style=flat-square)](https://github.com/AndreyKhrypach/Kletka/releases/latest)
 [![许可证：GPL v3](https://img.shields.io/badge/许可证-GPLv3-blue.svg?style=flat-square)](https://www.gnu.org/licenses/gpl-3.0)
 [![平台](https://img.shields.io/badge/平台-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey?style=flat-square)]()
 
-## 🌐 **Website:** [https://andreykhrypach.github.io/Kletka/](https://andreykhrypach.github.io/Kletka/)
+## 🌐 **官方网站:** [https://andreykhrypach.github.io/Kletka/](https://andreykhrypach.github.io/Kletka/)
 
 **阅读语言：**
 [🇬🇧 English](README.md) |
@@ -30,6 +30,9 @@
 - 🔍 使用 **Stockfish** (UCI 引擎) 进行局面分析
 - 🎨 可定制的棋盘主题
 - 📋 **复制局面** 为 FEN + ASCII 格式 (Ctrl+Shift+P)
+- 💾 **将局面保存为 PGN** — 从对局中提取局面到题目文件（Ctrl+Shift+E）
+- 🐛 **报告问题** — 通过 GitHub 的内置反馈表单（帮助菜单）
+- 📦 **Debian、Ubuntu、Fedora、RHEL、openSUSE 软件包** — 一键安装
 - 🌍 多语言支持：英语、俄语、中文
 - 🖥️ 跨平台：Windows、Linux、macOS
 
@@ -45,10 +48,19 @@
 - [Kletka 教程：如何使用 Polyglot 开局库](https://www.youtube.com/watch?v=QAz95CSiDy0)
 
 **Linux：**
-- [Kletka：在 Linux 上安装](https://www.youtube.com/watch?v=NXeR6J0_rXA)
-- [Kletka：在 Linux 上设置 Stockfish](https://www.youtube.com/watch?v=m-qWoTGNIXg)
+- [Kletka 教程：在 Linux 上安装](https://www.youtube.com/watch?v=NXeR6J0_rXA)
+- [Kletka 教程：在 Linux 上设置 Stockfish](https://www.youtube.com/watch?v=m-qWoTGNIXg)
 
-更多教程即将推出 — macOS。
+**macOS:**
+- [Kletka 教程: 在 macOS 上安装](https://www.youtube.com/watch?v=JBtitIr7mF8)
+- [Kletka 教程: 在 macOS 上设置  Stockfish](https://www.youtube.com/watch?v=v29AsFNnBEc)
+
+---
+
+## 💬 社区
+
+- 🇷🇺 [Представляю Клетка — шахматный анализатор (Lichess blog)](https://lichess.org/@/KhrypachAndrey/blog/-/Qz4tM8oE)
+- 🇬🇧 [Introducing Kletka — chess analyzer (Lichess blog)](https://lichess.org/@/KhrypachAndrey/blog/introduce-kletka-chess-analyzer/p73trA8b)
 
 ---
 
@@ -127,11 +139,20 @@ sun.misc.Unsafe.invokeCleaner(mappedByteBuffer);
 
 ### Linux：已知问题
 
-在 **Debian Trixie / Ubuntu 24.04+** 上使用 **Wayland** 时，对话框可能无法获得焦点
-（键盘可以工作，但鼠标无法工作）。这是 **JavaFX 17 + GTK 3 + Wayland 的已知 bug**。
+在 Debian Trixie / Ubuntu 24.04+ 上使用 Wayland 时，对话框可能无法获得焦点
+（键盘可以工作，但鼠标无法工作）。这是 JavaFX 17 + GTK 3 + Wayland 的已知 bug。
 
-**解决方案：** 已在 Kletka 中包含——应用程序启动时带有
-`-Djdk.gtk.version=2` 标志，通过 XWayland 使用 GTK 2。
+解决方案： 已在 Kletka 中包含——应用程序启动时带有
+-Djdk.gtk.version=2 标志，通过 XWayland 使用 GTK 2。
+
+在 Fedora 41+ 上，对话框也可能无法获得焦点，直到您按下 Tab。
+这是由于 Wayland 上 GNOME 的 焦点窃取防护（Focus Stealing Prevention），
+加上 Fedora 41+ 移除了 GNOME X11 会话（登录界面不再有 "GNOME on Xorg" 选项）。
+
+临时解决方案： 对话框出现时按一次 Tab — 之后焦点将
+正常使用键盘和鼠标。
+
+这是 已知的 JavaFX + Wayland bug，跟踪于 [JDK-8353643](https://bugs.openjdk.org/browse/JDK-8353643)。
 
 ---
 
@@ -236,13 +257,23 @@ Kletka 当前使用 **Java 17** + **JavaFX 17**。
 从 [Releases](https://github.com/AndreyKhrypach/Kletka/releases) 页面下载 `Kletka.exe` 并运行安装程序。
 
 ### macOS
-下载 `Kletka.dmg`，打开并将 `Kletka.app` 拖到 `Applications` 文件夹。
+
+从 [Releases](https://github.com/AndreyKhrypach/Kletka/releases) 页面下载 `Kletka.dmg`，打开并将 `Kletka.app` 拖到 `Applications` 文件夹。
 
 ### Linux (Debian/Ubuntu)
+
+从 [Releases](https://github.com/AndreyKhrypach/Kletka/releases) 页面下载 `Kletka.deb`
+
 ```bash
 sudo dpkg -i kletka*.deb
 ```
 
+### Linux (Fedora / RHEL / Rocky / Alma / openSUSE)
+从 [Releases](https://github.com/AndreyKhrypach/Kletka/releases) 页面下载 `Kletka.rpm`
+
+```bash
+sudo dnf install kletka*.rpm
+```
 ---
 
 ## 🛠️ 从源码构建
@@ -274,13 +305,21 @@ mvn clean package
 # Windows
 mvn clean package -P windows
 
-# Linux
-mvn clean package -P linux
+# Linux (Debian/Ubuntu)
+mvn clean package -P linux-debian
+
+# Linux (Fedora / RHEL / openSUSE)
+mvn clean package -P linux-rpm
 
 # macOS
 mvn clean package -P mac
 ```
 
+RPM 构建注意事项： 构建机器上必须安装 rpm-build：
+
+```bash
+sudo dnf install rpm-build
+```
 ---
 
 ## 🧠 配置 Stockfish
@@ -297,6 +336,14 @@ Kletka 使用 Stockfish UCI 引擎进行分析。您需要单独安装它。
 
 ```bash
 sudo apt install stockfish
+```
+
+然后在 Kletka 中，进入 **引擎 → 配置引擎** 并选择 stockfish 二进制文件。
+
+### Linux (Fedora / RHEL)
+
+```bash
+sudo dnf install stockfish
 ```
 
 然后在 Kletka 中，进入 **引擎 → 配置引擎** 并选择 stockfish 二进制文件。

@@ -301,9 +301,6 @@ public class HtmlTreeVisitor implements VariationTreeVisitor<String> {
         html.append("</span>"); // variation
 
         wasResumeLine = true;
-        int parentDepth = 0;
-        String indentClass = "depth-" + parentDepth;
-        html.append("<span class=\"resume-line ").append(indentClass).append("\">");
 
         isResumeAfterVariation = true;
         isInVariation = false;
@@ -403,11 +400,7 @@ public class HtmlTreeVisitor implements VariationTreeVisitor<String> {
         html.append("</span>"); // variation
 
         wasResumeLine = true;
-        int parentDepth = currentDepth > 0 ? currentDepth - 1 : 0;
-        String indentClass = "depth-" + parentDepth;
-        html.append("<span class=\"resume-line ").append(indentClass).append("\">");
 
-        isResumeAfterVariation = true;
         isInVariation = false;
         isStartOfVariation = false;
         isMainLine = true;
@@ -593,18 +586,7 @@ public class HtmlTreeVisitor implements VariationTreeVisitor<String> {
                                  background-color: #f5f0e8;
                                  border-radius: 3px;
                              }
-                .resume-line { display: block; white-space: normal; word-wrap: break-word; }
-                .resume-line.depth-0 { padding-left: 0px; }
-                .resume-line.depth-1 { padding-left: 14px; }
-                .resume-line.depth-2 { padding-left: 12px; }
-                .resume-line.depth-3 { padding-left: 10px; }
-                .resume-line.depth-4 { padding-left: 8px; }
-                .resume-line.depth-5 { padding-left: 6px; }
-                .resume-line.depth-6 { padding-left: 4px; }
-                .resume-line.depth-7 { padding-left: 3px; }
-                .resume-line.depth-8 { padding-left: 2px; }
-                .resume-line.depth-9 { padding-left: 1px; }
-                .resume-line.depth-10 { padding-left: 0px; }
+                
                 """.formatted(fontSize);
     }
 

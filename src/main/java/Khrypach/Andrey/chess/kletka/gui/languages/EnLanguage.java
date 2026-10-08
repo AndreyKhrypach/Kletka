@@ -154,6 +154,15 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.MENU_FILE_EXPORT_CURRENT, "Export Current Game");
         strings.put(LanguageKeys.MENU_FILE_IMPORT_CLIPBOARD, "Import from Clipboard");
 
+        strings.put(LanguageKeys.MENU_FILE_EXPORT_POSITION, "Save Position as PGN...");
+        strings.put(LanguageKeys.POSITION_EXPORT_DIALOG_TITLE, "Save Position");
+        strings.put(LanguageKeys.POSITION_EXPORT_DIALOG_HEADER, "Fill in the position information");
+        strings.put(LanguageKeys.POSITION_EXPORT_FILE_DIALOG_TITLE, "Save position to...");
+        strings.put(LanguageKeys.POSITION_EXPORT_ERROR_TITLE, "Position Save Error");
+        strings.put(LanguageKeys.POSITION_EXPORT_NO_BOARD, "Board is not initialized");
+        strings.put(LanguageKeys.POSITION_EXPORT_NO_POSITION, "No position to save");
+        strings.put(LanguageKeys.POSITION_EXPORT_SUCCESS, "Position saved to %s");
+
         // Help menu
         strings.put(LanguageKeys.MENU_HELP_SHORTCUTS, "Keyboard Shortcuts");
         strings.put(LanguageKeys.MENU_HELP_ABOUT, "About");
@@ -170,6 +179,40 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.MENU_HELP_NO_UPDATES, "No Updates");
         strings.put(LanguageKeys.MENU_HELP_NO_UPDATES_MSG, "You have the latest version of Kletka.");
         strings.put(LanguageKeys.MENU_HELP_UPDATE_CHECK_ERROR, "Update check failed");
+
+        // ========== REPORT PROBLEM ==========
+        strings.put(LanguageKeys.MENU_HELP_REPORT_PROBLEM, "Report a problem...");
+        strings.put(LanguageKeys.REPORT_TITLE, "Report a Problem");
+        strings.put(LanguageKeys.REPORT_HEADER, "Help us improve Kletka");
+        strings.put(LanguageKeys.REPORT_TYPE_LABEL, "Problem type:");
+        strings.put(LanguageKeys.REPORT_TYPE_BUG, "\uD83D\uDC1B Bug");
+        strings.put(LanguageKeys.REPORT_TYPE_FEATURE, "\uD83D\uDCA1 Feature request");
+        strings.put(LanguageKeys.REPORT_TYPE_PERFORMANCE, "⚡ Performance issue");
+        strings.put(LanguageKeys.REPORT_TYPE_UI, "\uD83C\uDFA8 UI/UX issue");
+        strings.put(LanguageKeys.REPORT_TYPE_DOCUMENTATION, "\uD83D\uDCDD Documentation / Translation");
+        strings.put(LanguageKeys.REPORT_TYPE_OTHER, "❓ Other");
+        strings.put(LanguageKeys.REPORT_DESCRIPTION_LABEL, "Problem description:");
+        strings.put(LanguageKeys.REPORT_DESCRIPTION_PROMPT, "Describe what happened. The more details, the better. If possible, include steps to reproduce.");
+        strings.put(LanguageKeys.REPORT_INCLUDE_SYSTEM_INFO, "Include system information (Kletka version, OS, Java, engine)");
+        strings.put(LanguageKeys.REPORT_PRIVACY_NOTICE, "We do not collect your personal data. System information is used for debugging only.");
+        strings.put(LanguageKeys.REPORT_PRIVACY_LINK, "Privacy policy");
+        strings.put(LanguageKeys.REPORT_BUTTON_COPY, "Copy to clipboard");
+        strings.put(LanguageKeys.REPORT_BUTTON_CANCEL, "Cancel");
+        strings.put(LanguageKeys.REPORT_BUTTON_GITHUB, "Open on GitHub →");
+        strings.put(LanguageKeys.REPORT_WARNING_TITLE, "GitHub account required");
+        strings.put(LanguageKeys.REPORT_WARNING_HEADER, "The new issue page on GitHub will open now");
+        strings.put(LanguageKeys.REPORT_WARNING_CONTENT, """
+                The report will NOT be sent automatically — you can review and edit it before submitting.
+                
+                A free GitHub account is required. If you don't have one, sign up in 1–2 minutes: https://github.com/signup
+                
+                After signing in, click "Submit new issue" to send the report.""");
+        strings.put(LanguageKeys.REPORT_WARNING_CONTINUE, "Continue");
+        strings.put(LanguageKeys.REPORT_ERROR_EMPTY_DESCRIPTION, "Please describe the problem");
+        strings.put(LanguageKeys.REPORT_ERROR_URL_TOO_LONG, "Description is too long to send via browser. Please shorten it or use \"Copy to clipboard\" and create the issue manually.");
+        strings.put(LanguageKeys.REPORT_COPIED_TO_CLIPBOARD, "Report copied to clipboard");
+        strings.put(LanguageKeys.REPORT_OPEN_BROWSER_ERROR, "Failed to open browser");
+        strings.put(LanguageKeys.ABOUT_PRIVACY_LINK, "Privacy");
 
         // === Edit Menu ===
         strings.put(LanguageKeys.MENU_EDIT, "Edit");
@@ -607,6 +650,8 @@ public class EnLanguage implements Language {
                     Platform: Java 17, OpenJFX
                     Library: chesslib 1.3.6 (GPL v3)
                     
+                    %s
+                    
                     Cross-platform chess analyzer
                     with SQLite database support
                     
@@ -625,6 +670,8 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.ABOUT_WEBSITE_LINK , "Project Website");
         strings.put(LanguageKeys.ABOUT_GITHUB_LINK  , "GitHub Repository");
         strings.put(LanguageKeys.ABOUT_LICENSE_LINK   , "GPL v3 License Text");
+        strings.put(LanguageKeys.ABOUT_ENGINE_VERSION   , "Engine: %s");
+        strings.put(LanguageKeys.ABOUT_ENGINE_NOT_INSTALLED   , "Stockfish is not installed");
 
         strings.put(LanguageKeys.POSITION_SET_SUCCESS, "Position set. %s to move");
 
@@ -1257,6 +1304,7 @@ public class EnLanguage implements Language {
         shortcutsContent.append("  Ctrl+O - Open PGN\n");
         shortcutsContent.append("  Ctrl+S - Save PGN\n");
         shortcutsContent.append("  Ctrl+E - Export current game\n");
+        shortcutsContent.append("  Save Current Position to PGN\n");
         shortcutsContent.append("  Ctrl+Shift+V - Import from clipboard\n");
         shortcutsContent.append("  Ctrl+P - Set up position\n");
         shortcutsContent.append("  Alt+F4 - Exit\n");

@@ -838,7 +838,7 @@ public class NotationView extends VBox {
         PgnExportVisitor pgnVisitor = new PgnExportVisitor();
         VariationTreeTraverser traverser = new VariationTreeTraverser();
 
-        return traverser.traverse(rootNode, mainLine, pgnVisitor);
+        return traverser.traverseForPgn(rootNode, mainLine, pgnVisitor);
     }
 
     private void copyPgnToClipboard() {

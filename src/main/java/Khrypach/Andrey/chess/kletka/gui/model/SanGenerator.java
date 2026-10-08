@@ -101,7 +101,12 @@ public class SanGenerator {
         String toSquare = move.getTo().toString().toLowerCase();
         StringBuilder san = new StringBuilder();
 
-        if (isCapture) {
+        // En passant определяется здесь, а не в вызывающем коде,
+        // потому что isCapture для en passant == false
+        // (целевая клетка пустая).
+        boolean effectiveCapture = isCapture || isEnPassant(board, move);
+
+        if (effectiveCapture) {
             String fromFile = move.getFrom().toString().toLowerCase().substring(0, 1);
             san.append(fromFile).append("x");
         }
@@ -114,6 +119,31 @@ public class SanGenerator {
 
         san.append(getCheckMateSymbol(board, move));
         return san.toString();
+    }
+
+    /**
+     * Проверяет, является ли ход взятием на проходе.
+     * Вызывается только для пешек (из generatePawnSan).
+     *
+     * @param board доска ДО выполнения хода
+     * @param move  ход пешки
+     */
+    private static boolean isEnPassant(Board board, Move move) {
+        Square from = move.getFrom();
+        Square to = move.getTo();
+
+        if (from.getFile() == to.getFile()) return false;
+        if (board.getPiece(to) != Piece.NONE) return false;
+
+        Square capturedSquare = Square.squareAt(
+                from.getRank().ordinal() * 8 + to.getFile().ordinal()
+        );
+
+        Piece capturedPiece = board.getPiece(capturedSquare);
+        boolean movingSideIsWhite = (board.getSideToMove() == Side.WHITE);
+        Piece enemyPawn = movingSideIsWhite ? Piece.BLACK_PAWN : Piece.WHITE_PAWN;
+
+        return capturedPiece == enemyPawn;
     }
 
     private static String generatePieceSan(Board board, Move move, Piece piece,

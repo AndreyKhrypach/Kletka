@@ -1,0 +1,179 @@
+<!--
+  ~ /*
+  ~  * Copyright (c) 2024 Andrey Khrypach
+  ~  *
+  ~  * This program is free software: you can redistribute it and/or modify
+  ~  * it under the terms of the GNU General Public License as published by
+  ~  * the Free Software Foundation, either version 3 of the License, or
+  ~  * (at your option) any later version.
+  ~  *
+  ~  * This program is distributed in the hope that it will be useful,
+  ~  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+  ~  * GNU General Public License for more details.
+  ~  *
+  ~  * You should have received a copy of the GNU General Public License
+  ~  * along with this program. If not, see <https://www.gnu.org/licenses/>.
+  ~  */
+  ~
+  -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy — Kletka</title>
+    <meta name="description" content="Kletka privacy policy — we do not collect personal data.">
+    <link rel="canonical" href="https://andreykhrypach.github.io/Kletka/privacy.html">
+    <link rel="alternate" hreflang="en" href="https://andreykhrypach.github.io/Kletka/privacy.html">
+    <link rel="alternate" hreflang="ru" href="https://andreykhrypach.github.io/Kletka/privacy.ru.html">
+    <link rel="alternate" hreflang="zh" href="https://andreykhrypach.github.io/Kletka/privacy.zh.html">
+
+    <style>
+        :root {
+            --bg: #1e1e1e;
+            --fg: #e0e0e0;
+            --accent: #4a9eff;
+            --muted: #888;
+            --card: #2a2a2a;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            line-height: 1.7;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+        h1 { font-size: 2em; margin-bottom: 0.2em; }
+        h2 { font-size: 1.4em; margin-top: 2em; border-bottom: 1px solid #333; padding-bottom: 8px; }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .lang-switch { margin: 20px 0; font-size: 0.95em; }
+        .lang-switch a { margin-right: 12px; }
+        ul { padding-left: 20px; }
+        li { margin: 6px 0; }
+        code {
+            background: #333;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .updated { color: var(--muted); font-size: 0.9em; }
+        .highlight {
+            background: #2a3a2a;
+            border-left: 3px solid #4caf50;
+            padding: 12px 16px;
+            margin: 20px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid #333; color: var(--muted); font-size: 0.9em; }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <h1>🔒 Privacy Policy</h1>
+    <p class="updated">Last updated: <strong>2026-10-06</strong></p>
+
+    <div class="lang-switch">
+        🌐 <strong>English</strong> ·
+        <a href="privacy.ru.html">Русский</a> ·
+        <a href="privacy.zh.html">中文</a>
+    </div>
+
+    <div class="highlight">
+        <strong>Short version:</strong> Kletka does <strong>not</strong> collect, store, or transmit any of your personal data.
+        There is no telemetry, no analytics, no tracking.
+    </div>
+
+    <h2>1. What Kletka does NOT collect</h2>
+    <p>Kletka does not collect, store, or transmit:</p>
+    <ul>
+        <li>Your name, email, or any account information</li>
+        <li>Your IP address (except as seen by GitHub when you submit an issue)</li>
+        <li>The content of PGN files you open or edit</li>
+        <li>The positions you analyze</li>
+        <li>Your keyboard or mouse activity</li>
+        <li>Your location, language, or system settings (beyond local use)</li>
+        <li>Any usage statistics or crash reports</li>
+    </ul>
+
+    <h2>2. Local data storage</h2>
+    <p>Kletka stores configuration locally on your computer:</p>
+    <ul>
+        <li><strong>Windows:</strong> <code>%APPDATA%\Kletka\config.properties</code></li>
+        <li><strong>Linux:</strong> <code>~/.config/kletka/config.properties</code></li>
+        <li><strong>macOS:</strong> <code>~/Library/Application Support/Kletka/config.properties</code></li>
+    </ul>
+    <p>This file contains only your preferences (language, board theme, engine path, last opened folder).
+        It is never sent anywhere.</p>
+
+    <h2>3. Reporting a problem on GitHub</h2>
+    <p>Kletka has a <strong>"Report a problem"</strong> feature (Help menu). When you use it:</p>
+    <ol>
+        <li>Kletka opens a <strong>new issue form</strong> on GitHub in your browser.</li>
+        <li>The report is <strong>NOT sent automatically</strong>. You can review and edit it before submitting.</li>
+        <li>To submit a report, you need a <strong>free GitHub account</strong>.</li>
+    </ol>
+
+    <h3>3.1. What is included in the report</h3>
+    <p>If you check the box <strong>"Include system information"</strong> (enabled by default), the following
+        technical data is pre-filled into the report:</p>
+    <ul>
+        <li>Kletka version (e.g. 1.6.0)</li>
+        <li>Operating system and version (e.g. Windows 11, Linux, macOS)</li>
+        <li>CPU architecture (e.g. amd64, aarch64)</li>
+        <li>Java version and vendor (e.g. 17.0.10, Oracle)</li>
+        <li>Chess engine name and version (e.g. Stockfish 16.1, or "not installed")</li>
+        <li>UI locale (e.g. en_US, ru_RU, zh_CN)</li>
+        <li>Timestamp of the report</li>
+        <li>Maximum Java heap size</li>
+    </ul>
+    <p><strong>No personal data is included.</strong> You can uncheck this option before submitting.</p>
+
+    <h3>3.2. What happens after you submit</h3>
+    <p>Once you click <strong>"Submit new issue"</strong> on GitHub:</p>
+    <ul>
+        <li>The report becomes <strong>public</strong> on the Kletka repository's Issues page.</li>
+        <li>Your GitHub username (or "Anonymous") becomes visible.</li>
+        <li>GitHub's own <a href="https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement">Privacy Statement</a> applies to data processed by GitHub, including your IP address.</li>
+    </ul>
+
+    <h2>4. Third-party services</h2>
+    <p>Kletka itself does not connect to the internet, except when <strong>you explicitly trigger</strong>:</p>
+    <ul>
+        <li>Opening a link (GitHub, YouTube, documentation)</li>
+        <li>Checking for updates (queries GitHub API for the latest release)</li>
+        <li>Reporting a problem (opens GitHub issue form)</li>
+    </ul>
+    <p>In all these cases, your browser or GitHub's infrastructure handles the request, not Kletka itself.</p>
+
+    <h2>5. Chess engine</h2>
+    <p>Kletka uses an external UCI chess engine (e.g. Stockfish) for analysis.
+        The engine runs <strong>locally</strong> on your computer. It does not connect to the internet by default.</p>
+
+    <h2>6. Children's privacy</h2>
+    <p>Kletka does not knowingly collect any data from anyone, including children under 13.</p>
+
+    <h2>7. Changes to this policy</h2>
+    <p>If we change this policy, we will update the "Last updated" date above.
+        Material changes will be announced in the <a href="https://github.com/AndreyKhrypach/Kletka/blob/master/CHANGELOG.md">CHANGELOG</a>.</p>
+
+    <h2>8. Contact</h2>
+    <p>For questions about this policy, please open an issue on GitHub:
+        <a href="https://github.com/AndreyKhrypach/Kletka/issues">github.com/AndreyKhrypach/Kletka/issues</a></p>
+
+    <footer>
+        <p>© Andrey Khrypach · <a href="index.html">Home</a> · <a href="https://github.com/AndreyKhrypach/Kletka">GitHub</a> · <a href="privacy.ru.html">Русский</a> · <a href="privacy.zh.html">中文</a></p>
+    </footer>
+
+</div>
+</body>
+</html>

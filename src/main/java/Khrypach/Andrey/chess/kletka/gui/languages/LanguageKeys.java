@@ -148,7 +148,6 @@ public class LanguageKeys {
     public static final String DB_INFO_INDEX_VERSION = "db.info.index.version";
     public static final String DB_INFO_GROWTH_RATIO = "db.info.growth.ratio";
 
-
     // === PGN сообщения ===
     public static final String PGN_IMPORT_TITLE = "pgn.import.title";
     public static final String PGN_IMPORT_PROGRESS = "pgn.import.progress";
@@ -167,6 +166,15 @@ public class LanguageKeys {
     // === Файловое меню ===
     public static final String MENU_FILE_EXPORT_CURRENT = "menu.file.export.current";
     public static final String MENU_FILE_IMPORT_CLIPBOARD = "menu.file.import.clipboard";
+
+    public static final String MENU_FILE_EXPORT_POSITION = "menu.file.export.position";
+    public static final String POSITION_EXPORT_DIALOG_TITLE = "position.export.dialog.title";
+    public static final String POSITION_EXPORT_DIALOG_HEADER = "position.export.dialog.header";
+    public static final String POSITION_EXPORT_FILE_DIALOG_TITLE = "position.export.file.dialog.title";
+    public static final String POSITION_EXPORT_ERROR_TITLE = "position.export.error.title";
+    public static final String POSITION_EXPORT_NO_BOARD = "position.export.no.board";
+    public static final String POSITION_EXPORT_NO_POSITION = "position.export.no.position";
+    public static final String POSITION_EXPORT_SUCCESS = "position.export.success";
 
     // === Меню Правка ===
     public static final String MENU_EDIT = "menu.edit";
@@ -247,6 +255,43 @@ public class LanguageKeys {
     public static final String MENU_HELP_NO_UPDATES = "menu.help.no.updates";
     public static final String MENU_HELP_NO_UPDATES_MSG = "menu.help.no.updates.msg";
     public static final String MENU_HELP_UPDATE_CHECK_ERROR = "menu.help.update.check.error";
+
+    // ========== REPORT PROBLEM ==========
+    public static final String MENU_HELP_REPORT_PROBLEM = "menu.help.report.problem";
+
+    public static final String REPORT_TITLE = "report.title";
+    public static final String REPORT_HEADER = "report.header";
+
+    public static final String REPORT_TYPE_LABEL = "report.type.label";
+    public static final String REPORT_TYPE_BUG = "report.type.bug";
+    public static final String REPORT_TYPE_FEATURE = "report.type.feature";
+    public static final String REPORT_TYPE_PERFORMANCE = "report.type.performance";
+    public static final String REPORT_TYPE_UI = "report.type.ui";
+    public static final String REPORT_TYPE_DOCUMENTATION = "report.type.documentation";
+    public static final String REPORT_TYPE_OTHER = "report.type.other";
+
+    public static final String REPORT_DESCRIPTION_LABEL = "report.description.label";
+    public static final String REPORT_DESCRIPTION_PROMPT = "report.description.prompt";
+
+    public static final String REPORT_INCLUDE_SYSTEM_INFO = "report.include.system.info";
+    public static final String REPORT_PRIVACY_NOTICE = "report.privacy.notice";
+    public static final String REPORT_PRIVACY_LINK = "report.privacy.link";
+
+    public static final String REPORT_BUTTON_COPY = "report.button.copy";
+    public static final String REPORT_BUTTON_CANCEL = "report.button.cancel";
+    public static final String REPORT_BUTTON_GITHUB = "report.button.github";
+
+    public static final String REPORT_WARNING_TITLE = "report.warning.title";
+    public static final String REPORT_WARNING_HEADER = "report.warning.header";
+    public static final String REPORT_WARNING_CONTENT = "report.warning.content";
+    public static final String REPORT_WARNING_CONTINUE = "report.warning.continue";
+
+    public static final String REPORT_ERROR_EMPTY_DESCRIPTION = "report.error.empty.description";
+    public static final String REPORT_ERROR_URL_TOO_LONG = "report.error.url.too.long";
+    public static final String REPORT_COPIED_TO_CLIPBOARD = "report.copied.to.clipboard";
+    public static final String REPORT_OPEN_BROWSER_ERROR = "report.open.browser.error";
+
+    public static final String ABOUT_PRIVACY_LINK = "about.privacy.link";
 
     // Language menu
     public static final String MENU_LANGUAGE_RUSSIAN = "menu.language.russian";
@@ -686,6 +731,9 @@ public class LanguageKeys {
     public static final String ABOUT_WEBSITE_LINK = "about.website.link";
     public static final String ABOUT_GITHUB_LINK = "about.github.link";
     public static final String ABOUT_LICENSE_LINK = "about.license.link";
+
+    public static final String ABOUT_ENGINE_VERSION = "about.engine.version";
+    public static final String ABOUT_ENGINE_NOT_INSTALLED = "about.engine.not.installed";
 
     public static final String POSITION_SET_SUCCESS = "main.position.set.success";
 

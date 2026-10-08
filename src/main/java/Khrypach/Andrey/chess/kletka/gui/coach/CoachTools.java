@@ -391,6 +391,10 @@ public class CoachTools extends VBox {
                 crossButton.setSelected(false);
                 crossButton.setStyle(buttonStyle);
             }
+            if (circleButton != null) {
+                circleButton.setSelected(false);
+                circleButton.setStyle(buttonStyle);
+            }
             currentTool = ToolType.NONE;
             pencilButton.setStyle(buttonStyle);
         }

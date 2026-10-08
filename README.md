@@ -30,6 +30,9 @@ See [CHANGELOG.md](CHANGELOG.md) for a detailed history of changes.
 - 🔍 Position analysis with **Stockfish** (UCI engine)
 - 🎨 Customizable board themes
 - 📋 **Copy position** as FEN + ASCII diagram (Ctrl+Shift+P)
+- 💾 **Save position to PGN** — extract a position from a game into a puzzle file (Ctrl+Shift+E)
+- 🐛 **Report a problem** — built-in feedback form via GitHub (Help menu)
+- 📦 **Packages for Debian, Ubuntu, Fedora, RHEL, openSUSE** — one-click install
 - 🌍 Multilingual: English, Russian, Chinese
 - 🖥️ Cross-platform: Windows, Linux, macOS
 
@@ -48,7 +51,16 @@ Step-by-step guides on our YouTube channel:
 - [Kletka tutorial: Linux — installation](https://www.youtube.com/watch?v=NXeR6J0_rXA)
 - [Kletka tutorial: Linux — setting up Stockfish](https://www.youtube.com/watch?v=m-qWoTGNIXg)
 
-More tutorials coming soon — macOS.
+**macOS:**
+- [Kletka tutorial: macOS installation](https://www.youtube.com/watch?v=JBtitIr7mF8)
+- [Kletka tutorial: macOS — setting up Stockfish](https://www.youtube.com/watch?v=v29AsFNnBEc)
+
+---
+
+## 💬 Community
+
+- 🇷🇺 [Представляю Клетка — шахматный анализатор (Lichess blog)](https://lichess.org/@/KhrypachAndrey/blog/-/Qz4tM8oE)
+- 🇬🇧 [Introducing Kletka — chess analyzer (Lichess blog)](https://lichess.org/@/KhrypachAndrey/blog/introduce-kletka-chess-analyzer/p73trA8b)
 
 ---
 
@@ -107,13 +119,23 @@ These arguments are required for fast Polyglot book operations using memory-mapp
 
 ### Linux: Known Issues
 
-On **Debian Trixie / Ubuntu 24.04+** with **Wayland**, dialogs may not receive focus
-(keyboard works, mouse doesn't). This is a **known JavaFX 17 + GTK 3 + Wayland bug**.
+On Debian Trixie / Ubuntu 24.04+ with Wayland, dialogs may not receive focus
+(keyboard works, mouse doesn't). This is a known JavaFX 17 + GTK 3 + Wayland bug.
 
-**Solution:** already included in Kletka — the app runs with
+Solution: already included in Kletka — the app runs with
 
-`-Djdk.gtk.version=2`,
+-Djdk.gtk.version=2,
 which uses GTK 2 via XWayland.
+
+On Fedora 41+, dialogs may also not receive focus until you press Tab.
+This is caused by GNOME Focus Stealing Prevention on Wayland, combined with the
+removal of the GNOME X11 session in Fedora 41+ (there is no "GNOME on Xorg" option
+available at the login screen anymore).
+
+Workaround: press Tab once when a dialog appears — focus will then work normally
+with both keyboard and mouse.
+
+This is a known JavaFX + Wayland bug tracked in [JDK-8353643](https://bugs.openjdk.org/browse/JDK-8353643).
 
 ---
 
@@ -218,11 +240,20 @@ Tracked in issue #XXX. Will be fixed when we migrate to the new stack.
 Download `Kletka.exe` from the [Releases](https://github.com/AndreyKhrypach/Kletka/releases) page and run the installer.
 
 ### macOS
-Download `Kletka.dmg`, open it, and drag `Kletka.app` to the `Applications` folder.
+Download `Kletka.dmg` from the [Releases](https://github.com/AndreyKhrypach/Kletka/releases)  page, open it, and drag `Kletka.app` to the `Applications` folder.
 
 ### Linux (Debian/Ubuntu)
+Download `Kletka.deb` from the [Releases](https://github.com/AndreyKhrypach/Kletka/releases)  page
+
 ```bash
 sudo dpkg -i kletka*.deb
+```
+
+### Linux (Fedora / RHEL / Rocky / Alma / openSUSE)
+Download `Kletka.rpm` from the [Releases](https://github.com/AndreyKhrypach/Kletka/releases)  page
+
+```bash
+sudo dnf install kletka*.rpm
 ```
 
 ## 🛠️ Building from Source
@@ -253,11 +284,20 @@ Platform-specific builds:
 # Windows
 mvn clean package -P windows
 
-# Linux
-mvn clean package -P linux
+# Linux (Debian/Ubuntu)
+mvn clean package -P linux-debian
+
+# Linux (Fedora / RHEL / openSUSE)
+mvn clean package -P linux-rpm
 
 # macOS
 mvn clean package -P mac
+```
+
+Note for RPM builds: rpm-build must be installed on the build machine:
+
+```bash
+sudo dnf install rpm-build
 ```
 
 ---
@@ -279,6 +319,14 @@ sudo apt install stockfish
 ```
 
 Then in Kletka, go to **Engine → Configure Engine** and select the `stockfish` binary.
+
+### Linux (Fedora / RHEL)
+
+```bash
+sudo dnf install stockfish
+```
+
+Then in Kletka, go to Engine → Configure Engine and select the stockfish binary.
 
 ### macOS
 

@@ -68,7 +68,7 @@ public class ConfigFilePreferences {
 
     // Значения по умолчанию
     private static final String DEFAULT_LANGUAGE = "ru";
-    private static final int DEFAULT_TILE_SIZE = 80;
+    private static final int DEFAULT_TILE_SIZE = 60;
     private static final boolean DEFAULT_BOARD_FLIPPED = false;
     private static final boolean DEFAULT_SHOW_COORDINATES = true;
     private static final int DEFAULT_BOARD_THEME = 0; // WOOD
@@ -115,17 +115,6 @@ public class ConfigFilePreferences {
                 log.error("Critical: Cannot create any directory for config", ex);
             }
         }
-    }
-
-    private boolean isProgramInProgramFiles() {
-        String programPath = System.getProperty("user.dir");
-        String programFiles = System.getenv("ProgramFiles");
-        String programFilesX86 = System.getenv("ProgramFiles(x86)");
-
-        if (programFiles != null && programPath.startsWith(programFiles)) {
-            return true;
-        }
-        return programFilesX86 != null && programPath.startsWith(programFilesX86);
     }
 
     private Path getConfigDirectory() {
