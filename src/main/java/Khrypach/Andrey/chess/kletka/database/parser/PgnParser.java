@@ -428,7 +428,7 @@ public class PgnParser {
         PgnExportVisitor pgnVisitor = new PgnExportVisitor();
         VariationTreeTraverser traverser = new VariationTreeTraverser();
 
-        String result = traverser.traverse(rootNode, treeBuilder.getMainLine(), pgnVisitor);
+        String result = traverser.traverseForPgn(rootNode, treeBuilder.getMainLine(), pgnVisitor);
         log.debug("PgnExportVisitor result: '{}'", result);
 
         return result;

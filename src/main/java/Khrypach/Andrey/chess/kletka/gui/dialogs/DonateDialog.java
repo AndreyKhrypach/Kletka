@@ -47,7 +47,7 @@ import java.io.IOException;
 
 public class DonateDialog {
 
-    private static final String BITCOIN_ADDRESS = "15HGcdu67yy3pMb2roANr2GAJZDPefB1HS";
+    private static final String BITCOIN_ADDRESS = "1BHAdUuXfXAeW9TiBya6RTQDHzYiKEoSm4";
 
     private final LanguageManager lang = LanguageManager.getInstance();
 

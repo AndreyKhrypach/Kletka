@@ -30,6 +30,9 @@
 - 🔍 Анализ позиции с **Stockfish** (UCI движок)
 - 🎨 Настраиваемые темы доски
 - 📋 **Копирование позиции** в формате FEN + ASCII (Ctrl+Shift+P)
+- 💾 **Сохранение позиции в PGN** — вырезание позиции из партии в отдельный файл задач (Ctrl+Shift+E)
+- 🐛 **Отчёт о проблеме** — встроенная форма обратной связи через GitHub (меню Помощь)
+- 📦 **Пакеты для Debian, Ubuntu, Fedora, RHEL, openSUSE** — установка в один клик
 - 🌍 Мультиязычность: Русский, English, 中文
 - 🖥️ Кроссплатформенность: Windows, Linux, macOS
 
@@ -48,7 +51,16 @@
 - [Kletka: установка на Linux](https://www.youtube.com/watch?v=NXeR6J0_rXA)
 - [Kletka: настройка Stockfish на Linux](https://www.youtube.com/watch?v=m-qWoTGNIXg)
 
-Скоро — новые уроки: Windows, Linux, macOS.
+**macOS:**
+- [Kletka tutorial: macOS — установка](https://www.youtube.com/watch?v=JBtitIr7mF8)
+- [Kletka tutorial: macOS — настройка Stockfish](https://www.youtube.com/watch?v=v29AsFNnBEc)
+
+---
+
+## 💬 Сообщество
+
+- 🇷🇺 [Представляю Клетка — шахматный анализатор (Lichess blog)](https://lichess.org/@/KhrypachAndrey/blog/-/Qz4tM8oE)
+- 🇬🇧 [Introducing Kletka — chess analyzer (Lichess blog)](https://lichess.org/@/KhrypachAndrey/blog/introduce-kletka-chess-analyzer/p73trA8b)
 
 ---
 
@@ -127,11 +139,20 @@ sun.misc.Unsafe.invokeCleaner(mappedByteBuffer);
 
 ### Linux: известные проблемы
 
-На **Debian Trixie / Ubuntu 24.04+** с **Wayland** диалоги могут не получать фокус
-(клавиатура работает, мышь — нет). Это **известный баг JavaFX 17 + GTK 3 + Wayland**.
+На Debian Trixie / Ubuntu 24.04+ с Wayland диалоги могут не получать фокус
+(клавиатура работает, мышь — нет). Это известный баг JavaFX 17 + GTK 3 + Wayland.
 
-**Решение:** уже включено в Клетку — приложение запускается с флагом
-`-Djdk.gtk.version=2`, который использует GTK 2 через XWayland.
+Решение: уже включено в Клетку — приложение запускается с флагом
+-Djdk.gtk.version=2, который использует GTK 2 через XWayland.
+
+На Fedora 41+ диалоги также могут не получать фокус, пока вы не нажмёте Tab.
+Это вызвано Focus Stealing Prevention в GNOME на Wayland в сочетании с
+удалением сессии GNOME X11 в Fedora 41+ (на экране входа больше нет опции "GNOME on Xorg").
+
+Обходной путь: нажмите Tab один раз при появлении диалога — после этого фокус
+будет работать нормально с клавиатурой и мышью.
+
+Это известный баг JavaFX + Wayland, отслеживается в [JDK-8353643](https://bugs.openjdk.org/browse/JDK-8353643).
 
 ---
 
@@ -236,11 +257,19 @@ sun.misc.Unsafe.invokeCleaner(mappedByteBuffer);
 Скачайте `Kletka.exe` со страницы [Releases](https://github.com/AndreyKhrypach/Kletka/releases) и запустите установщик.
 
 ### macOS
-Скачайте `Kletka.dmg`, откройте его и перетащите `Kletka.app` в папку `Applications`.
+Скачайте `Kletka.dmg` со страницы [Releases](https://github.com/AndreyKhrypach/Kletka/releases), откройте его и перетащите `Kletka.app` в папку `Applications`.
 
 ### Linux (Debian/Ubuntu)
+Скачайте `Kletka.deb` со страницы [Releases](https://github.com/AndreyKhrypach/Kletka/releases)
+
 ```bash
 sudo dpkg -i kletka*.deb
+```
+
+### Linux (Fedora / RHEL / Rocky / Alma / openSUSE)
+
+```bash
+sudo dnf install kletka*.rpm
 ```
 
 ---
@@ -274,13 +303,21 @@ mvn clean package
 # Windows
 mvn clean package -P windows
 
-# Linux
-mvn clean package -P linux
+# Linux (Debian/Ubuntu)
+mvn clean package -P linux-debian
+
+# Linux (Fedora / RHEL / openSUSE)
+mvn clean package -P linux-rpm
 
 # macOS
 mvn clean package -P mac
 ```
 
+Примечание для RPM-сборки: на машине сборки должен быть установлен rpm-build:
+
+```bash
+sudo dnf install rpm-build
+```
 ---
 
 ## 🧠 Настройка Stockfish
@@ -300,6 +337,14 @@ sudo apt install stockfish
 ```
 
 Затем в Клетка перейдите в **Движок → Настроить движок** и выберите бинарный файл stockfish.
+
+### Linux (Fedora / RHEL)
+
+```bash
+sudo dnf install stockfish
+```
+
+Затем в Клетка перейдите в Движок → Настроить движок и выберите бинарный файл stockfish.
 
 ### macOS
 

@@ -1,0 +1,178 @@
+<!--
+  ~ /*
+  ~  * Copyright (c) 2024 Andrey Khrypach
+  ~  *
+  ~  * This program is free software: you can redistribute it and/or modify
+  ~  * it under the terms of the GNU General Public License as published by
+  ~  * the Free Software Foundation, either version 3 of the License, or
+  ~  * (at your option) any later version.
+  ~  *
+  ~  * This program is distributed in the hope that it will be useful,
+  ~  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+  ~  * GNU General Public License for more details.
+  ~  *
+  ~  * You should have received a copy of the GNU General Public License
+  ~  * along with this program. If not, see <https://www.gnu.org/licenses/>.
+  ~  */
+  ~
+  -->
+
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>隐私政策 — Kletka</title>
+    <meta name="description" content="Kletka 隐私政策 — 我们不收集个人数据。">
+    <link rel="canonical" href="https://andreykhrypach.github.io/Kletka/privacy.zh.html">
+    <link rel="alternate" hreflang="en" href="https://andreykhrypach.github.io/Kletka/privacy.html">
+    <link rel="alternate" hreflang="ru" href="https://andreykhrypach.github.io/Kletka/privacy.ru.html">
+    <link rel="alternate" hreflang="zh" href="https://andreykhrypach.github.io/Kletka/privacy.zh.html">
+
+    <style>
+        :root {
+            --bg: #1e1e1e;
+            --fg: #e0e0e0;
+            --accent: #4a9eff;
+            --muted: #888;
+            --card: #2a2a2a;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            line-height: 1.8;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+        h1 { font-size: 2em; margin-bottom: 0.2em; }
+        h2 { font-size: 1.4em; margin-top: 2em; border-bottom: 1px solid #333; padding-bottom: 8px; }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .lang-switch { margin: 20px 0; font-size: 0.95em; }
+        .lang-switch a { margin-right: 12px; }
+        ul { padding-left: 20px; }
+        li { margin: 6px 0; }
+        code {
+            background: #333;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .updated { color: var(--muted); font-size: 0.9em; }
+        .highlight {
+            background: #2a3a2a;
+            border-left: 3px solid #4caf50;
+            padding: 12px 16px;
+            margin: 20px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid #333; color: var(--muted); font-size: 0.9em; }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <h1>🔒 隐私政策</h1>
+    <p class="updated">最后更新：<strong>2026-10-06</strong></p>
+
+    <div class="lang-switch">
+        🌐 <a href="privacy.html">English</a> ·
+        <a href="privacy.ru.html">Русский</a> ·
+        <strong>中文</strong>
+    </div>
+
+    <div class="highlight">
+        <strong>简要说明：</strong> Kletka <strong>不收集</strong>、不存储、不传输任何您的个人数据。
+        没有遥测、没有分析、没有跟踪。
+    </div>
+
+    <h2>1. Kletka 不收集的信息</h2>
+    <p>Kletka 不收集、不存储、不传输：</p>
+    <ul>
+        <li>您的姓名、电子邮件或任何账户信息</li>
+        <li>您的 IP 地址（除了您提交 issue 时 GitHub 看到的）</li>
+        <li>您打开或编辑的 PGN 文件内容</li>
+        <li>您分析的局面</li>
+        <li>您的键盘或鼠标活动</li>
+        <li>您的位置、语言或系统设置（除本地使用外）</li>
+        <li>任何使用统计或崩溃报告</li>
+    </ul>
+
+    <h2>2. 本地数据存储</h2>
+    <p>Kletka 在您的计算机上本地存储配置：</p>
+    <ul>
+        <li><strong>Windows:</strong> <code>%APPDATA%\Kletka\config.properties</code></li>
+        <li><strong>Linux:</strong> <code>~/.config/kletka/config.properties</code></li>
+        <li><strong>macOS:</strong> <code>~/Library/Application Support/Kletka/config.properties</code></li>
+    </ul>
+    <p>该文件仅包含您的偏好设置（语言、棋盘主题、引擎路径、上次打开的文件夹）。
+        它不会被发送到任何地方。</p>
+
+    <h2>3. 在 GitHub 上报告问题</h2>
+    <p>Kletka 有 <strong>"报告问题"</strong> 功能（"帮助"菜单）。使用时：</p>
+    <ol>
+        <li>Kletka 在您的浏览器中打开 GitHub 上的<strong>新建 issue 表单</strong>。</li>
+        <li>报告<strong>不会自动发送</strong>。您可以在提交前查看和编辑。</li>
+        <li>需要<strong>免费 GitHub 账户</strong>才能提交。</li>
+    </ol>
+
+    <h3>3.1. 报告中包含的内容</h3>
+    <p>如果您勾选了 <strong>"包含系统信息"</strong>（默认启用），以下技术数据会自动预填到报告中：</p>
+    <ul>
+        <li>Kletka 版本（例如 1.6.0）</li>
+        <li>操作系统及版本（例如 Windows 11、Linux、macOS）</li>
+        <li>CPU 架构（例如 amd64、aarch64）</li>
+        <li>Java 版本及供应商（例如 17.0.10、Oracle）</li>
+        <li>国际象棋引擎名称和版本（例如 Stockfish 16.1，或"未安装"）</li>
+        <li>界面语言（例如 en_US、ru_RU、zh_CN）</li>
+        <li>报告时间戳</li>
+        <li>最大 Java 堆大小</li>
+    </ul>
+    <p><strong>不包含任何个人数据。</strong> 您可以在提交前取消勾选此选项。</p>
+
+    <h3>3.2. 提交后会发生什么</h3>
+    <p>在 GitHub 上点击 <strong>"Submit new issue"</strong> 后：</p>
+    <ul>
+        <li>报告将在 Kletka 仓库的 Issues 页面上<strong>公开</strong>。</li>
+        <li>您的 GitHub 用户名（或"Anonymous"）将可见。</li>
+        <li>GitHub 自己的<a href="https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement">隐私声明</a>适用于 GitHub 处理的数据，包括您的 IP 地址。</li>
+    </ul>
+
+    <h2>4. 第三方服务</h2>
+    <p>Kletka 本身不连接互联网，除非<strong>您明确触发</strong>：</p>
+    <ul>
+        <li>打开链接（GitHub、YouTube、文档）</li>
+        <li>检查更新（查询 GitHub API 获取最新版本）</li>
+        <li>报告问题（打开 GitHub issue 表单）</li>
+    </ul>
+    <p>在所有情况下，请求由您的浏览器或 GitHub 基础设施处理，而不是 Kletka 本身。</p>
+
+    <h2>5. 国际象棋引擎</h2>
+    <p>Kletka 使用外部 UCI 国际象棋引擎（例如 Stockfish）进行分析。
+        引擎在您的计算机上<strong>本地</strong>运行。默认情况下它不连接互联网。</p>
+
+    <h2>6. 儿童隐私</h2>
+    <p>Kletka 不会故意收集任何人的数据，包括 13 岁以下儿童。</p>
+
+    <h2>7. 政策变更</h2>
+    <p>如果我们更改本政策，将更新上方的"最后更新"日期。
+        重大变更将在 <a href="https://github.com/AndreyKhrypach/Kletka/blob/master/CHANGELOG.md">CHANGELOG</a> 中公布。</p>
+
+    <h2>8. 联系方式</h2>
+    <p>有关本政策的问题，请在 GitHub 上开 issue：
+        <a href="https://github.com/AndreyKhrypach/Kletka/issues">github.com/AndreyKhrypach/Kletka/issues</a></p>
+
+    <footer>
+        <p>© Andrey Khrypach · <a href="README.zh.html">主页</a> · <a href="https://github.com/AndreyKhrypach/Kletka">GitHub</a> · <a href="privacy.html">English</a> · <a href="privacy.ru.html">Русский</a></p>
+    </footer>
+
+</div>
+</body>
+</html>

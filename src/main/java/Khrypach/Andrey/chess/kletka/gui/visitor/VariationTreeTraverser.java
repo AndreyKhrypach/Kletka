@@ -101,10 +101,11 @@ public class VariationTreeTraverser {
 
     /**
      * Рекурсивно обрабатывает уровень
-     * @param node текущий узел
-     * @param level номер уровня
+     *
+     * @param node            текущий узел
+     * @param level           номер уровня
      * @param parentVariation родительский вариант
-     * @param visitor визитер с поддержкой уровней
+     * @param visitor         визитер с поддержкой уровней
      */
     private <T> void processLevel(ParentNode node, int level,
                                   Variation parentVariation,
@@ -250,25 +251,37 @@ public class VariationTreeTraverser {
 
                 if (hasSubVariations && nextMainLineNode != null && !nextMainLineNode.isRoot() &&
                         nextMainLineNode instanceof MoveNode nextMove) {
+
                     int nextPly = nextMove.getAbsolutePly();
                     int nextMoveNumber = (nextPly + 1) / 2;
                     boolean nextIsWhite = (nextPly % 2 == 1);
 
-                    visitor.visitMainLineMove(nextMove, nextMoveNumber, nextIsWhite, false);
-                    alreadyVisited.add(nextMove);
+                    // ========== ПРОВЕРЯЕМ, БУДЕТ ЛИ nextMove ВЫВЕДЕН НА СЛЕДУЮЩЕЙ ИТЕРАЦИИ ==========
+                    // Если nextMove == mainLineMoves.get(i+1), то он сам появится на следующей
+                    // итерации цикла, и выводить его здесь НЕ НУЖНО.
+                    boolean nextIsNextInLoop = (i + 1 < mainLineMoves.size()) &&
+                            mainLineMoves.get(i + 1) == nextMove;
 
+                    if (!nextIsNextInLoop) {
+                        // nextMove не будет обработан на следующей итерации — выводим здесь
+                        visitor.visitMainLineMove(nextMove, nextMoveNumber, nextIsWhite, false);
+                        alreadyVisited.add(nextMove);
+                    }
+
+                    // Обходим подварианты текущего узла
                     for (Variation subVar : moveNode.getSubVariations()) {
                         if (!subVar.isMainLine() && !subVar.isEmpty()) {
-                            traverseVariation(subVar, 1, moveNode, visitor);
+                            traverseVariation(subVar, 0, moveNode, visitor);
                         }
                     }
 
-                    visitor.visitMainLineMoveEnd(nextMove);
-
+                    if (!nextIsNextInLoop) {
+                        visitor.visitMainLineMoveEnd(nextMove);
+                    }
                 } else if (hasSubVariations) {
                     for (Variation subVar : moveNode.getSubVariations()) {
                         if (!subVar.isMainLine() && !subVar.isEmpty()) {
-                            traverseVariation(subVar, 1, moveNode, visitor);
+                            traverseVariation(subVar, 0, moveNode, visitor);
                         }
                     }
                 }
@@ -281,6 +294,113 @@ public class VariationTreeTraverser {
         visitor.visitRootEnd(rootNode);
         alreadyVisitedInVariation = null;
         return visitor.getResult();
+    }
+
+    /**
+     * Обход дерева для PGN-экспорта.
+     * Отличается от traverse() порядком вывода:
+     * сначала выводится next (главная линия), потом варианты.
+     * Это соответствует PGN-стандарту.
+     * Пример: если у узла Nc6 есть next=Nc3 и варианты Bc4, Bb5,
+     * то порядок вывода будет: Nc6, Nc3, (Bc4 ...), (Bb5 ...).
+     */
+    public <T> T traverseForPgn(RootNode rootNode, Variation mainLine, VariationTreeVisitor<T> visitor) {
+        log.trace("traverseForPgn - mainLine = {}", mainLine != null ? mainLine.getName() : "null");
+
+        visitor.visitRootStart(rootNode);
+
+        // 1. Находим главную линию на корне
+        Variation mainLineVar = null;
+        for (Variation var : rootNode.getSubVariations()) {
+            if (var.isMainLine()) {
+                mainLineVar = var;
+                break;
+            }
+        }
+
+        if (mainLineVar == null && !rootNode.getSubVariations().isEmpty()) {
+            mainLineVar = rootNode.getSubVariations().get(0);
+            mainLineVar.setMainLine(true);
+        }
+
+        if (mainLineVar == null || mainLineVar.isEmpty()) {
+            visitor.visitRootEnd(rootNode);
+            return visitor.getResult();
+        }
+
+        visitor.visitMainLineStart(mainLineVar);
+
+        List<ParentNode> mainLineMoves = mainLineVar.getMoves();
+
+        if (!mainLineMoves.isEmpty() && mainLineMoves.get(0) instanceof MoveNode firstMove) {
+            int absolutePly = firstMove.getAbsolutePly();
+            boolean isWhiteMove = (absolutePly % 2 == 1);
+            int moveNumber = (absolutePly + 1) / 2;
+
+            // Выводим первый ход
+            visitor.visitMainLineMove(firstMove, moveNumber, isWhiteMove, true);
+
+            // Root variations
+            List<Variation> rootVariations = new ArrayList<>();
+            for (Variation var : rootNode.getSubVariations()) {
+                if (!var.isMainLine() && !var.isEmpty()) {
+                    rootVariations.add(var);
+                }
+            }
+            if (!rootVariations.isEmpty()) {
+                visitor.visitRootVariationsStart(rootNode, rootVariations);
+                for (Variation var : rootVariations) {
+                    traverseRootVariation(var, visitor);
+                }
+                visitor.visitRootVariationsEnd(rootNode);
+            }
+
+            // Рекурсивно обрабатываем всю цепочку начиная с firstMove
+            processMainLineForPgn(firstMove, visitor);
+        }
+
+        visitor.visitMainLineEnd(mainLineVar);
+        visitor.visitRootEnd(rootNode);
+        return visitor.getResult();
+    }
+
+    /**
+     * Рекурсивно обрабатывает цепочку главной линии для PGN-экспорта.
+     * Для переданного узла (который уже выведен через visitMainLineMove):
+     * - выводит его next (главную линию) сразу
+     * - выводит варианты текущего узла (альтернативы next)
+     * - закрывает next через visitMainLineMoveEnd
+     * - рекурсивно обрабатывает next
+     * Если next нет — просто закрывает moveNode.
+     */
+    private <T> void processMainLineForPgn(MoveNode moveNode, VariationTreeVisitor<T> visitor) {
+        ParentNode nextNode = moveNode.getNext();
+
+        // Конец главной линии — закрываем текущий узел
+        if (nextNode == null || nextNode.isRoot() || !(nextNode instanceof MoveNode nextMove)) {
+            visitor.visitMainLineMoveEnd(moveNode);
+            return;
+        }
+
+        int nextPly = nextMove.getAbsolutePly();
+        int nextMoveNumber = (nextPly + 1) / 2;
+        boolean nextIsWhite = (nextPly % 2 == 1);
+
+        // 1. ВЫВОДИМ NEXT СРАЗУ (главную линию)
+        visitor.visitMainLineMove(nextMove, nextMoveNumber, nextIsWhite, false);
+
+        // 2. ВЫВОДИМ ВАРИАНТЫ ТЕКУЩЕГО УЗЛА (альтернативы next)
+        for (Variation subVar : moveNode.getSubVariations()) {
+            if (!subVar.isMainLine() && !subVar.isEmpty()) {
+                traverseVariation(subVar, 0, moveNode, visitor);
+            }
+        }
+
+        // 3. ЗАКРЫВАЕМ ТЕКУЩИЙ УЗЕЛ (moveNode)
+        visitor.visitMainLineMoveEnd(moveNode);
+
+        // 4. РЕКУРСИЯ — обрабатываем next (закрытие nextMove произойдёт внутри)
+        processMainLineForPgn(nextMove, visitor);
     }
 
     // ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ДЛЯ PGN ==========

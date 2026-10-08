@@ -68,8 +68,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -364,7 +362,11 @@ public class ChessBoardView extends Application {
         });
 
         KeyCombination ctrlO = new KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN);
-        scene.getAccelerators().put(ctrlO, () -> Platform.runLater(this::openPgnFile));
+        scene.getAccelerators().put(ctrlO, () -> {
+            if (mainController != null) {
+                Platform.runLater(mainController::openPgnFileWithCheck);
+            }
+        });
 
         KeyCombination ctrlS = new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN);
         scene.getAccelerators().put(ctrlS, () -> Platform.runLater(this::savePgnFile));
@@ -486,7 +488,11 @@ public class ChessBoardView extends Application {
         // Ctrl+= (увеличение) - основная клавиатура
         KeyCombination ctrlEquals = new KeyCodeCombination(KeyCode.EQUALS, KeyCombination.CONTROL_DOWN);
         scene.getAccelerators().put(ctrlEquals, () -> {
-            if (mainController != null && mainController.getSizeController() != null) {
+            if (coachTools != null && coachTools.isPanelExpanded()) {
+                coachTools.togglePanel();
+
+            }
+                if (mainController != null && mainController.getSizeController() != null) {
                 mainController.getSizeController().increaseSize();
             }
         });
@@ -494,6 +500,10 @@ public class ChessBoardView extends Application {
         // Ctrl++ (цифровая клавиатура)
         KeyCombination ctrlPlus = new KeyCodeCombination(KeyCode.PLUS, KeyCombination.CONTROL_DOWN);
         scene.getAccelerators().put(ctrlPlus, () -> {
+            if (coachTools != null && coachTools.isPanelExpanded()) {
+                coachTools.togglePanel();
+
+            }
             if (mainController != null && mainController.getSizeController() != null) {
                 mainController.getSizeController().increaseSize();
             }
@@ -502,6 +512,10 @@ public class ChessBoardView extends Application {
         // Ctrl+- (уменьшение) - основная клавиатура
         KeyCombination ctrlMinus = new KeyCodeCombination(KeyCode.MINUS, KeyCombination.CONTROL_DOWN);
         scene.getAccelerators().put(ctrlMinus, () -> {
+            if (coachTools != null && coachTools.isPanelExpanded()) {
+                coachTools.togglePanel();
+
+            }
             if (mainController != null && mainController.getSizeController() != null) {
                 mainController.getSizeController().decreaseSize();
             }
@@ -510,6 +524,10 @@ public class ChessBoardView extends Application {
         // Ctrl+0 (сброс масштаба)
         KeyCombination ctrlZero = new KeyCodeCombination(KeyCode.DIGIT0, KeyCombination.CONTROL_DOWN);
         scene.getAccelerators().put(ctrlZero, () -> {
+            if (coachTools != null && coachTools.isPanelExpanded()) {
+                coachTools.togglePanel();
+
+            }
             if (mainController != null && mainController.getSizeController() != null) {
                 mainController.getSizeController().resetSize();
             }
@@ -644,6 +662,15 @@ public class ChessBoardView extends Application {
         scene.getAccelerators().put(ctrlR, () -> {
             if (mainController != null) {
                 Platform.runLater(mainController::refreshPgnBrowser);
+            }
+        });
+
+        // Ctrl+Shift+E — Сохранить позицию как PGN
+        KeyCombination ctrlShiftE = new KeyCodeCombination(KeyCode.E,
+                KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN);
+        scene.getAccelerators().put(ctrlShiftE, () -> {
+            if (mainController != null) {
+                Platform.runLater(mainController::exportPositionToPgn);
             }
         });
     }
@@ -1768,7 +1795,7 @@ public class ChessBoardView extends Application {
             Piece movingPiece = chessBoard.getPiece(move.getFrom());
             boolean isCapture = chessBoard.getPiece(move.getTo()) != Piece.NONE;
 
-            // Определяем promotionPiece
+            // ========== ОПРЕДЕЛЯЕМ ПРЕВРАЩЕНИЕ (если нужно) ==========
             Piece promotionPiece = null;
             if (movingPiece == Piece.WHITE_PAWN && move.getTo().getRank().ordinal() == 7) {
                 log.debug("EngineMove - PROMOTION for white pawn");
@@ -1782,39 +1809,11 @@ public class ChessBoardView extends Application {
                 if (promotionPiece == null) promotionPiece = Piece.BLACK_QUEEN;
             }
 
-            // Останавливаем анализ
+            // ========== ОСТАНАВЛИВАЕМ АНАЛИЗ ПЕРЕД ХОДОМ ==========
             navController.getEngineManager().stopAnalysis();
 
-            // Пытаемся добавить ход обычным способом
-            Boolean addResult = navController.addMove(move, movingPiece, isCapture, promotionPiece);
-
-            // Если addMove вернул null (требуется диалог) - принудительно создаем вариант
-            if (addResult == null) {
-                log.debug("Engine move requires dialog - forcing new variation creation");
-
-                // Получаем текущие вариацию и узел
-                Variation currentVar = navController.getCurrentVariation();
-                ParentNode currentNode = navController.getCurrentNode();
-
-                // Используем новый метод для принудительного добавления
-                VariationStateSnapshot snapshot = navController.getVariationManager()
-                        .forceAddMoveAsNewVariation(move, movingPiece, isCapture, promotionPiece,
-                                currentVar, currentNode);
-
-                // Применяем снимок состояния
-                navController.applySnapshot(snapshot);
-            }
-
-            mainController.updateCurrentGameData();
-            navController.restoreBoardFromCurrentNode();
-
-            notationView.refreshFromMainLine();
-            checkGameEnd();
-            updateEngineAfterMove();
-
-            selectedSquare = null;
-            possibleMoves.clear();
-            refreshBoard();
+            // ========== ИСПОЛЬЗУЕМ ТУ ЖЕ ЛОГИКУ, ЧТО И ДЛЯ ПОЛЬЗОВАТЕЛЯ ==========
+            executeMove(move, movingPiece, isCapture, promotionPiece);
 
         } catch (Exception e) {
             log.error("Error executing engine move", e);
@@ -1843,49 +1842,6 @@ public class ChessBoardView extends Application {
         Scene scene = primaryStage.getScene();
         if (scene != null) {
             scene.setCursor(Cursor.OPEN_HAND);
-        }
-    }
-
-    private void openPgnFile() {
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle(lang.get(MENU_FILE_OPEN_PGN));
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PGN files", "*.pgn"));
-
-        // ========== ПЫТАЕМСЯ ОТКРЫТЬ ПОСЛЕДНЮЮ ПАПКУ ==========
-        String lastDir = AppPreferences.getLastOpenDirectory();
-        if (lastDir != null && !lastDir.isEmpty()) {
-            File dir = new File(lastDir);
-            if (dir.exists() && dir.isDirectory()) {
-                fileChooser.setInitialDirectory(dir);
-            } else {
-                // Если папка не существует — используем bases
-                setDefaultOpenDirectory(fileChooser);
-            }
-        } else {
-            setDefaultOpenDirectory(fileChooser);
-        }
-
-        File file = fileChooser.showOpenDialog(primaryStage);
-        if (file != null && mainController != null) {
-            // ========== СОХРАНЯЕМ ПАПКУ ПРИ УСПЕШНОМ ОТКРЫТИИ ==========
-            if (file.getParent() != null) {
-                AppPreferences.saveLastOpenDirectory(file.getParent());
-            }
-            mainController.loadPgnFile(file);
-        }
-    }
-
-    /**
-     * Устанавливает папку bases как директорию по умолчанию
-     */
-    private void setDefaultOpenDirectory(FileChooser fileChooser) {
-        try {
-            Path basesPath = AppPreferences.getBasesDirectory();
-            if (basesPath != null && Files.exists(basesPath)) {
-                fileChooser.setInitialDirectory(basesPath.toFile());
-            }
-        } catch (Exception e) {
-            log.debug("Could not set default open directory: {}", e.getMessage());
         }
     }
 

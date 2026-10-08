@@ -127,6 +127,36 @@ public class SaveGameDialog {
     }
 
     /**
+     * Предзаполняет диалог как позицию (для экспорта).
+     * Переключает на вкладку "Детали", ставит галочку SetUp, заполняет FEN.
+     */
+    public void prefillAsPosition(String fen) {
+        if (fen == null || fen.isEmpty()) return;
+
+        // ========== STAVIM SETUP + FEN ==========
+        setUpCheckBox.setSelected(true);
+        fenField.setText(fen);
+        fenField.setDisable(false);
+        positionTypeCombo.setValue(lang.get(SAVE_TYPE_POSITION));
+
+        // ========== ПЕРЕКЛЮЧАЕМСЯ НА ВКЛАДКУ "ДЕТАЛИ" ==========
+        if (tabPane != null && tabPane.getTabs().size() > 2) {
+            tabPane.getSelectionModel().select(2);
+        }
+
+        // ========== МЕНЯЕМ ЗАГОЛОВОК ДИАЛОГА ==========
+        if (dialog != null) {
+            dialog.setTitle(lang.get(POSITION_EXPORT_DIALOG_TITLE));
+            dialog.setHeaderText(lang.get(POSITION_EXPORT_DIALOG_HEADER));
+        }
+
+        // ========== ПРЕДЗАПОЛНЯЕМ EVENT, ЕСЛИ ПУСТО ==========
+        if (eventField != null && (eventField.getText() == null || eventField.getText().trim().isEmpty())) {
+            eventField.setText("Kletka Position");
+        }
+    }
+
+    /**
      * Создает диалог с тремя вкладками
      */
     private void createDialog() {

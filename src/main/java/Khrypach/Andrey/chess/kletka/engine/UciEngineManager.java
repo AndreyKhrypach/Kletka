@@ -115,6 +115,8 @@ public class UciEngineManager {
             stopEngine();
         }
 
+        engineName = "UCI Engine";
+
         log.info("Starting engine: {}", enginePath);
 
         ProcessBuilder processBuilder = new ProcessBuilder(enginePath);
@@ -148,6 +150,22 @@ public class UciEngineManager {
 
         // Инициализация с использованием CompletableFuture
         initializeEngine();
+    }
+
+    /**
+     * Возвращает "чистое" название движка без лишних префиксов,
+     * например "Stockfish 16.1" или "Stockfish 17".
+     * Если движок не запущен — возвращает null.
+     */
+    public String getEngineVersion() {
+        if (!isEngineRunning()) {
+            return null;
+        }
+        String name = engineName;
+        if (name == null || name.isBlank() || "UCI Engine".equals(name)) {
+            return null;
+        }
+        return name.trim();
     }
 
     /**

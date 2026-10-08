@@ -173,6 +173,15 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.MENU_FILE_EXPORT_CURRENT, "导出当前对局");
         strings.put(LanguageKeys.MENU_FILE_IMPORT_CLIPBOARD, "从剪贴板导入");
 
+        strings.put(LanguageKeys.MENU_FILE_EXPORT_POSITION, "保存局面为 PGN...");
+        strings.put(LanguageKeys.POSITION_EXPORT_DIALOG_TITLE, "保存局面");
+        strings.put(LanguageKeys.POSITION_EXPORT_DIALOG_HEADER, "填写局面信息");
+        strings.put(LanguageKeys.POSITION_EXPORT_FILE_DIALOG_TITLE, "保存局面到...");
+        strings.put(LanguageKeys.POSITION_EXPORT_ERROR_TITLE, "局面保存错误");
+        strings.put(LanguageKeys.POSITION_EXPORT_NO_BOARD, "棋盘未初始化");
+        strings.put(LanguageKeys.POSITION_EXPORT_NO_POSITION, "没有可保存的局面");
+        strings.put(LanguageKeys.POSITION_EXPORT_SUCCESS, "局面已保存到 %s");
+
         // ========== HELP MENU ==========
         strings.put(LanguageKeys.MENU_HELP_SHORTCUTS, "快捷键");
         strings.put(LanguageKeys.MENU_HELP_ABOUT, "关于");
@@ -189,6 +198,40 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.MENU_HELP_NO_UPDATES, "没有更新");
         strings.put(LanguageKeys.MENU_HELP_NO_UPDATES_MSG, "您已安装最新版本的 Kletka。");
         strings.put(LanguageKeys.MENU_HELP_UPDATE_CHECK_ERROR, "检查更新失败");
+
+        // ========== REPORT PROBLEM ==========
+        strings.put(LanguageKeys.MENU_HELP_REPORT_PROBLEM, "报告问题...");
+        strings.put(LanguageKeys.REPORT_TITLE, "报告问题");
+        strings.put(LanguageKeys.REPORT_HEADER, "帮助我们改进 Kletka");
+        strings.put(LanguageKeys.REPORT_TYPE_LABEL, "问题类型");
+        strings.put(LanguageKeys.REPORT_TYPE_BUG, "\uD83D\uDC1B 错误 / Bug");
+        strings.put(LanguageKeys.REPORT_TYPE_FEATURE, "\uD83D\uDCA1 功能建议 / Feature request");
+        strings.put(LanguageKeys.REPORT_TYPE_PERFORMANCE, "⚡ 性能问题 / Performance");
+        strings.put(LanguageKeys.REPORT_TYPE_UI, "\uD83C\uDFA8 界面问题 / UI/UX");
+        strings.put(LanguageKeys.REPORT_TYPE_DOCUMENTATION, "\uD83D\uDCDD 文档 / 翻译");
+        strings.put(LanguageKeys.REPORT_TYPE_OTHER, "❓ 其他");
+        strings.put(LanguageKeys.REPORT_DESCRIPTION_LABEL, "问题描述");
+        strings.put(LanguageKeys.REPORT_DESCRIPTION_PROMPT, "请描述发生了什么。越详细越好。如果可能，请提供重现步骤。");
+        strings.put(LanguageKeys.REPORT_INCLUDE_SYSTEM_INFO, "包含系统信息（Kletka 版本、操作系统、Java、引擎）");
+        strings.put(LanguageKeys.REPORT_PRIVACY_NOTICE, "我们不收集您的个人数据。系统信息仅用于调试。");
+        strings.put(LanguageKeys.REPORT_PRIVACY_LINK, "隐私政策");
+        strings.put(LanguageKeys.REPORT_BUTTON_COPY, "复制到剪贴板");
+        strings.put(LanguageKeys.REPORT_BUTTON_CANCEL, "取消");
+        strings.put(LanguageKeys.REPORT_BUTTON_GITHUB, "在 GitHub 上打开 →");
+        strings.put(LanguageKeys.REPORT_WARNING_TITLE, "需要 GitHub 账户");
+        strings.put(LanguageKeys.REPORT_WARNING_HEADER, "即将打开 GitHub 上的新建 issue 页面");
+        strings.put(LanguageKeys.REPORT_WARNING_CONTENT, """
+                报告不会自动发送——您可以在提交前查看和编辑。
+                
+                需要免费的 GitHub 账户。如果没有，注册只需 1-2 分钟：https://github.com/signup
+                
+                登录后点击 "Submit new issue" 发送报告。""");
+        strings.put(LanguageKeys.REPORT_WARNING_CONTINUE, "继续");
+        strings.put(LanguageKeys.REPORT_ERROR_EMPTY_DESCRIPTION, "请描述问题");
+        strings.put(LanguageKeys.REPORT_ERROR_URL_TOO_LONG, "描述太长，无法通过浏览器发送。请缩短描述或使用\"复制到剪贴板\"并手动创建 issue。");
+        strings.put(LanguageKeys.REPORT_COPIED_TO_CLIPBOARD, "报告已复制到剪贴板");
+        strings.put(LanguageKeys.REPORT_OPEN_BROWSER_ERROR, "无法打开浏览器");
+        strings.put(LanguageKeys.ABOUT_PRIVACY_LINK, "隐私");
 
         // ========== EDIT MENU ==========
         strings.put(LanguageKeys.MENU_EDIT, "编辑");
@@ -600,6 +643,8 @@ public class ZhLanguage implements Language {
                     平台：Java 17、OpenJFX
                     库：chesslib 1.3.6 (GPL v3)
                     
+                    %s
+                    
                     跨平台国际象棋分析器
                     支持 SQLite 数据库
                     
@@ -618,6 +663,8 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.ABOUT_WEBSITE_LINK , "项目网站");
         strings.put(LanguageKeys.ABOUT_GITHUB_LINK  , "GitHub 仓库");
         strings.put(LanguageKeys.ABOUT_LICENSE_LINK   , "GPL v3 许可证文本");
+        strings.put(LanguageKeys.ABOUT_ENGINE_VERSION   , "引擎: %s");
+        strings.put(LanguageKeys.ABOUT_ENGINE_NOT_INSTALLED   , "Stockfish 未安装");
 
         // ========== POSITION SET ==========
         strings.put(LanguageKeys.POSITION_SET_SUCCESS, "局面已设置。%s走棋");
@@ -1241,6 +1288,7 @@ public class ZhLanguage implements Language {
         shortcutsContent.append("  Ctrl+O - 打开 PGN\n");
         shortcutsContent.append("  Ctrl+S - 保存 PGN\n");
         shortcutsContent.append("  Ctrl+E - 导出当前对局\n");
+        shortcutsContent.append("  Ctrl+Shift+E — 保存当前局面为 PGN\n");
         shortcutsContent.append("  Ctrl+Shift+V - 从剪贴板导入\n");
         shortcutsContent.append("  Ctrl+P - 设置局面\n");
         shortcutsContent.append("  Alt+F4 - 退出\n");

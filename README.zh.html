@@ -115,7 +115,7 @@
         }
         hr { border: none; border-top: 1px solid #333; margin: 30px 0; }
 
-        /* Ограничение для картинок вне таблицы (секция "Полный размер") */
+        /* Full-size images: constrain to container, clickable, styled */
         img {
             max-width: 100%;
             height: auto;
@@ -177,6 +177,9 @@
         <li>🔍 使用 <strong>Stockfish</strong> (UCI 引擎) 进行局面分析</li>
         <li>🎨 可定制的棋盘主题</li>
         <li>📋 <strong>复制局面</strong> 为 FEN + ASCII 格式 (Ctrl+Shift+P)</li>
+        <li>💾 <strong>将局面保存为 PGN</strong> — 从对局中提取局面到题目文件 (Ctrl+Shift+E)</li>
+        <li>🐛 <strong>报告问题</strong> — 通过 GitHub 的内置反馈表单（帮助菜单）</li>
+        <li>📦 <strong>Debian、Ubuntu、Fedora、RHEL、openSUSE 软件包</strong> — 一键安装</li>
         <li>🌍 多语言支持：英语、俄语、中文</li>
         <li>🖥️ 跨平台：Windows、Linux、macOS</li>
     </ul>
@@ -185,18 +188,30 @@
 
     <h2>📺 视频教程</h2>
     <p>我们在 YouTube 频道上的分步指南：</p>
-    <p><strong>Windows:</strong></p>
+    <p><strong>Windows：</strong></p>
     <ul>
         <li><a href="https://www.youtube.com/watch?v=OSaSA-Qm0GY">Kletka 教程：Windows 安装</a></li>
         <li><a href="https://www.youtube.com/watch?v=TWhIM4zsmIY">Kletka 教程：Windows — 设置 Stockfish</a></li>
         <li><a href="https://www.youtube.com/watch?v=QAz95CSiDy0">Kletka 教程：如何使用 Polyglot 开局库</a></li>
     </ul>
-    <p><strong>Linux:</strong></p>
+    <p><strong>Linux：</strong></p>
     <ul>
         <li><a href="https://www.youtube.com/watch?v=NXeR6J0_rXA">Kletka 教程：Linux 安装</a></li>
         <li><a href="https://www.youtube.com/watch?v=m-qWoTGNIXg">Kletka 教程：Linux — 设置 Stockfish</a></li>
     </ul>
-    <p>更多教程即将推出 — macOS。</p>
+    <p><strong>macOS：</strong></p>
+    <ul>
+        <li><a href="https://www.youtube.com/watch?v=JBtitIr7mF8">Kletka 教程：在 macOS 上安装</a></li>
+        <li><a href="https://www.youtube.com/watch?v=v29AsFNnBEc">Kletka 教程：在 macOS 上设置 Stockfish</a></li>
+    </ul>
+
+    <hr>
+
+    <h2>💬 社区</h2>
+    <ul>
+        <li>🇷🇺 <a href="https://lichess.org/@/KhrypachAndrey/blog/-/Qz4tM8oE">Представляю Клетка — шахматный анализатор (Lichess blog)</a></li>
+        <li>🇬🇧 <a href="https://lichess.org/@/KhrypachAndrey/blog/introduce-kletka-chess-analyzer/p73trA8b">Introducing Kletka — chess analyzer (Lichess blog)</a></li>
+    </ul>
 
     <hr>
 
@@ -266,6 +281,9 @@
     <h3>Linux：已知问题</h3>
     <p>在 <strong>Debian Trixie / Ubuntu 24.04+</strong> 上使用 <strong>Wayland</strong> 时，对话框可能无法获得焦点（键盘可以工作，但鼠标无法工作）。这是 <strong>JavaFX 17 + GTK 3 + Wayland 的已知 bug</strong>。</p>
     <p><strong>解决方案：</strong> 已在 Kletka 中包含——应用程序启动时带有 <code>-Djdk.gtk.version=2</code> 标志，通过 XWayland 使用 GTK 2。</p>
+    <p>在 <strong>Fedora 41+</strong> 上，对话框也可能无法获得焦点，直到您按下 <strong>Tab</strong>。这是由于 Wayland 上 GNOME 的 <strong>焦点窃取防护</strong>（Focus Stealing Prevention），加上 Fedora 41+ 移除了 GNOME X11 会话（登录界面不再有 "GNOME on Xorg" 选项）。</p>
+    <p><strong>临时解决方案：</strong> 对话框出现时按一次 <strong>Tab</strong> — 之后焦点将正常使用键盘和鼠标。</p>
+    <p>这是 <strong>已知的 JavaFX + Wayland bug</strong>，跟踪于 <a href="https://bugs.openjdk.org/browse/JDK-8353643">JDK-8353643</a>。</p>
 
     <h3>推荐书籍：</h3>
     <p>为获得最佳效果，我们推荐使用 <strong><code>uho-pohl.bin</code></strong> 开局库，其中包含大量高质量的开局变着。</p>
@@ -369,10 +387,15 @@
     <p>从 <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a> 页面下载 <code>Kletka.exe</code> 并运行安装程序。</p>
 
     <h3>macOS</h3>
-    <p>下载 <code>Kletka.dmg</code>，打开并将 <code>Kletka.app</code> 拖到 <code>Applications</code> 文件夹。</p>
+    <p>从 <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a> 页面下载 <code>Kletka.dmg</code>，打开并将 <code>Kletka.app</code> 拖到 <code>Applications</code> 文件夹。</p>
 
     <h3>Linux (Debian/Ubuntu)</h3>
+    <p>从 <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a> 页面下载 <code>Kletka.deb</code></p>
     <pre><code>sudo dpkg -i kletka*.deb</code></pre>
+
+    <h3>Linux (Fedora / RHEL / Rocky / Alma / openSUSE)</h3>
+    <p>从 <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a> 页面下载 <code>Kletka.rpm</code></p>
+    <pre><code>sudo dnf install kletka*.rpm</code></pre>
 
     <hr>
 
@@ -397,11 +420,16 @@ mvn clean package</code></pre>
     <pre><code># Windows
 mvn clean package -P windows
 
-# Linux
-mvn clean package -P linux
+# Linux (Debian/Ubuntu)
+mvn clean package -P linux-debian
+
+# Linux (Fedora / RHEL / openSUSE)
+mvn clean package -P linux-rpm
 
 # macOS
 mvn clean package -P mac</code></pre>
+    <p><strong>RPM 构建注意事项：</strong> 构建机器上必须安装 <code>rpm-build</code>：</p>
+    <pre><code>sudo dnf install rpm-build</code></pre>
 
     <hr>
 
@@ -417,11 +445,15 @@ mvn clean package -P mac</code></pre>
 
     <h3>Linux (Debian/Ubuntu)</h3>
     <pre><code>sudo apt install stockfish</code></pre>
-    <p>然后在 Kletka 中，进入 <strong>引擎 → 配置引擎</strong> 并选择 stockfish 二进制文件。</p>
+    <p>然后在 Kletka 中，进入 <strong>引擎 → 配置引擎</strong> 并选择 <code>stockfish</code> 二进制文件。</p>
+
+    <h3>Linux (Fedora / RHEL)</h3>
+    <pre><code>sudo dnf install stockfish</code></pre>
+    <p>然后在 Kletka 中，进入 <strong>引擎 → 配置引擎</strong> 并选择 <code>stockfish</code> 二进制文件。</p>
 
     <h3>macOS</h3>
     <pre><code>brew install stockfish</code></pre>
-    <p>然后在 Kletka 中，进入 <strong>引擎 → 配置引擎</strong> 并选择 stockfish 二进制文件。</p>
+    <p>然后在 Kletka 中，进入 <strong>引擎 → 配置引擎</strong> 并选择 <code>stockfish</code> 二进制文件。</p>
 
     <hr>
 
@@ -437,7 +469,7 @@ mvn clean package -P mac</code></pre>
     <p>如果您喜欢这个项目，请在 GitHub 上给它一个星标！</p>
 
     <footer>
-        <p>© Andrey Khrypach · <a href="https://github.com/AndreyKhrypach/Kletka">GitHub</a> · <a href="index.html">English</a> · <a href="README.ru.html">Русский</a></p>
+        <p>© Andrey Khrypach · <a href="https://github.com/AndreyKhrypach/Kletka">GitHub</a> · <a href="privacy.zh.html">隐私</a> · <a href="index.html">English</a> · <a href="README.ru.html">Русский</a></p>
     </footer>
 
 </div>

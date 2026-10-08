@@ -30,6 +30,7 @@ import Khrypach.Andrey.chess.kletka.gui.controllers.MainController;
 import Khrypach.Andrey.chess.kletka.gui.board.BoardSizeController;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.DonateDialog;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.PreferencesDialog;
+import Khrypach.Andrey.chess.kletka.gui.dialogs.ReportProblemDialog;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageManager;
 import Khrypach.Andrey.chess.kletka.gui.model.RootNode;
 import Khrypach.Andrey.chess.kletka.gui.model.Variation;
@@ -344,14 +345,8 @@ public class CustomMenuBarFactory {
         MenuItem openPgnItem = new MenuItem(lang.get(MENU_FILE_OPEN_PGN));
         openPgnItem.setAccelerator(KeyCombination.keyCombination("Ctrl+O"));
         openPgnItem.setOnAction(e -> {
-            FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle(lang.get(MENU_FILE_OPEN_PGN));
-            fileChooser.getExtensionFilters().add(
-                    new FileChooser.ExtensionFilter(lang.get(FILE_FILTER_PGN), "*.pgn")
-            );
-            File file = fileChooser.showOpenDialog(primaryStage);
-            if (file != null) {
-                controller.loadPgnFile(file);
+            if (controller != null) {
+                controller.openPgnFileWithCheck();
             }
             returnFocusToBoard();
         });
@@ -375,6 +370,18 @@ public class CustomMenuBarFactory {
         exportCurrentItem.setAccelerator(KeyCombination.keyCombination("Ctrl+E"));
         exportCurrentItem.setOnAction(e -> {
             controller.exportCurrentGameToPgn();
+            returnFocusToBoard();
+        });
+
+        MenuItem exportPositionItem = new MenuItem(lang.get(MENU_FILE_EXPORT_POSITION));
+        exportPositionItem.setAccelerator(
+                new KeyCodeCombination(KeyCode.E,
+                        KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN)
+        );
+        exportPositionItem.setOnAction(e -> {
+            if (controller != null) {
+                controller.exportPositionToPgn();
+            }
             returnFocusToBoard();
         });
 
@@ -409,6 +416,7 @@ public class CustomMenuBarFactory {
                 openPgnItem,
                 savePgnItem,
                 exportCurrentItem,
+                exportPositionItem,
                 importClipboardItem,
                 separator1,
                 setupPositionItem,
@@ -565,6 +573,10 @@ public class CustomMenuBarFactory {
         MenuItem zoomInItem = new MenuItem(lang.get(MENU_VIEW_ZOOM_IN));
         zoomInItem.setAccelerator(new KeyCodeCombination(KeyCode.EQUALS, KeyCombination.CONTROL_DOWN));
         zoomInItem.setOnAction(e -> {
+            if (controller.getBoardView() != null && controller.getBoardView().getCoachTools() != null &&
+                    controller.getBoardView().getCoachTools().isPanelExpanded()) {
+                controller.getBoardView().getCoachTools().togglePanel();
+            }
             sizeController.increaseSize();
             returnFocusToBoard();
         });
@@ -572,6 +584,10 @@ public class CustomMenuBarFactory {
         MenuItem zoomOutItem = new MenuItem(lang.get(MENU_VIEW_ZOOM_OUT));
         zoomOutItem.setAccelerator(KeyCombination.keyCombination("Ctrl+-"));
         zoomOutItem.setOnAction(e -> {
+            if (controller.getBoardView() != null && controller.getBoardView().getCoachTools() != null &&
+                    controller.getBoardView().getCoachTools().isPanelExpanded()) {
+                controller.getBoardView().getCoachTools().togglePanel();
+            }
             sizeController.decreaseSize();
             returnFocusToBoard();
         });
@@ -579,6 +595,10 @@ public class CustomMenuBarFactory {
         MenuItem zoomResetItem = new MenuItem(lang.get(MENU_VIEW_ZOOM_RESET));
         zoomResetItem.setAccelerator(KeyCombination.keyCombination("Ctrl+0"));
         zoomResetItem.setOnAction(e -> {
+            if (controller.getBoardView() != null && controller.getBoardView().getCoachTools() != null &&
+                    controller.getBoardView().getCoachTools().isPanelExpanded()) {
+                controller.getBoardView().getCoachTools().togglePanel();
+            }
             sizeController.resetSize();
             returnFocusToBoard();
         });
@@ -903,9 +923,16 @@ public class CustomMenuBarFactory {
             returnFocusToBoard();
         });
 
+        MenuItem reportProblemItem = new MenuItem(lang.get(MENU_HELP_REPORT_PROBLEM));
+        reportProblemItem.setOnAction(e -> {
+            showReportProblemDialog();
+            returnFocusToBoard();
+        });
+
         menu.getItems().addAll(
                 shortcutsItem,
                 new SeparatorMenuItem(),
+                reportProblemItem,
                 githubItem,
                 checkUpdatesItem,
                 new SeparatorMenuItem(),
@@ -914,6 +941,13 @@ public class CustomMenuBarFactory {
         );
 
         return menu;
+    }
+
+    private void showReportProblemDialog() {
+        String appVersion = getCurrentVersion();
+        ReportProblemDialog dialog = new ReportProblemDialog(primaryStage, appVersion);
+        dialog.showAndWait();
+        returnFocusToBoard();
     }
 
     // ========== ЯЗЫКОВЫЕ КНОПКИ ==========

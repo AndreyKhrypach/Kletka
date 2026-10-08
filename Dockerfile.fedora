@@ -1,0 +1,38 @@
+FROM fedora:41
+
+RUN dnf install -y \
+        curl \
+        maven \
+        rpm-build \
+        findutils \
+        which \
+        binutils \
+    && dnf clean all
+
+# Установка Liberica Full JDK 17 (с JavaFX)
+RUN LIBERICA_URL=$(curl -s "https://api.bell-sw.com/v1/liberica/releases?version-feature=17&os=linux&arch=x86&bitness=64&package-type=rpm&bundle-type=jdk-full&version-modifier=latest" \
+        | grep -o '"downloadUrl":"[^"]*"' \
+        | head -1 \
+        | cut -d'"' -f4) && \
+    echo "=== Downloading: $LIBERICA_URL ===" && \
+    curl -L -o /tmp/jdk.rpm "$LIBERICA_URL" && \
+    dnf install -y /tmp/jdk.rpm && \
+    rm /tmp/jdk.rpm
+
+# Автоматически найти Liberica и создать симлинк
+RUN LIBERICA_HOME=$(find /usr/lib/jvm -maxdepth 1 -type d -name "bellsoft-*" -o -name "*liberica*" | head -1) && \
+    echo "LIBERICA_HOME=$LIBERICA_HOME" && \
+    ln -sfn "$LIBERICA_HOME" /opt/liberica
+
+ENV JAVA_HOME=/opt/liberica
+ENV PATH="/opt/liberica/bin:$PATH"
+
+# Проверка JavaFX через --list-modules
+RUN echo "=== JAVA_HOME=$JAVA_HOME ===" && \
+    which java && \
+    java -version && \
+    echo "=== JavaFX modules ===" && \
+    java --list-modules | grep -i javafx && \
+    echo "=== JavaFX jmods ===" && \
+    ls $JAVA_HOME/jmods/ | grep -i javafx && \
+    echo "✅ JavaFX found — OK"

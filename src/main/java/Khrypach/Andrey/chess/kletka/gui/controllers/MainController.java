@@ -41,6 +41,7 @@ import Khrypach.Andrey.chess.kletka.gui.logo.LogoGenerator;
 import Khrypach.Andrey.chess.kletka.gui.menu.CustomMenuBarFactory;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.SaveGameDialog;
 import Khrypach.Andrey.chess.kletka.gui.model.NavigationMode;
+import Khrypach.Andrey.chess.kletka.gui.model.ParentNode;
 import Khrypach.Andrey.chess.kletka.gui.model.RootNode;
 import Khrypach.Andrey.chess.kletka.gui.settings.AppPreferences;
 import Khrypach.Andrey.chess.kletka.pgn.index.PgnFileEditor;
@@ -988,6 +989,14 @@ public class MainController {
 
     public void loadPgnFile(File file) {
         if (file == null) return;
+        // ========== ПРОВЕРКА НЕСОХРАНЁННЫХ ИЗМЕНЕНИЙ ДО ОТКРЫТИЯ ==========
+        if (hasBodyChanges()) {
+            boolean shouldContinue = showSaveDialogBeforeLoading();
+            if (!shouldContinue) {
+                log.debug("User cancelled opening PGN file due to unsaved changes");
+                return;
+            }
+        }
 
         // ========== СОХРАНЯЕМ ПОСЛЕДНЮЮ ПАПКУ ОТКРЫТИЯ ==========
         if (file.getParent() != null) {
@@ -1350,9 +1359,25 @@ public class MainController {
             } else {
                 return false; // Пользователь отменил сохранение
             }
+        }else if (result == noSaveButton) {
+            // ========== СИНХРОНИЗИРУЕМ ХЕШИ С ТЕКУЩИМ СОСТОЯНИЕМ ==========
+            if (notationView != null) {
+                GameData currentData = notationView.getCurrentGameData();
+                if (currentData != null) {
+                    startBodyHash = HashUtils.calculateBodyHash(currentData);
+                    loadedFullHash = HashUtils.calculateContentHash(currentData);
+                    log.debug("User chose not to save — hashes synced: startBodyHash={}", startBodyHash);
+                } else {
+                    // Если данных нет — просто обнуляем
+                    startBodyHash = 0;
+                    loadedFullHash = 0;
+                }
+            } else {
+                startBodyHash = 0;
+                loadedFullHash = 0;
+            }
         }
 
-        // Если noSaveButton - просто продолжаем
         return true;
     }
 
@@ -1516,6 +1541,218 @@ public class MainController {
         }
     }
 
+    /**
+     * Открывает PGN-файл через FileChooser с проверкой несохранённых изменений ДО выбора файла.
+     * Используется из горячей клавиши Ctrl+O и из меню File → Open PGN.
+     */
+    public void openPgnFileWithCheck() {
+        // ========== ПРОВЕРКА НЕСОХРАНЁННЫХ ИЗМЕНЕНИЙ ДО ВЫБОРА ФАЙЛА ==========
+        if (hasBodyChanges()) {
+            boolean shouldContinue = showSaveDialogBeforeLoading();
+            if (!shouldContinue) {
+                log.debug("openPgnFileWithCheck - User cancelled opening PGN file due to unsaved changes");
+                return;
+            }
+        }
+
+        // ========== ВЫБОР ФАЙЛА ==========
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle(lang.get(MENU_FILE_OPEN_PGN));
+        fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter(lang.get(FILE_FILTER_PGN), "*.pgn")
+        );
+
+        // Начальная директория — последняя открытая или bases
+        String lastDir = AppPreferences.getLastOpenDirectory();
+        if (lastDir != null && !lastDir.isEmpty()) {
+            File dir = new File(lastDir);
+            if (dir.exists() && dir.isDirectory()) {
+                fileChooser.setInitialDirectory(dir);
+            } else {
+                setDefaultOpenDirectory(fileChooser);
+            }
+        } else {
+            setDefaultOpenDirectory(fileChooser);
+        }
+
+        File file = fileChooser.showOpenDialog(primaryStage);
+        if (file == null) {
+            return;  // пользователь отменил выбор файла
+        }
+
+        // ========== СОХРАНЯЕМ ПАПКУ ==========
+        if (file.getParent() != null) {
+            AppPreferences.saveLastOpenDirectory(file.getParent());
+        }
+
+        // ========== ЗАГРУЖАЕМ (проверка уже пройдена, loadPgnFile() не покажет диалог) ==========
+        loadPgnFile(file);
+    }
+
+    /**
+     * Сохраняет текущую позицию как PGN с тегом SetUp/FEN.
+     * Используется для вырезания интересных позиций из партии
+     * (например, матовых комбинаций) в отдельный файл.
+     */
+    public void exportPositionToPgn() {
+        // ========== 1. ПРОВЕРКА: ЕСТЬ ЛИ ЧТО СОХРАНЯТЬ ==========
+        if (boardView == null || boardView.getNavController() == null) {
+            showNotification(lang.get(POSITION_EXPORT_NO_BOARD));
+            return;
+        }
+
+        MoveNavigationController nav = boardView.getNavController();
+        ParentNode currentNode = nav.getCurrentNode();
+
+        if (currentNode == null || currentNode.isRoot()) {
+            showNotification(lang.get(POSITION_EXPORT_NO_POSITION));
+            return;
+        }
+
+        // ========== 2. ПРОВЕРКА ЛЕГАЛЬНОСТИ ==========
+        if (boardView.isPositionIlLegal()) {
+            showError(lang.get(POSITION_EXPORT_ERROR_TITLE),
+                    lang.get(ENGINE_ILLEGAL_POSITION_CONTENT));
+            return;
+        }
+
+        // ========== 3. БЕРЁМ FEN ==========
+        // Приоритет: savedFenAfter текущего узла → текущая доска
+        String fen = currentNode.getSavedFenAfter();
+        if (fen == null || fen.isEmpty()) {
+            Board currentBoard = boardView.getCurrentBoard();
+            if (currentBoard == null) {
+                showNotification(lang.get(POSITION_EXPORT_NO_BOARD));
+                return;
+            }
+            fen = currentBoard.getFen();
+        }
+
+        log.debug("Exporting position, FEN: {}", fen);
+
+        // ========== 4. ДИАЛОГ С ПРЕДЗАПОЛНЕНИЕМ ==========
+        SaveGameDialog dialog = new SaveGameDialog(primaryStage, boardView, notationView);
+        dialog.prefillAsPosition(fen);
+
+        GameData gameData = dialog.showAndWait();
+        if (gameData == null) {
+            return;  // пользователь отменил
+        }
+
+        // ========== 5. ВЫБОР ФАЙЛА ==========
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle(lang.get(POSITION_EXPORT_FILE_DIALOG_TITLE));
+        fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter(lang.get(FILE_FILTER_PGN), "*.pgn")
+        );
+
+        // Начальная директория
+        String lastDir = AppPreferences.getLastSaveDirectory();
+        if (lastDir != null && !lastDir.isEmpty()) {
+            File dir = new File(lastDir);
+            if (dir.exists() && dir.isDirectory()) {
+                fileChooser.setInitialDirectory(dir);
+            }
+        } else {
+            String saveDir = AppPreferences.getSaveDirectory();
+            if (saveDir != null && !saveDir.isEmpty()) {
+                File dir = new File(saveDir);
+                if (dir.exists() && dir.isDirectory()) {
+                    fileChooser.setInitialDirectory(dir);
+                }
+            }
+        }
+
+        // Дефолтное имя файла
+        fileChooser.setInitialFileName("position.pgn");
+
+        File file = fileChooser.showSaveDialog(primaryStage);
+        if (file == null) {
+            return;
+        }
+
+        if (file.getParent() != null) {
+            AppPreferences.saveLastSaveDirectory(file.getParent());
+        }
+
+        // ========== 6. СОБИРАЕМ PGN ДЛЯ ПОЗИЦИИ ==========
+        String pgn = buildPgnForPosition(gameData, fen);
+        String plainPgn = convertUnicodeToPlain(pgn);
+
+        Path pgnPath = file.toPath();
+
+        // ========== 7. ОБНОВЛЯЕМ ИНДЕКС ==========
+        updateIndexAfterSave(pgnPath, gameData, plainPgn);
+
+        // ========== 8. УВЕДОМЛЕНИЕ ==========
+        showNotification(String.format(lang.get(POSITION_EXPORT_SUCCESS), file.getName()));
+
+        log.info("Position exported to: {} (FEN: {})", file.getName(), fen);
+    }
+
+    /**
+     * Собирает PGN-текст для позиции (без ходов, только FEN + теги).
+     */
+    private String buildPgnForPosition(GameData gameData, String fen) {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("[Event \"").append(sanitizeTag(gameData.event())).append("\"]\n");
+        sb.append("[Site \"").append(sanitizeTag(gameData.site())).append("\"]\n");
+        sb.append("[Date \"").append(gameData.date()).append("\"]\n");
+        sb.append("[Round \"").append(sanitizeTag(gameData.round())).append("\"]\n");
+        sb.append("[White \"").append(sanitizeTag(gameData.whitePlayer())).append("\"]\n");
+        sb.append("[Black \"").append(sanitizeTag(gameData.blackPlayer())).append("\"]\n");
+        sb.append("[Result \"").append(gameData.result()).append("\"]\n");
+
+        if (gameData.eco() != null && !"?".equals(gameData.eco()) && !gameData.eco().isEmpty()) {
+            sb.append("[ECO \"").append(gameData.eco()).append("\"]\n");
+        }
+        if (gameData.opening() != null && !"?".equals(gameData.opening()) && !gameData.opening().isEmpty()) {
+            sb.append("[Opening \"").append(sanitizeTag(gameData.opening())).append("\"]\n");
+        }
+        if (gameData.variation() != null && !"?".equals(gameData.variation()) && !gameData.variation().isEmpty()) {
+            sb.append("[Variation \"").append(sanitizeTag(gameData.variation())).append("\"]\n");
+        }
+
+        // ========== ГЛАВНОЕ: SETUP + FEN ==========
+        sb.append("[SetUp \"1\"]\n");
+        sb.append("[FEN \"").append(fen).append("\"]\n");
+
+        // ========== ТИП ПОЗИЦИИ ==========
+        String positionType = gameData.positionType();
+        if (positionType == null || positionType.isEmpty()) {
+            positionType = "position";
+        }
+        sb.append("[PositionType \"").append(positionType).append("\"]\n");
+
+        sb.append("\n");
+        sb.append(gameData.result());  // только результат (нет ходов)
+        sb.append("\n");
+
+        return sb.toString();
+    }
+
+    /**
+     * Убирает двойные кавычки из тегов PGN (защита от некорректного ввода).
+     */
+    private String sanitizeTag(String value) {
+        if (value == null) return "?";
+        return value.replace("\"", "'");
+    }
+
+    /**
+     * Устанавливает папку bases как директорию по умолчанию.
+     */
+    private void setDefaultOpenDirectory(FileChooser fileChooser) {
+        try {
+            Path basesPath = AppPreferences.getBasesDirectory();
+            if (basesPath != null && Files.exists(basesPath)) {
+                fileChooser.setInitialDirectory(basesPath.toFile());
+            }
+        } catch (Exception e) {
+            log.debug("Could not set default open directory: {}", e.getMessage());
+        }
+    }
 
     private String convertUnicodeToPlain(String pgn) {
         if (pgn == null || pgn.isEmpty()) return pgn;
@@ -1795,12 +2032,22 @@ public class MainController {
         Button noSaveButton = new Button(lang.get(SAVE_GAME_DONT_SAVE));
         noSaveButton.setStyle("-fx-background-color: #8b0000; -fx-text-fill: white;");
         noSaveButton.setOnAction(e -> {
-            startBodyHash = 0;
-            loadedFullHash = 0;
-            dialogStage.close();
-            if (onComplete != null) {
-                onComplete.run();
+            // ========== СИНХРОНИЗИРУЕМ ХЕШИ ==========
+            if (notationView != null) {
+                GameData currentData = notationView.getCurrentGameData();
+                if (currentData != null) {
+                    startBodyHash = HashUtils.calculateBodyHash(currentData);
+                    loadedFullHash = HashUtils.calculateContentHash(currentData);
+                } else {
+                    startBodyHash = 0;
+                    loadedFullHash = 0;
+                }
+            } else {
+                startBodyHash = 0;
+                loadedFullHash = 0;
             }
+            dialogStage.close();
+            if (onComplete != null) onComplete.run();
         });
 
         Button cancelButton = new Button(lang.get(SAVE_GAME_CANCEL));
@@ -2358,7 +2605,11 @@ public class MainController {
 
         // About text
         String version = getVersion();
-        String aboutText = String.format(lang.get(ABOUT_CONTENT), version);
+
+        // ========== ВЕРСИЯ STOCKFISH ==========
+        String engineVersionText = getEngineVersionLabel();
+
+        String aboutText = String.format(lang.get(ABOUT_CONTENT), version, engineVersionText);
 
         Label infoLabel = new Label(aboutText);
         infoLabel.setWrapText(true);
@@ -2383,7 +2634,12 @@ public class MainController {
                 "https://www.gnu.org/licenses/gpl-3.0.html"
         );
 
-        linksBox.getChildren().addAll(websiteLink, githubLink, licenseLink);
+        Hyperlink privacyLink = createAboutLink(
+                lang.get(ABOUT_PRIVACY_LINK),
+                "https://andreykhrypach.github.io/Kletka/privacy.html"
+        );
+
+        linksBox.getChildren().addAll(websiteLink, githubLink, licenseLink, privacyLink);
         content.getChildren().add(linksBox);
 
         dialog.getDialogPane().setContent(content);
@@ -2412,6 +2668,25 @@ public class MainController {
             }
         });
         return link;
+    }
+
+    /**
+     * Возвращает строку для отображения версии движка в диалоге "О программе".
+     * Если движок запущен — показывает его название (например, "Stockfish 16.1"),
+     * иначе — сообщение "Stockfish не установлен".
+     */
+    private String getEngineVersionLabel() {
+        String engineVersion = null;
+
+        if (engineManager != null && engineManager.isEngineRunning()) {
+            engineVersion = engineManager.getEngineVersion();
+        }
+
+        if (engineVersion == null || engineVersion.isEmpty()) {
+            return lang.get(ABOUT_ENGINE_NOT_INSTALLED);
+        }
+
+        return String.format(lang.get(ABOUT_ENGINE_VERSION), engineVersion);
     }
 
     /**

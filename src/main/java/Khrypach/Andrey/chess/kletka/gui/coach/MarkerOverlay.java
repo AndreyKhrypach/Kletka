@@ -146,7 +146,6 @@ public class MarkerOverlay extends Pane {
         double endX = toCenter.getX();
         double endY = toCenter.getY();
 
-        // ... остальная логика рисования стрелки остаётся без изменений ...
         double angle = Math.atan2(endY - startY, endX - startX);
         double offset = 15;
 
