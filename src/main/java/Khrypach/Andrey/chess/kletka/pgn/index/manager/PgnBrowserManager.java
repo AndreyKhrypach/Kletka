@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
+ *  * Copyright (c) 2025 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -160,6 +160,9 @@ public class PgnBrowserManager {
 
         Path pgnPath = browser.getPgnPath();
         log.info("Closing browser for: {}", pgnPath);
+
+        // Освобождаем mmap на .klt
+        browser.releaseIndexChannel();
 
         if (clipboardContent != null && clipboardContent.sourceFile().equals(pgnPath)) {
             log.info("Clearing clipboard - source file is being closed");
@@ -687,6 +690,9 @@ public class PgnBrowserManager {
      * Вызывается при закрытии браузера (из самого браузера)
      */
     public void onBrowserClosed(PgnFileBrowser browser) {
+        // Освобождаем mmap на .klt (на случай, если closeWindow не вызван)
+        browser.releaseIndexChannel();
+
         // Удаляем из карты, если он там есть
         Path path = browser.getPgnPath();
         if (browsers.containsKey(path) && browsers.get(path) == browser) {

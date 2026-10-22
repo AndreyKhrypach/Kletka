@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
+ *  * Copyright (c) 2025 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -165,7 +165,7 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.PGN_LOAD_SUCCESS, "从 %s 加载 %d 局");
         strings.put(LanguageKeys.PGN_LOAD_EMPTY, "文件中没有对局");
         strings.put(LanguageKeys.PGN_LOAD_ERROR, "PGN加载错误");
-        strings.put(LanguageKeys.PGN_SAVE_SUCCESS, "对局已保存");
+        strings.put(LanguageKeys.PGN_SAVE_SUCCESS, "对局已保存 ");
         strings.put(LanguageKeys.PGN_SAVE_EMPTY, "没有着法可保存");
         strings.put(LanguageKeys.PGN_SAVE_ERROR, "PGN保存错误");
 
@@ -1276,7 +1276,31 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.PGN_BATCH_EXCEPTION_LIMIT, "批量删除对局过多: %d");
         strings.put(LanguageKeys.PGN_BATCH_EXCEPTION_ALREADY_DELETED, "对局已删除: %d");
         strings.put(LanguageKeys.PGN_BATCH_EXCEPTION_NOT_FOUND_IN_INDEX, "索引中未找到 ID 为 %d 的棋局");
+
+        // ========== СОЗДАНИЕ КНИГИ ИЗ PGN ==========
+        strings.put(LanguageKeys.MENU_BOOKS_CREATE_FROM_PGN, "从PGN创建开局库…");
+        strings.put(LanguageKeys.BOOK_CREATE_DIALOG_TITLE, "选择PGN文件以创建开局库");
+        strings.put(LanguageKeys.BOOK_CREATE_FILE_FILTER_PGN, "PGN 文件");
+        strings.put(LanguageKeys.BOOK_CREATE_FILE_FILTER_BIN, "Polyglot 开局库");
+        strings.put(LanguageKeys.BOOK_CREATE_SAVE_DIALOG_TITLE, "开局库另存为");
+        strings.put(LanguageKeys.BOOK_CREATE_DEFAULT_NAME, "book_from_pgn.bin");
+        strings.put(LanguageKeys.BOOK_CREATE_INDEXING_NEEDED, "文件未索引。开始索引…");
+        strings.put(LanguageKeys.BOOK_CREATE_INDEXING_START, "正在索引PGN…");
+        strings.put(LanguageKeys.BOOK_CREATE_BUILDING, "正在构建Polyglot开局库…");
+        strings.put(LanguageKeys.BOOK_CREATE_BUILDING_PROGRESS, "已处理对局：%d / %d（%d%%）");
+        strings.put(LanguageKeys.BOOK_CREATE_COMPLETE, "开局库已创建：%s（条目：%d，对局：%d，跳过：%d）");
+        strings.put(LanguageKeys.BOOK_CREATE_ERROR_TITLE, "创建开局库错误 ");
+        strings.put(LanguageKeys.BOOK_CREATE_ERROR, "创建开局库失败：%s");
+        strings.put(LanguageKeys.BOOK_CREATE_NO_GAMES, "文件中没有活动对局");
+        strings.put(LanguageKeys.BOOK_CREATE_LOAD_AFTER, "开局库已创建。现在加载吗？");
+        strings.put(LanguageKeys.BOOK_CREATE_LOAD_AFTER_TITLE, "加载开局库");
+        strings.put(LanguageKeys.BOOK_CREATE_STATUS_PROCESSING, "正在处理对局...");
+        strings.put(LanguageKeys.BOOK_CREATE_STATUS_BUILDING,  "正在构建统计...");
+        strings.put(LanguageKeys.BOOK_CREATE_STATUS_WRITING,   "正在写入文件...");
+        strings.put(LanguageKeys.BOOK_CREATE_STATUS_COMPLETE,  "开局库已创建！");
+        strings.put(LanguageKeys.BOOK_CREATE_STATUS_PROCESSING_COMPLETE,  "已处理所有对局（100%）");
     }
+
 
     private static StringBuilder createShortcutsContent() {
         StringBuilder shortcutsContent = new StringBuilder();
@@ -1319,7 +1343,6 @@ public class ZhLanguage implements Language {
         shortcutsContent.append("\n⚙️ 引擎:\n");
         shortcutsContent.append("  Space - 引擎走法\n");
         shortcutsContent.append("  Shift+Enter - 切换分析\n");
-        shortcutsContent.append("  Ctrl+Shift+E - 配置引擎\n");
 
         // 📚 PGN/浏览器
         shortcutsContent.append("\n📚 PGN/浏览器:\n");

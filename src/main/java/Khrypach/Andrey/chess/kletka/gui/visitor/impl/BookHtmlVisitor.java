@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025-2026 Andrey Khrypach
+ * Copyright (c) 2025 Andrey Khrypach
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -308,7 +308,8 @@ public class BookHtmlVisitor implements LevelAwareVisitor<String> {
     // ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ==========
 
     /**
-     * Извлекает статистику из комментария узла
+     * Извлекает статистику из комментария узла.
+     * Формат комментария: "weight:%d,games:%d,rating:%d"
      */
     private String extractStats(MoveNode moveNode) {
         String comment = moveNode.getComment();
@@ -317,21 +318,42 @@ public class BookHtmlVisitor implements LevelAwareVisitor<String> {
         }
 
         try {
-            String[] parts = comment.split(",");
+            Integer weight = null;
+            Integer games = null;
+            Integer rating = null;
+
+            for (String part : comment.split(",")) {
+                part = part.trim();
+                if (part.startsWith("weight:")) {
+                    weight = Integer.parseInt(part.substring(7));
+                } else if (part.startsWith("games:")) {
+                    games = Integer.parseInt(part.substring(6));
+                } else if (part.startsWith("rating:")) {
+                    rating = Integer.parseInt(part.substring(7));
+                }
+            }
+
             StringBuilder stats = new StringBuilder();
 
-            for (String part : parts) {
-                if (part.startsWith("weight:")) {
-                    int weight = Integer.parseInt(part.substring(7));
-                    double percentage = (weight / 32767.0) * 100.0;
-                    stats.append(String.format("  %.1f%%", percentage));
-                } else if (part.startsWith("games:")) {
-                    int games = Integer.parseInt(part.substring(6));
-                    stats.append(String.format("  (%d)", games));
-                } else if (part.startsWith("rating:")) {
-                    int rating = Integer.parseInt(part.substring(7));
-                    stats.append(String.format("  %d", rating));
-                }
+            // 1. Процент от максимального веса (32767)
+            if (weight != null) {
+                double percentage = (weight / 32767.0) * 100.0;
+                stats.append(String.format("  %.1f%%", percentage));
+            }
+
+            // 2. Вес в книге
+            if (weight != null) {
+                stats.append("  W=").append(weight);
+            }
+
+            // 3. Рейтинг (условный)
+            if (rating != null) {
+                stats.append("  R=").append(rating);
+            }
+
+            // 4. Количество партий (если > 0)
+            if (games != null && games > 0) {
+                stats.append("  (").append(games).append(")");
             }
 
             return stats.toString();

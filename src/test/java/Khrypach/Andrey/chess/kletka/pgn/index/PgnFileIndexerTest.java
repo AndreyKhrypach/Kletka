@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
+ *  * Copyright (c) 2025 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -378,15 +379,18 @@ class PgnFileIndexerTest {
         void shouldHandleWindows1251Encoding() throws IOException {
             // given
             String pgn = """
-                    [Event "Игра"]
-                    [White "Игрок"]
-                    [Black "Игрок"]
-                    [Result "1-0"]
-                    
-                    1. e4 e5 1-0
-                    """;
+            [Event "Игра"]
+            [White "Игрок"]
+            [Black "Игрок"]
+            [Result "1-0"]
+            
+            1. e4 e5 1-0
+            """;
             Path pgnFile = tempDir.resolve("win1251.pgn");
-            Files.writeString(pgnFile, pgn, java.nio.charset.Charset.forName("Windows-1251"));
+            Files.writeString(pgnFile, pgn, Charset.forName("Windows-1251"));
+
+            // ВАЖНО: конвертируем в UTF-8 (как делает MainController в реальной жизни)
+            PgnEncodingConverter.ensureUtf8(pgnFile);
 
             // when
             PgnIndex index = indexer.indexFile(pgnFile, null);

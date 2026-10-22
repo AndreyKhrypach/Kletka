@@ -98,12 +98,23 @@ All moves from the tree (main line + all variations) go into the book. Transposi
 
 The resulting book can be loaded back into Kletka or used with Stockfish, Leela, ChessBase, Scid, Arena, and other compatible software.
 
+### Create Polyglot book from PGN file:
+
+Build a **statistical opening book** from a large PGN database (e.g., 900,000 games):
+
+1. Go to **Books → Create Book from PGN...**
+2. Select the source `.pgn` file and the target `.bin` file
+3. The app parses every game (main line only), accumulates win/draw/loss statistics for each move, and writes a Polyglot book.
+
+This is different from **Export game tree to Polyglot book** (which creates a personal repertoire from one analysed game). The PGN-to-book function builds a **statistical book** from thousands of real games. The resulting book is compatible with Stockfish, Leela, ChessBase, Scid, and Arena.
+
 ### System Requirements for Books
 
 For opening book functionality, Kletka requires:
 
 - **Java 17 LTS** (Liberica Full JDK recommended)
 - JVM arguments (automatically applied when running from the launcher):
+
 
 ```
 --add-opens java.base/sun.nio.ch=ALL-UNNAMED
@@ -117,23 +128,19 @@ java --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/sun.misc
 
 These arguments are required for fast Polyglot book operations using memory-mapped files.
 
-### Linux: Known Issues
+### Linux: Wayland Focus Fix
 
-On Debian Trixie / Ubuntu 24.04+ with Wayland, dialogs may not receive focus
-(keyboard works, mouse doesn't). This is a known JavaFX 17 + GTK 3 + Wayland bug.
+On Debian Trixie / Ubuntu 24.04+ / Fedora 41+ with Wayland, dialogs may not receive focus (keyboard works, mouse doesn't). This is a known JavaFX 17 bug, tracked in JDK-8353643.
 
-Solution: already included in Kletka — the app runs with
+We fixed it in Kletka:
 
--Djdk.gtk.version=2,
-which uses GTK 2 via XWayland.
+    Replaced ListView with VBox + Button (ListView virtualization conflicts with Wayland).
 
-On Fedora 41+, dialogs may also not receive focus until you press Tab.
-This is caused by GNOME Focus Stealing Prevention on Wayland, combined with the
-removal of the GNOME X11 session in Fedora 41+ (there is no "GNOME on Xorg" option
-available at the login screen anymore).
+    Used Modality.NONE + setMouseTransparent(true) on the scene root to bypass GNOME's Focus Stealing Prevention.
 
-Workaround: press Tab once when a dialog appears — focus will then work normally
-with both keyboard and mouse.
+    Removed the -Djdk.gtk.version=2 dependency (pure GTK 3 + Wayland is now supported).
+
+Result: Dialogs now work on Wayland exactly like on Windows/macOS — no Tab workaround needed.
 
 This is a known JavaFX + Wayland bug tracked in [JDK-8353643](https://bugs.openjdk.org/browse/JDK-8353643).
 
@@ -152,6 +159,26 @@ Other popular sources:
 - [UHO-Pohl openings](https://www.chessdb.com/) — high-quality opening database
 - [ChessTempo's Polyglot books](https://www.chesstempo.com/)
 - Create your own using the Polyglot format
+
+---
+
+## ⚡ Performance
+
+- PGN indexing accelerated 21× — 900,000 games are indexed in ~50 seconds (previously ~17 minutes).
+
+- Batch processing accelerated 2× — deleting/inserting 100,000 games is noticeably faster.
+
+---
+
+## 🔄 Automatic Update Check
+
+On launch, Kletka makes one HTTPS request to the GitHub API to check for a new version. If an update is available, a 🔄 icon appears in the top menu. Clicking it opens the releases page.
+
+- Anonymous: only the User-Agent (Kletka-UpdateChecker) and IP address are sent (as with any HTTPS request).
+
+- No personal data is collected.
+
+- You can also check manually: Help → Check for updates.
 
 ---
 
@@ -242,6 +269,11 @@ Download `Kletka.exe` from the [Releases](https://github.com/AndreyKhrypach/Klet
 ### macOS
 Download `Kletka.dmg` from the [Releases](https://github.com/AndreyKhrypach/Kletka/releases)  page, open it, and drag `Kletka.app` to the `Applications` folder.
 
+- **Apple Silicon (M1/M2/M3... MacBook Air/Pro):** `Kletka-1.7.0-air.dmg`
+- **Intel (x86_64):** `Kletka-1.7.0-intel.dmg`
+
+⚠️ Important for macOS: Before installing a new version, delete the old "Kletka" from Applications. Due to how macOS handles app bundles, installing over an existing copy may cause issues with settings or file associations.
+
 ### Linux (Debian/Ubuntu)
 Download `Kletka.deb` from the [Releases](https://github.com/AndreyKhrypach/Kletka/releases)  page
 
@@ -284,8 +316,11 @@ Platform-specific builds:
 # Windows
 mvn clean package -P windows
 
-# Linux (Debian/Ubuntu)
+# Linux (Ubuntu)
 mvn clean package -P linux-debian
+
+# Linux (Ubuntu)
+mvn clean package -P linux-ubuntu
 
 # Linux (Fedora / RHEL / openSUSE)
 mvn clean package -P linux-rpm

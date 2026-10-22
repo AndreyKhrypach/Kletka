@@ -1,6 +1,6 @@
 <!--
   ~ /*
-  ~  * Copyright (c) 2024 Andrey Khrypach
+  ~  * Copyright (c) 2025 Andrey Khrypach
   ~  *
   ~  * This program is free software: you can redistribute it and/or modify
   ~  * it under the terms of the GNU General Public License as published by
@@ -80,7 +80,7 @@
 <div class="container">
 
     <h1>🔒 隐私政策</h1>
-    <p class="updated">最后更新：<strong>2026-10-06</strong></p>
+    <p class="updated">最后更新：<strong>2026-10-21</strong></p>
 
     <div class="lang-switch">
         🌐 <a href="privacy.html">English</a> ·
@@ -97,7 +97,7 @@
     <p>Kletka 不收集、不存储、不传输：</p>
     <ul>
         <li>您的姓名、电子邮件或任何账户信息</li>
-        <li>您的 IP 地址（除了您提交 issue 时 GitHub 看到的）</li>
+        <li>您的 IP 地址（除了您提交 issue 或检查更新时 GitHub 看到的）</li>
         <li>您打开或编辑的 PGN 文件内容</li>
         <li>您分析的局面</li>
         <li>您的键盘或鼠标活动</li>
@@ -114,6 +114,7 @@
     </ul>
     <p>该文件仅包含您的偏好设置（语言、棋盘主题、引擎路径、上次打开的文件夹）。
         它不会被发送到任何地方。</p>
+    <p>Kletka <strong>不会</strong> 将更新检查结果保存到磁盘。每次检查都在启动时重新进行。</p>
 
     <h2>3. 在 GitHub 上报告问题</h2>
     <p>Kletka 有 <strong>"报告问题"</strong> 功能（"帮助"菜单）。使用时：</p>
@@ -146,13 +147,53 @@
     </ul>
 
     <h2>4. 第三方服务</h2>
-    <p>Kletka 本身不连接互联网，除非<strong>您明确触发</strong>：</p>
+    <p>Kletka 本身不连接互联网，除非在以下情况：</p>
     <ul>
+        <li><strong>自动检查更新</strong>（每次启动时 — 见 4.1）</li>
         <li>打开链接（GitHub、YouTube、文档）</li>
-        <li>检查更新（查询 GitHub API 获取最新版本）</li>
+        <li>手动检查更新（帮助 → 检查更新）</li>
         <li>报告问题（打开 GitHub issue 表单）</li>
     </ul>
     <p>在所有情况下，请求由您的浏览器或 GitHub 基础设施处理，而不是 Kletka 本身。</p>
+
+    <h3>4.1. 自动检查更新</h3>
+    <p>每次启动 Kletka 时，它会向 GitHub Releases API 发送<strong>一个 HTTPS 请求</strong>以检查是否有新版本：</p>
+    <ul>
+        <li><strong>地址：</strong> <code>https://api.github.com/repos/AndreyKhrypach/Kletka/releases/latest</code></li>
+        <li><strong>方法：</strong> <code>GET</code></li>
+        <li><strong>User-Agent 标头：</strong> <code>Kletka-UpdateChecker</code></li>
+        <li><strong>超时：</strong> 5 秒（失败时静默处理）</li>
+    </ul>
+
+    <p><strong>发送的内容：</strong></p>
+    <ul>
+        <li>您的 IP 地址（任何 HTTPS 请求都会向 GitHub 显示）</li>
+        <li>标识应用程序及其用途的 <code>User-Agent</code> 字符串</li>
+    </ul>
+
+    <p><strong>不发送的内容：</strong></p>
+    <ul>
+        <li>任何个人数据（姓名、电子邮件、账户）</li>
+        <li>任何关于您的 PGN 文件或棋局的信息</li>
+        <li>任何系统信息（操作系统、Java 版本、语言）</li>
+        <li>任何遥测、分析、唯一标识符</li>
+    </ul>
+
+    <p><strong>响应如何处理：</strong></p>
+    <ul>
+        <li>Kletka 从响应中读取最新版本号。</li>
+        <li>如果最新版本比您的版本新，顶部菜单会出现一个小的 <strong>🔄 图标</strong>。</li>
+        <li>点击图标将在您的浏览器中打开 GitHub releases 页面。</li>
+        <li>如果没有更新（或检查失败），则不会出现图标。</li>
+    </ul>
+
+    <div class="highlight">
+        <strong>退出选项：</strong> 更新检查是匿名的，不需要您采取任何操作。
+        如果您想完全禁用它，可以从源代码构建 Kletka 并禁用
+        <code>UpdateChecker</code>，或在防火墙中阻止 <code>api.github.com</code>。
+        GitHub 自己的<a href="https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement">隐私声明</a>
+        适用于 GitHub 处理的数据（包括您的 IP 地址）。
+    </div>
 
     <h2>5. 国际象棋引擎</h2>
     <p>Kletka 使用外部 UCI 国际象棋引擎（例如 Stockfish）进行分析。
@@ -164,6 +205,9 @@
     <h2>7. 政策变更</h2>
     <p>如果我们更改本政策，将更新上方的"最后更新"日期。
         重大变更将在 <a href="https://github.com/AndreyKhrypach/Kletka/blob/master/CHANGELOG.md">CHANGELOG</a> 中公布。</p>
+
+    <p><strong>2026-10-21：</strong> 添加第 4.1 节，描述自动检查更新功能
+        （启动时向 GitHub API 发送一个 HTTPS 请求）。</p>
 
     <h2>8. 联系方式</h2>
     <p>有关本政策的问题，请在 GitHub 上开 issue：

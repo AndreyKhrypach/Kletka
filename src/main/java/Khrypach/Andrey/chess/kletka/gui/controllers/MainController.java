@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
+ *  * Copyright (c) 2025 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -30,9 +30,7 @@ import Khrypach.Andrey.chess.kletka.database.service.PgnService;
 import Khrypach.Andrey.chess.kletka.engine.UciEngineManager;
 import Khrypach.Andrey.chess.kletka.gui.KletkaGui;
 import Khrypach.Andrey.chess.kletka.gui.board.*;
-import Khrypach.Andrey.chess.kletka.gui.book.BookManager;
-import Khrypach.Andrey.chess.kletka.gui.book.PolyglotBookParser;
-import Khrypach.Andrey.chess.kletka.gui.book.TreeToBookExporter;
+import Khrypach.Andrey.chess.kletka.gui.book.*;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.EngineSetupDialog;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.PositionSetupDialog;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
@@ -50,6 +48,7 @@ import Khrypach.Andrey.chess.kletka.pgn.index.PgnIndexingFacade;
 import Khrypach.Andrey.chess.kletka.pgn.index.manager.PgnBrowserManager;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.GameIndexEntry;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.IndexStatus;
+import Khrypach.Andrey.chess.kletka.pgn.index.model.IndexingProgress;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.PgnIndex;
 import Khrypach.Andrey.chess.kletka.pgn.index.ui.IndexingProgressDialog;
 import Khrypach.Andrey.chess.kletka.pgn.index.ui.PgnFileBrowser;
@@ -469,6 +468,214 @@ public class MainController {
             log.error("Unexpected error during book export", e);
             showError(lang.get(BOOK_EXPORT_ERROR), e.getMessage());
         }
+    }
+
+    /**
+     * Создание Polyglot-книги из PGN-файла.
+     * <p>
+     * Если файл не проиндексирован — автоматически индексирует
+     * (как при открытии PGN в браузере), затем строит книгу.
+     */
+    public void createBookFromPgnFile() {
+        // ========== 1. ВЫБОР PGN ==========
+        FileChooser pgnChooser = new FileChooser();
+        pgnChooser.setTitle(lang.get(LanguageKeys.BOOK_CREATE_DIALOG_TITLE));
+        pgnChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter(
+                        lang.get(LanguageKeys.BOOK_CREATE_FILE_FILTER_PGN), "*.pgn")
+        );
+
+        String lastDir = AppPreferences.getLastOpenDirectory();
+        if (lastDir != null && !lastDir.isEmpty()) {
+            File dir = new File(lastDir);
+            if (dir.exists() && dir.isDirectory()) {
+                pgnChooser.setInitialDirectory(dir);
+            }
+        } else {
+            Path bases = AppPreferences.getBasesDirectory();
+            if (bases != null && Files.exists(bases)) {
+                pgnChooser.setInitialDirectory(bases.toFile());
+            }
+        }
+
+        File pgnFile = pgnChooser.showOpenDialog(primaryStage);
+        if (pgnFile == null) return;
+
+        AppPreferences.saveLastOpenDirectory(pgnFile.getParent());
+        Path pgnPath = pgnFile.toPath();
+
+        // ========== 2. ПРОВЕРКА ИНДЕКСА ==========
+        PgnIndexingFacade facade = new PgnIndexingFacade();
+        IndexStatus status = facade.checkIndex(pgnPath);
+
+        if (status == IndexStatus.NO_INDEX || status == IndexStatus.FILE_CHANGED) {
+            // Автоматически индексируем, потом строим книгу
+            log.debug("Index needed, indexing before book creation");
+            indexPgnFileWithProgress(pgnPath, () -> showBookSaveDialogAndBuild(pgnPath));
+        } else if (status == IndexStatus.FILE_MISSING) {
+            showError(lang.get(LanguageKeys.BOOK_CREATE_ERROR_TITLE),
+                    lang.get(LanguageKeys.DB_LOAD_PGN_FIRST));
+        } else {
+            // OK или другие состояния — пробуем строить
+            showBookSaveDialogAndBuild(pgnPath);
+        }
+    }
+
+    /**
+     * Второй шаг: выбор .bin и запуск построения.
+     */
+    private void showBookSaveDialogAndBuild(Path pgnPath) {
+        FileChooser binChooser = new FileChooser();
+        binChooser.setTitle(lang.get(LanguageKeys.BOOK_CREATE_SAVE_DIALOG_TITLE));
+        binChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter(
+                        lang.get(LanguageKeys.BOOK_CREATE_FILE_FILTER_BIN), "*.bin")
+        );
+
+        String bookDir = AppPreferences.getBookDirectory();
+        if (bookDir != null && !bookDir.isEmpty()) {
+            File dir = new File(bookDir);
+            if (dir.exists() && dir.isDirectory()) {
+                binChooser.setInitialDirectory(dir);
+            }
+        }
+
+        // Дефолтное имя — из имени PGN
+        String baseName = pgnPath.getFileName().toString();
+        int dot = baseName.lastIndexOf('.');
+        if (dot > 0) baseName = baseName.substring(0, dot);
+        binChooser.setInitialFileName(baseName + ".bin");
+
+        File binFile = binChooser.showSaveDialog(primaryStage);
+        if (binFile == null) return;
+
+        AppPreferences.saveBookDirectory(binFile.getParent());
+        Path binPath = binFile.toPath();
+
+        // ========== ЗАПУСК В ОТДЕЛЬНОМ ПОТОКЕ ==========
+        Platform.runLater(() -> {
+            progressDialog = new IndexingProgressDialog();
+            progressDialog.setTitle(lang.get(LanguageKeys.BOOK_CREATE_BUILDING));
+            progressDialog.show();
+            progressDialog.updateProgress(IndexingProgress.builder()
+                    .status(lang.get(LanguageKeys.BOOK_CREATE_BUILDING))
+                    .build());
+        });
+
+        // ========== ЗАРАНЕЕ УЗНАЁМ КОЛИЧЕСТВО ПАРТИЙ ДЛЯ ПРОГРЕССА ==========
+        int totalGamesForProgress;
+        try {
+            PgnIndexManager indexManager = new PgnIndexManager();
+            PgnIndex lazyIndex = indexManager.loadLazyIndex(pgnPath);
+            totalGamesForProgress = lazyIndex.getActiveCount();
+        } catch (IOException e) {
+            totalGamesForProgress = 0;
+        }
+
+        final int total = totalGamesForProgress;
+
+        new Thread(() -> {
+            try {
+                // ========== ЭТАП 1: ОБРАБОТКА ПАРТИЙ И СБОРКА СТАТИСТИКИ ==========
+                StatsResult statsResult = PgnToBookConverter.buildStats(
+                        pgnPath,
+                        PgnToBookConverter.BuildOptions.defaults(),
+                        (progress, statusText) -> Platform.runLater(() -> {
+                            if (progressDialog != null) {
+                                int processed = (int) (progress * total);
+                                IndexingProgress ip = IndexingProgress.builder()
+                                        .totalGames(total)
+                                        .processedGames(processed)
+                                        .status(statusText)  // ← всегда statusText, от buildStats
+                                        .build();
+                                progressDialog.updateProgress(ip);
+                            }
+                        })
+                );
+
+                // ========== ЭТАП 2: ПАУЗА ДЛЯ ОТОБРАЖЕНИЯ "100% ОБРАБОТАНО" ==========
+                // Даём UI шанс отрисовать финальное состояние
+                Thread.sleep(500);
+
+                // ========== ЭТАП 3: ЗАПИСЬ ФАЙЛА ==========
+                Platform.runLater(() -> {
+                    if (progressDialog != null) {
+                        progressDialog.updateProgress(IndexingProgress.builder()
+                                .totalGames(total)
+                                .processedGames(total)
+                                .status(lang.get(LanguageKeys.BOOK_CREATE_STATUS_WRITING))
+                                .build());
+                    }
+                });
+
+                if (!statsResult.entries().isEmpty()) {
+                    PolyglotBookWriter.createBook(binPath, statsResult.entries());
+                }
+
+                // ========== ЭТАП 4: ФИНАЛ ==========
+                Platform.runLater(() -> {
+                    if (progressDialog != null) {
+                        progressDialog.updateProgress(IndexingProgress.builder()
+                                .totalGames(total)
+                                .processedGames(total)
+                                .status(lang.get(LanguageKeys.BOOK_CREATE_STATUS_COMPLETE))
+                                .build());
+                    }
+                });
+
+                Thread.sleep(500);
+
+                // ========== ЭТАП 5: ЗАКРЫТИЕ ДИАЛОГА ==========
+                Platform.runLater(() -> {
+                    if (progressDialog != null) {
+                        progressDialog.close();
+                        progressDialog = null;
+                    }
+
+                    if (statsResult.entries().isEmpty()) {
+                        showNotification(lang.get(LanguageKeys.BOOK_CREATE_NO_GAMES));
+                        return;
+                    }
+
+                    String msg = String.format(
+                            lang.get(LanguageKeys.BOOK_CREATE_COMPLETE),
+                            binPath.getFileName(),
+                            statsResult.entries().size(),
+                            statsResult.processed(),
+                            statsResult.skipped()
+                    );
+                    showNotification(msg);
+
+                    // Предложение загрузить
+                    Alert ask = new Alert(Alert.AlertType.CONFIRMATION);
+                    ask.setTitle(lang.get(LanguageKeys.BOOK_CREATE_LOAD_AFTER_TITLE));
+                    ask.setHeaderText(null);
+                    ask.setContentText(lang.get(LanguageKeys.BOOK_CREATE_LOAD_AFTER));
+                    ButtonType yes = new ButtonType(lang.get(LanguageKeys.CONFIRM_YES),
+                            ButtonBar.ButtonData.YES);
+                    ButtonType no = new ButtonType(lang.get(LanguageKeys.CONFIRM_NO),
+                            ButtonBar.ButtonData.NO);
+                    ask.getButtonTypes().setAll(yes, no);
+                    ask.showAndWait().ifPresent(r -> {
+                        if (r == yes) {
+                            loadPolyglotBook(binPath.toFile());
+                        }
+                    });
+                });
+
+            } catch (Exception e) {
+                log.error("Failed to create book from PGN", e);
+                Platform.runLater(() -> {
+                    if (progressDialog != null) {
+                        progressDialog.close();
+                        progressDialog = null;
+                    }
+                    showError(lang.get(LanguageKeys.BOOK_CREATE_ERROR_TITLE),
+                            String.format(lang.get(LanguageKeys.BOOK_CREATE_ERROR),
+                                    e.getMessage()));
+                });
+            }
+        }).start();
     }
 
     public void flipBoard() {
@@ -1069,6 +1276,7 @@ public class MainController {
         new Thread(() -> {
             try {
                 Path preparedPath = prepareFileEncoding(pgnPath);
+                releaseBrowserIndexIfOpen(preparedPath);
 
                 PgnIndexingFacade facade = new PgnIndexingFacade();
 
@@ -1106,23 +1314,34 @@ public class MainController {
     private Path prepareFileEncoding(Path pgnPath) throws IOException {
         log.debug("Checking encoding for: {}", pgnPath);
 
-        byte[] bytes = Files.readAllBytes(pgnPath);
+        // 1. Читаем только начало для detectEncoding
+        String detectedEncoding;
+        try (java.io.InputStream is = Files.newInputStream(pgnPath)) {
+            byte[] sample = is.readNBytes(64 * 1024);
+            detectedEncoding = detectEncoding(sample);
+        }
 
-        String detectedEncoding = detectEncoding(bytes);
         log.debug("Detected encoding: {}", detectedEncoding);
 
+        // 2. UTF-8 / UTF-8-BOM — конвертация не нужна
         if ("UTF-8".equals(detectedEncoding) || "UTF-8-BOM".equals(detectedEncoding)) {
             log.debug("File is already UTF-8, no conversion needed");
             return pgnPath;
         }
 
+        // 3. Нужна конвертация — потоково
         log.debug("Converting from {} to UTF-8", detectedEncoding);
-
-        String content;
-        content = new String(bytes, Charset.forName(detectedEncoding));
-
         Path tempPath = pgnPath.getParent().resolve(pgnPath.getFileName() + ".utf8.tmp");
-        Files.writeString(tempPath, content);
+        Charset sourceCharset = Charset.forName(detectedEncoding);
+
+        try (java.io.BufferedReader reader = Files.newBufferedReader(pgnPath, sourceCharset);
+             java.io.BufferedWriter writer = Files.newBufferedWriter(tempPath, StandardCharsets.UTF_8)) {
+            char[] buf = new char[8192];
+            int n;
+            while ((n = reader.read(buf)) > 0) {
+                writer.write(buf, 0, n);
+            }
+        }
 
         Path backupPath = pgnPath.getParent().resolve(pgnPath.getFileName() + ".bak");
         Files.deleteIfExists(backupPath);
@@ -1134,51 +1353,45 @@ public class MainController {
     }
 
     private String detectEncoding(byte[] bytes) {
-        if (bytes.length >= 3 && bytes[0] == (byte) 0xEF &&
-                bytes[1] == (byte) 0xBB && bytes[2] == (byte) 0xBF) {
+        // ========== БЕРЁМ ТОЛЬКО ПЕРВЫЕ 64 KB ДЛЯ АНАЛИЗА ==========
+        int sampleSize = Math.min(bytes.length, 64 * 1024);
+        byte[] sample = new byte[sampleSize];
+        System.arraycopy(bytes, 0, sample, 0, sampleSize);
+
+        if (sample.length >= 3 && sample[0] == (byte) 0xEF &&
+                sample[1] == (byte) 0xBB && sample[2] == (byte) 0xBF) {
             return "UTF-8-BOM";
         }
 
         try {
-            String test = new String(bytes, StandardCharsets.UTF_8);
+            String test = new String(sample, StandardCharsets.UTF_8);
             if (!test.contains("\uFFFD")) {
-                if (containsCyrillic(test)) {
-                    return "UTF-8";
-                }
-                if (hasPgnHeaders(test)) {
+                if (containsCyrillic(test) || hasPgnHeaders(test)) {
                     return "UTF-8";
                 }
             }
-        } catch (Exception e) {
-            // Игнорируем
-        }
+        } catch (Exception e) { }
 
         try {
-            String win1251 = new String(bytes, Charset.forName("Windows-1251"));
+            String win1251 = new String(sample, Charset.forName("Windows-1251"));
             if (containsCyrillic(win1251) && hasPgnHeaders(win1251)) {
                 return "Windows-1251";
             }
-        } catch (Exception e) {
-            // Игнорируем
-        }
+        } catch (Exception e) { }
 
         try {
-            String koi8r = new String(bytes, Charset.forName("KOI8-R"));
+            String koi8r = new String(sample, Charset.forName("KOI8-R"));
             if (containsCyrillic(koi8r) && hasPgnHeaders(koi8r)) {
                 return "KOI8-R";
             }
-        } catch (Exception e) {
-            // Игнорируем
-        }
+        } catch (Exception e) { }
 
         try {
-            String iso8859_5 = new String(bytes, Charset.forName("ISO-8859-5"));
+            String iso8859_5 = new String(sample, Charset.forName("ISO-8859-5"));
             if (containsCyrillic(iso8859_5) && hasPgnHeaders(iso8859_5)) {
                 return "ISO-8859-5";
             }
-        } catch (Exception e) {
-            // Игнорируем
-        }
+        } catch (Exception e) { }
 
         log.warn("Could not detect encoding, using UTF-8 as fallback");
         return "UTF-8";
@@ -1270,6 +1483,7 @@ public class MainController {
             }
 
             String pgn = gameData.pgn();
+
             if (pgn == null || pgn.isEmpty()) {
                 showNotification(lang.get(LanguageKeys.MAIN_PGN_EMPTY));
                 return;
@@ -1346,13 +1560,13 @@ public class MainController {
             GameData gameData = dialog.showAndWait();
             if (gameData != null && pgnService != null) {
                 try {
-                    pgnService.saveGame(gameData);
+                    saveGameDataWithChoice(gameData);
                     if (notationView != null) {
                         notationView.updateGameData(gameData);
                     }
                     updateGameHashes(gameData);
                     showNotification(lang.get(LanguageKeys.PGN_SAVE_SUCCESS));
-                } catch (PgnException e) {
+                } catch (Exception  e) {
                     showError(lang.get(PGN_SAVE_ERROR), e.getMessage());
                     return false; // Ошибка сохранения - отменяем загрузку
                 }
@@ -1856,7 +2070,7 @@ public class MainController {
      * Запускается в отдельном потоке, прогресс обновляется через Platform.runLater().
      */
     private void fullIndexingWithProgress(Path pgnPath, String plainPgn) {
-        // 1. Записываем партию в конец PGN-файла
+        // 1. Пишем партию
         try {
             PgnFileEditor editor = new PgnFileEditor(pgnPath, null);
             editor.appendGame(plainPgn, 1);
@@ -1866,28 +2080,25 @@ public class MainController {
             return;
         }
 
-        // 2. Показываем диалог прогресса
+        // 2. Освобождаем mmap, если браузер открыт
+        releaseBrowserIndexIfOpen(pgnPath);
+
+        // 3. Прогресс-диалог
         Platform.runLater(() -> {
             progressDialog = new IndexingProgressDialog();
             progressDialog.setTitle(lang.get(LanguageKeys.MAIN_INDEXING_TITLE_MSG));
             progressDialog.show();
         });
 
-        // 3. Запускаем индексацию в отдельном потоке
+        // 4. Поток индексации
         new Thread(() -> {
             try {
                 PgnIndexingFacade facade = new PgnIndexingFacade();
-
                 PgnIndex fullIndex = facade.indexFile(pgnPath, progress ->
                         Platform.runLater(() -> {
-                            if (progressDialog != null) {
-                                progressDialog.updateProgress(progress);
-                            }
+                            if (progressDialog != null) progressDialog.updateProgress(progress);
                         })
                 );
-
-                log.debug("Full indexing complete: {} games, {} active",
-                        fullIndex.getGameCount(), fullIndex.getActiveCount());
 
                 Platform.runLater(() -> {
                     if (progressDialog != null) {
@@ -1896,10 +2107,9 @@ public class MainController {
                     }
                     showNotification(String.format(
                             lang.get(LanguageKeys.MAIN_INDEXING_COMPLETE),
-                            fullIndex.getGameCount(),
-                            fullIndex.getActiveCount()
+                            fullIndex.getGameCount(), fullIndex.getActiveCount()
                     ));
-                    refreshBrowserForPath(pgnPath);
+                    refreshBrowserForPath(pgnPath);  // уже есть
                 });
 
             } catch (IOException e) {
@@ -1933,13 +2143,15 @@ public class MainController {
                                      GameData gameData, String plainPgn, String year)
             throws IOException {
 
+        // 1. Освобождаем mmap, если браузер открыт
+        releaseBrowserIndexIfOpen(pgnPath);
+
         PgnIndex index = indexManager.loadIndex(pgnPath);
         int newId = index.getNextId();
 
         PgnFileEditor editor = new PgnFileEditor(pgnPath, index);
         GameIndexEntry newEntry = editor.appendGame(plainPgn, newId);
 
-        // Заполняем поля
         newEntry.setWhite(gameData.whitePlayer());
         newEntry.setBlack(gameData.blackPlayer());
         newEntry.setEco(gameData.eco());
@@ -1953,7 +2165,11 @@ public class MainController {
         newEntry.setHash(HashUtils.hashString(plainPgn));
 
         index.addEntry(newEntry);
+        index.refreshCache();
         indexManager.saveIndex(pgnPath, index);
+
+        // 2. Перезагружаем браузер (чтобы таблица снова работала)
+        refreshBrowserIfOpen(pgnPath);
 
         log.debug("Index updated (fast path): added game ID {}", newId);
     }
@@ -2404,6 +2620,15 @@ public class MainController {
             boardView.getAnalysisPanel().clearAnalysis();
         }
 
+        // ========== ПРОВЕРКА НЕСОХРАНЁННЫХ ИЗМЕНЕНИЙ ==========
+        if (hasBodyChanges()) {
+            boolean shouldContinue = showSaveDialogBeforeLoading();
+            if (!shouldContinue) {
+                log.debug("User cancelled setup position due to unsaved changes");
+                return;
+            }
+        }
+
         PositionSetupDialog dialog = new PositionSetupDialog(primaryStage, boardView.getCurrentBoard());
         Board newBoard = dialog.showAndWait();
 
@@ -2414,38 +2639,40 @@ public class MainController {
             boardView.setupNewPosition(newBoard, startWithBlack);
 
             if (notationView != null) {
-                GameData currentData = notationView.getCurrentGameData();
+                // 1. Очищаем старые данные
+                notationView.clearGameData();
+
                 String fen = newBoard.getFen();
 
+                // 2. Создаём новую GameData с правильными именами и номером хода
                 GameData newData = new GameData(
-                        currentData != null ? currentData.whitePlayer() : lang.get(LanguageKeys.DEFAULT_PLAYER_NAME),
-                        currentData != null ? currentData.blackPlayer() : lang.get(LanguageKeys.DEFAULT_PLAYER_NAME),
-                        currentData != null ? currentData.result() : "*",
-                        currentData != null ? currentData.whiteElo() : "?",
-                        currentData != null ? currentData.blackElo() : "?",
-                        currentData != null ? currentData.event() : "Kletka Game",
-                        currentData != null ? currentData.site() : "?",
-                        currentData != null ? currentData.round() : "?",
-                        currentData != null ? currentData.subround() : "?",
-                        LocalDate.now(),
-                        currentData != null ? currentData.eco() : "?",
-                        currentData != null ? currentData.opening() : "?",
-                        currentData != null ? currentData.variation() : "?",
-                        currentData != null ? currentData.annotator() : "?",
-                        currentData != null ? currentData.whiteTeam() : "?",
-                        currentData != null ? currentData.blackTeam() : "?",
-                        currentData != null ? currentData.source() : "?",
-                        currentData != null ? currentData.whiteFideId() : "?",
-                        currentData != null ? currentData.blackFideId() : "?",
-                        currentData != null ? currentData.timeControl() : "?",
-                        "0",
-                        "",
-                        fen,
-                        true,
-                        "position",
-                        false
+                        lang.get(LanguageKeys.DEFAULT_PLAYER_NAME),  // White
+                        lang.get(LanguageKeys.DEFAULT_PLAYER_NAME),  // Black
+                        "*",  // Result
+                        "?", "?",  // Elo
+                        "Kletka Game",  // Event
+                        "?", "?", "?",  // Site, Round, Subround
+                        LocalDate.now(),  // Date
+                        "?", "?", "?",  // Eco, Opening, Variation
+                        "?", "?", "?",  // Annotator, WhiteTeam, BlackTeam
+                        "?", "?", "?",  // Source, WhiteFideId, BlackFideId
+                        "?",  // TimeControl
+                        "0",  // PlyCount
+                        "",   // PGN (пустой)
+                        fen,  // FEN
+                        true, // IsSetUp
+                        "position",  // PositionType
+                        false // Deleted
                 );
+
+                // 3. Обновляем NotationView
                 notationView.updateGameData(newData);
+                notationView.refreshDisplay();
+
+                // 4. Сбрасываем хеши
+                startBodyHash = 0;
+                loadedFullHash = 0;
+                loadedGameHash = 0;
             }
 
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
@@ -2987,6 +3214,33 @@ public class MainController {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    /**
+     * Освобождает mmap на .klt, если для этого файла открыт браузер.
+     * Нужно перед saveIndex на Windows — иначе move(.tmp → .klt) упадёт
+     * с AccessDeniedException (файл замаплен в LazyPgnIndex).
+     */
+    private void releaseBrowserIndexIfOpen(Path pgnPath) {
+        PgnBrowserManager manager = PgnBrowserManager.getInstance();
+        if (manager.isFileOpened(pgnPath)) {
+            PgnFileBrowser browser = manager.getBrowser(pgnPath);
+            if (browser != null) {
+                browser.releaseIndexChannel();
+                log.debug("Released index channel for open browser: {}", pgnPath.getFileName());
+            }
+        }
+    }
+
+    /**
+     * Перезагружает браузер для указанного пути (без загрузки партии).
+     */
+    private void refreshBrowserIfOpen(Path pgnPath) {
+        PgnBrowserManager manager = PgnBrowserManager.getInstance();
+        PgnFileBrowser browser = manager.getBrowser(pgnPath);
+        if (browser != null && browser.isShowing()) {
+            browser.refresh(false);
+        }
     }
 
 }

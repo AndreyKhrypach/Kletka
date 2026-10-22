@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
+ *  * Copyright (c) 2025 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -115,6 +115,20 @@ public class IndexingProgressDialog {
 
         Scene scene = new Scene(root);
         stage.setScene(scene);
+
+        // ========== LINUX FIX ==========
+        root.applyCss();
+        root.layout();
+        double prefW = root.prefWidth(-1);
+        double prefH = root.prefHeight(-1);
+        if (prefW > 0 && prefH > 0) {
+            stage.setWidth(prefW + 40);
+            stage.setHeight(prefH + 60);
+        } else {
+            stage.setWidth(500);
+            stage.setHeight(320);
+        }
+        // ================================
     }
 
     /**

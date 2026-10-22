@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
+ *  * Copyright (c) 2025 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -116,50 +116,45 @@ public class PgnIndex implements Serializable {
      * Получает следующий свободный ID
      */
     public int getNextId() {
-        log.info("Current entries: {}", entries.size());
         int maxId = entries.stream()
                 .mapToInt(GameIndexEntry::getId)
                 .max()
                 .orElse(0);
-        log.info("Max ID: {}", maxId);
         return maxId + 1;
     }
 
     /**
-     * Добавляет новую запись в индекс
+     * Добавляет новую запись в индекс.
+     * O(1) — ID монотонно растут (getNextId), дубликата быть не может.
+     * Счётчики инкрементируются, refreshCache() НЕ вызывается —
+     * его нужно вызвать один раз в конце батча.
      */
     public void addEntry(GameIndexEntry entry) {
-        log.info("Adding entry with ID: {}", entry.getId());
-
-        // ========== ПРОВЕРКА НА ДУБЛИКАТ ==========
-        for (GameIndexEntry existing : entries) {
-            if (existing.getId() == entry.getId()) {
-                log.warn("Entry with ID {} already exists, skipping", entry.getId());
-                updateEntry(entry);
-                return;
-            }
-        }
+        if (entry == null) return;
 
         entries.add(entry);
         gameCount = entries.size();
-        activeCount = (int) entries.stream().filter(e -> !e.isDeleted()).count();
-        refreshCache();
-        log.info("After add: gameCount={}, activeCount={}", gameCount, activeCount);
+        if (!entry.isDeleted()) {
+            activeCount++;
+        }
     }
 
     /**
-     * Обновляет существующую запись
+     * Обновляет существующую запись.
+     * O(n) поиск по ID (неизбежно для ArrayList), но без стримов и без refreshCache().
      */
     public void updateEntry(GameIndexEntry entry) {
-        // ========== ИСПРАВЛЕНО: ИСПОЛЬЗУЕМ ПОИСК ПО ID ==========
+        if (entry == null) return;
+
         for (int i = 0; i < entries.size(); i++) {
-            if (entries.get(i).getId() == entry.getId()) {
+            GameIndexEntry old = entries.get(i);
+            if (old.getId() == entry.getId()) {
+                // Корректируем activeCount, если флаг deleted изменился
+                if (old.isDeleted() != entry.isDeleted()) {
+                    activeCount += entry.isDeleted() ? -1 : 1;
+                }
                 entries.set(i, entry);
-                // Пересчитываем счетчики
                 gameCount = entries.size();
-                activeCount = (int) entries.stream().filter(e -> !e.isDeleted()).count();
-                refreshCache();
-                log.debug("Entry {} updated, activeCount={}", entry.getId(), activeCount);
                 return;
             }
         }
@@ -181,7 +176,6 @@ public class PgnIndex implements Serializable {
     public boolean needsRepack() {
         if (activeCount == 0) return false;
 
-        // Вычисляем общий размер активных партий
         long activeSize = entries.stream()
                 .filter(e -> !e.isDeleted())
                 .mapToLong(GameIndexEntry::getLength)
@@ -229,13 +223,18 @@ public class PgnIndex implements Serializable {
     }
 
     /**
-     * Обновляет кэш активных ID
+     * Обновляет кэш активных ID.
+     * Вызывать один раз в конце батча или после серии изменений.
      */
     public void refreshCache() {
         this.activeIds = entries.stream()
                 .filter(e -> !e.isDeleted())
                 .map(GameIndexEntry::getId)
                 .collect(Collectors.toList());
+
+        // Пересчитываем счётчики на всякий случай (O(n), но редко)
+        this.gameCount = entries.size();
+        this.activeCount = this.activeIds.size();
     }
 
     @Override

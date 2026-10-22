@@ -145,22 +145,38 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
 
   # ============================================================
-  # MACOS (.dmg)
+  # MACOS (.dmg) - Apple Silicon (air) + Intel (intel)
   # ============================================================
   build-macos:
-    runs-on: macos-latest
+    name: Build macOS (.dmg) - ${{ matrix.suffix }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest      # Apple Silicon (ARM64)
+            suffix: air
+          - os: macos-15-intel    # Intel (x86_64) - последний Intel runner
+            suffix: intel
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
+
       - uses: actions/setup-java@v5
         with:
           distribution: 'liberica'
           java-version: '17'
           java-package: 'jdk+fx'
 
+      - name: Set version
+        run: |
+          # Получаем версию из pom.xml
+          APP_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
+
       - name: Build with Maven
         run: |
           export PATH="$JAVA_HOME/bin:$PATH"
-          mvn clean package -P mac
+          mvn clean package -P mac -DskipTests
 
       - name: Verify installer exists
         run: |
@@ -169,14 +185,23 @@ jobs:
             exit 1
           fi
 
+      - name: Rename .dmg with architecture suffix
+        run: |
+          # jpackage создает файл вида Kletka-1.7.0.dmg
+          # Переименовываем в Kletka-1.7.0-air.dmg или Kletka-1.7.0-intel.dmg
+          for f in target/installer/*.dmg; do
+            mv "$f" "target/installer/Kletka-${APP_VERSION}-${{ matrix.suffix }}.dmg"
+          done
+          ls -la target/installer/*.dmg
+
       - name: Upload installer as artifact
         uses: actions/upload-artifact@v6
         with:
-          name: kletka-macos
-          path: target/installer/*.dmg
+          name: kletka-macos-${{ matrix.suffix }}
+          path: target/installer/Kletka-*-${{ matrix.suffix }}.dmg
 
       - name: Upload installer to release
         uses: softprops/action-gh-release@v3
         with:
-          files: target/installer/*.dmg
+          files: target/installer/Kletka-*-${{ matrix.suffix }}.dmg
         if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'

@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
+ *  * Copyright (c) 2025 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -793,6 +793,49 @@ public class UciEngineManager {
 
             Square from = Square.valueOf(fromStr);
             Square to = Square.valueOf(toStr);
+
+            return new Move(from, to);
+        } catch (Exception e) {
+            throw new MoveConversionException(
+                    languageManager.get(LanguageKeys.ENGINE_CONVERT_UCI_ERROR) + ": " + uciMove, e
+            );
+        }
+    }
+
+    /**
+     * Конвертирует UCI-ход в Move с учётом превращения пешки.
+     * @param uciMove UCI-ход (например, "e7e8q")
+     * @param board   доска ДО выполнения хода (для определения цвета пешки)
+     */
+    public Move convertUciToMove(String uciMove, Board board) throws MoveConversionException {
+        if (uciMove == null || uciMove.length() < 4) {
+            throw new MoveConversionException(
+                    languageManager.get(LanguageKeys.ENGINE_INVALID_UCI_MOVE) + ": " + uciMove
+            );
+        }
+
+        try {
+            String fromStr = uciMove.substring(0, 2).toUpperCase();
+            String toStr = uciMove.substring(2, 4).toUpperCase();
+
+            Square from = Square.valueOf(fromStr);
+            Square to = Square.valueOf(toStr);
+
+            // ========== ОБРАБОТКА ПРЕВРАЩЕНИЯ ==========
+            Piece promotionPiece = null;
+            if (uciMove.length() >= 5) {
+                char promoChar = Character.toLowerCase(uciMove.charAt(4));
+                Piece pawn = board.getPiece(from);
+                boolean isWhitePawn = pawn == Piece.WHITE_PAWN;
+                promotionPiece = switch (promoChar) {
+                    case 'q' -> isWhitePawn ? Piece.WHITE_QUEEN : Piece.BLACK_QUEEN;
+                    case 'r' -> isWhitePawn ? Piece.WHITE_ROOK : Piece.BLACK_ROOK;
+                    case 'b' -> isWhitePawn ? Piece.WHITE_BISHOP : Piece.BLACK_BISHOP;
+                    case 'n' -> isWhitePawn ? Piece.WHITE_KNIGHT : Piece.BLACK_KNIGHT;
+                    default -> isWhitePawn ? Piece.WHITE_QUEEN : Piece.BLACK_QUEEN;
+                };
+                return new Move(from, to, promotionPiece);
+            }
 
             return new Move(from, to);
         } catch (Exception e) {

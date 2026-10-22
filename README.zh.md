@@ -27,6 +27,7 @@
 - 🧩 完整支持变着和注释
 - 📚 **Polyglot 开局库** — 加载、浏览和 **编辑** 开局变着
 - 📤 **将变例树导出为 Polyglot 开局库** — 保存个人棋路
+- 🏗️ **从 PGN 文件创建 Polyglot 开局库** — 从成千上万的对局构建统计开局库
 - 🔍 使用 **Stockfish** (UCI 引擎) 进行局面分析
 - 🎨 可定制的棋盘主题
 - 📋 **复制局面** 为 FEN + ASCII 格式 (Ctrl+Shift+P)
@@ -98,6 +99,16 @@ Kletka 允许您直接将走法添加到已加载的开局库中：
 
 生成的开局库可以重新加载到 Kletka，也可以在 Stockfish、Leela、ChessBase、Scid、Arena 等兼容软件中使用。
 
+### 从 PGN 文件创建 Polyglot 开局库：
+
+从大型 PGN 数据库（例如 900,000 个对局）构建 **统计开局库**：
+
+1. 进入 **书籍 → 从 PGN 创建开局库...**
+2. 选择源 `.pgn` 文件和目标 `.bin` 文件
+3. 应用程序解析每个对局（仅主线），为每一步累积胜/和/负统计信息，并写入 Polyglot 开局库。
+
+这与 **“将变例树导出为 Polyglot”**（从单个分析对局创建个人棋路）不同。PGN 到开局库的功能从成千上万个真实对局构建 **统计开局库**。生成的开局库兼容 Stockfish、Leela、ChessBase、Scid 和 Arena。
+
 ### 书籍的系统要求
 
 Kletka 的开局书功能需要以下环境：
@@ -137,22 +148,20 @@ sun.misc.Unsafe.invokeCleaner(mappedByteBuffer);
 - ✅ 可以将开局库文件**替换**为新文件
 - ✅ 在 Windows 上不会再出现"文件被另一个进程占用"的错误
 
-### Linux：已知问题
+### Linux：Wayland 焦点修复
 
-在 Debian Trixie / Ubuntu 24.04+ 上使用 Wayland 时，对话框可能无法获得焦点
-（键盘可以工作，但鼠标无法工作）。这是 JavaFX 17 + GTK 3 + Wayland 的已知 bug。
-
-解决方案： 已在 Kletka 中包含——应用程序启动时带有
--Djdk.gtk.version=2 标志，通过 XWayland 使用 GTK 2。
-
-在 Fedora 41+ 上，对话框也可能无法获得焦点，直到您按下 Tab。
-这是由于 Wayland 上 GNOME 的 焦点窃取防护（Focus Stealing Prevention），
-加上 Fedora 41+ 移除了 GNOME X11 会话（登录界面不再有 "GNOME on Xorg" 选项）。
-
-临时解决方案： 对话框出现时按一次 Tab — 之后焦点将
-正常使用键盘和鼠标。
-
+在 Debian Trixie / Ubuntu 24.04+ / Fedora 41+ 上使用 Wayland 时，对话框可能无法获得焦点（键盘可以工作，但鼠标无法工作）。
 这是 已知的 JavaFX + Wayland bug，跟踪于 [JDK-8353643](https://bugs.openjdk.org/browse/JDK-8353643)。
+
+我们在 Kletka 中修复了它：
+
+- 将 ListView 替换为 VBox + Button（ListView 虚拟化与 Wayland 冲突）。
+
+- 使用 Modality.NONE + 场景根节点上的 setMouseTransparent(true) 绕过 GNOME 的焦点窃取防护（Focus Stealing Prevention）。
+
+- 移除了对 -Djdk.gtk.version=2 标志的依赖（现在支持纯 GTK 3 + Wayland）。
+
+结果： 对话框现在在 Wayland 上的工作方式与 Windows/macOS 完全相同 — 不再需要按 Tab 的临时解决方案。
 
 ---
 
@@ -169,6 +178,26 @@ sun.misc.Unsafe.invokeCleaner(mappedByteBuffer);
 - [UHO-Pohl openings](https://www.chessdb.com/) — 高质量开局数据库
 - [ChessTempo's Polyglot books](https://www.chesstempo.com/)
 - 使用 Polyglot 格式创建自己的书籍
+
+---
+
+## ⚡ 性能
+
+- PGN 索引加速 21 倍 — 900,000 个对局在 ~50 秒 内完成索引（之前约 17 分钟）。
+
+- 批量处理加速 2 倍 — 删除/插入 100,000 个对局明显更快。
+
+---
+
+## 🔄 自动更新检查
+
+启动时，Kletka 向 GitHub API 发送 一个 HTTPS 请求 以检查新版本。如果有可用更新，顶部菜单会出现 🔄 图标。点击后打开发布页面。
+
+- 匿名： 只发送 User-Agent（Kletka-UpdateChecker）和 IP 地址（与任何 HTTPS 请求一样）。
+
+- 不收集任何个人数据。
+
+- 也可以手动检查：帮助 → 检查更新。
 
 ---
 
@@ -258,7 +287,15 @@ Kletka 当前使用 **Java 17** + **JavaFX 17**。
 
 ### macOS
 
-从 [Releases](https://github.com/AndreyKhrypach/Kletka/releases) 页面下载 `Kletka.dmg`，打开并将 `Kletka.app` 拖到 `Applications` 文件夹。
+从 [Releases](https://github.com/AndreyKhrypach/Kletka/releases) 页面下载适用于您处理器的 .dmg：
+
+- Apple Silicon (M1/M2/M3... MacBook Air/Pro): Kletka-1.7.0-air.dmg
+
+- Intel (x86_64): Kletka-1.7.0-intel.dmg
+
+打开 .dmg，将 Kletka.app 拖入 Applications（应用程序）文件夹。
+
+⚠️ macOS 重要提示： 安装新版本前，请从 Applications 中删除旧版「Клетка」。
 
 ### Linux (Debian/Ubuntu)
 
@@ -305,8 +342,11 @@ mvn clean package
 # Windows
 mvn clean package -P windows
 
-# Linux (Debian/Ubuntu)
+# Linux (Debian)
 mvn clean package -P linux-debian
+
+# Linux (Ubuntu)
+mvn clean package -P linux-ubuntu
 
 # Linux (Fedora / RHEL / openSUSE)
 mvn clean package -P linux-rpm

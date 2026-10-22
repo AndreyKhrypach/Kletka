@@ -1,6 +1,6 @@
 <!--
   ~ /*
-  ~  * Copyright (c) 2024 Andrey Khrypach
+  ~  * Copyright (c) 2025 Andrey Khrypach
   ~  *
   ~  * This program is free software: you can redistribute it and/or modify
   ~  * it under the terms of the GNU General Public License as published by
@@ -174,6 +174,7 @@
         <li>🧩 Полная поддержка вариантов и аннотаций</li>
         <li>📚 <strong>Дебютные книги Polyglot</strong> — загрузка, просмотр и <strong>редактирование</strong> дебютных вариантов</li>
         <li>📤 <strong>Экспорт дерева в Polyglot книгу</strong> — сохранение личного репертуара</li>
+        <li>🏗️ <strong>Создание Polyglot-книги из PGN-файла</strong> — построение статистической книги из тысяч партий</li>
         <li>🔍 Анализ позиции с <strong>Stockfish</strong> (UCI движок)</li>
         <li>🎨 Настраиваемые темы доски</li>
         <li>📋 <strong>Копирование позиции</strong> в формате FEN + ASCII (Ctrl+Shift+P)</li>
@@ -250,6 +251,15 @@
     <p>Все ходы из дерева (главная линия + все варианты) попадают в книгу. Транспозиции и дубликаты автоматически дедуплицируются.</p>
     <p>Полученную книгу можно загрузить обратно в Клетку или использовать в Stockfish, Leela, ChessBase, Scid, Arena и других совместимых программах.</p>
 
+    <h3>Создание Polyglot-книги из PGN-файла:</h3>
+    <p>Построение <strong>статистической дебютной книги</strong> из большой базы PGN (например, 900 000 партий):</p>
+    <ol>
+        <li>Перейдите в <strong>Книги → Создать книгу из PGN...</strong></li>
+        <li>Выберите исходный <code>.pgn</code> файл и целевой <code>.bin</code> файл</li>
+        <li>Программа парсит каждую партию (только главную линию), накапливает статистику побед/поражений/ничьих для каждого хода и записывает Polyglot книгу.</li>
+    </ol>
+    <p>Это отличается от <strong>«Экспорта дерева в Polyglot»</strong> (который создаёт личный репертуар из одной проанализированной партии). Функция создания из PGN строит <strong>статистическую книгу</strong> из тысяч реальных партий. Полученная книга совместима со Stockfish, Leela, ChessBase, Scid и Arena.</p>
+
     <h3>Системные требования для книг</h3>
     <p>Для работы с дебютными книгами Клетка требует:</p>
     <ul>
@@ -278,12 +288,15 @@
         <li>✅ Никаких ошибок "файл занят другим процессом" на Windows</li>
     </ul>
 
-    <h3>Linux: известные проблемы</h3>
-    <p>На <strong>Debian Trixie / Ubuntu 24.04+</strong> с <strong>Wayland</strong> диалоги могут не получать фокус (клавиатура работает, мышь — нет). Это <strong>известный баг JavaFX 17 + GTK 3 + Wayland</strong>.</p>
-    <p><strong>Решение:</strong> уже включено в Клетку — приложение запускается с флагом <code>-Djdk.gtk.version=2</code>, который использует GTK 2 через XWayland.</p>
-    <p>На <strong>Fedora 41+</strong> диалоги также могут не получать фокус, пока вы не нажмёте <strong>Tab</strong>. Это вызвано <strong>Focus Stealing Prevention</strong> в GNOME на Wayland в сочетании с удалением сессии GNOME X11 в Fedora 41+ (на экране входа больше нет опции "GNOME on Xorg").</p>
-    <p><strong>Обходной путь:</strong> нажмите <strong>Tab</strong> один раз при появлении диалога — после этого фокус будет работать нормально с клавиатурой и мышью.</p>
-    <p>Это <strong>известный баг JavaFX + Wayland</strong>, отслеживается в <a href="https://bugs.openjdk.org/browse/JDK-8353643">JDK-8353643</a>.</p>
+    <h3>Linux: исправление фокуса на Wayland</h3>
+    <p>На <strong>Debian Trixie / Ubuntu 24.04+ / Fedora 41+</strong> с <strong>Wayland</strong> диалоги могут не получать фокус (клавиатура работает, мышь — нет). Это известный баг JavaFX 17, отслеживается в <a href="https://bugs.openjdk.org/browse/JDK-8353643">JDK-8353643</a>.</p>
+    <p><strong>Мы исправили это в Клетке:</strong></p>
+    <ul>
+        <li>Заменили <code>ListView</code> на <code>VBox</code> с кнопками (виртуализация ListView конфликтует с Wayland).</li>
+        <li>Использовали <code>Modality.NONE</code> + <code>setMouseTransparent(true)</code> на корневом узле сцены, чтобы обойти <code>Focus Stealing Prevention</code> в GNOME.</li>
+        <li>Убрали зависимость от флага <code>-Djdk.gtk.version=2</code> (теперь поддерживается чистый GTK 3 + Wayland).</li>
+    </ul>
+    <p><strong>Результат:</strong> диалоги теперь работают на Wayland так же, как на Windows/macOS — обходной путь с Tab больше не нужен.</p>
 
     <h3>Рекомендуемые книги:</h3>
     <p>Для наилучших результатов мы рекомендуем использовать книгу <strong><code>uho-pohl.bin</code></strong>, которая содержит обширные качественные дебютные варианты.</p>
@@ -295,6 +308,24 @@
         <li><a href="https://www.chessdb.com/">UHO-Pohl openings</a> — качественная база дебютов</li>
         <li><a href="https://www.chesstempo.com/">ChessTempo's Polyglot books</a></li>
         <li>Создайте свою собственную книгу в формате Polyglot</li>
+    </ul>
+
+    <hr>
+
+    <h2>⚡ Производительность</h2>
+    <ul>
+        <li><strong>Индексация PGN ускорена в 21 раз</strong> — 900 000 партий индексируются за <strong>~50 секунд</strong> (ранее ~17 минут).</li>
+        <li><strong>Пакетная обработка ускорена в 2 раза</strong> — удаление/вставка 100 000 партий стали заметно быстрее.</li>
+    </ul>
+
+    <hr>
+
+    <h2>🔄 Автоматическая проверка обновлений</h2>
+    <p>При запуске Kletka делает <strong>один HTTPS-запрос</strong> к GitHub API для проверки новой версии. Если обновление доступно, в верхнем меню появляется <strong>иконка 🔄</strong>. Клик открывает страницу релизов.</p>
+    <ul>
+        <li><strong>Анонимно:</strong> отправляется только <code>User-Agent</code> (Kletka-UpdateChecker) и IP-адрес (как при любом HTTPS-запросе).</li>
+        <li><strong>Никакие персональные данные</strong> не собираются.</li>
+        <li>Также можно проверить вручную: <strong>Помощь → Проверить обновления</strong>.</li>
     </ul>
 
     <hr>
@@ -387,7 +418,15 @@
     <p>Скачайте <code>Kletka.exe</code> со страницы <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a> и запустите установщик.</p>
 
     <h3>macOS</h3>
-    <p>Скачайте <code>Kletka.dmg</code> со страницы <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a>, откройте его и перетащите <code>Kletka.app</code> в папку <code>Applications</code>.</p>
+    <p>Скачайте <code>.dmg</code> для вашего процессора со страницы <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a>:</p>
+    <ul>
+        <li><strong>Apple Silicon (M1/M2/M3... MacBook Air/Pro):</strong> <code>Kletka-1.7.0-air.dmg</code></li>
+        <li><strong>Intel (x86_64):</strong> <code>Kletka-1.7.0-intel.dmg</code></li>
+    </ul>
+    <p>Откройте <code>.dmg</code> и перетащите <code>Kletka.app</code> в папку <code>Applications</code>.</p>
+    <blockquote>
+        ⚠️ <strong>Важно для macOS:</strong> Перед установкой новой версии <strong>удалите старую «Клетку» из <code>Applications</code></strong>. Из-за того, как macOS обрабатывает app bundles, установка поверх существующей копии может вызвать проблемы с настройками или файловыми ассоциациями.
+    </blockquote>
 
     <h3>Linux (Debian/Ubuntu)</h3>
     <p>Скачайте <code>Kletka.deb</code> со страницы <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a>.</p>
@@ -420,8 +459,11 @@ mvn clean package</code></pre>
     <pre><code># Windows
 mvn clean package -P windows
 
-# Linux (Debian/Ubuntu)
+# Linux (Debian)
 mvn clean package -P linux-debian
+
+# Linux (Ubuntu)
+mvn clean package -P linux-ubuntu
 
 # Linux (Fedora / RHEL / openSUSE)
 mvn clean package -P linux-rpm

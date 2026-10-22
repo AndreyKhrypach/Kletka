@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
+ *  * Copyright (c) 2025 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -269,6 +269,9 @@ public class PgnParser {
             log.trace("  token[{}] = {}", i, tokens.get(i));
         }
 
+        int moveCount = 0;
+        int skippedMoves = 0;
+
         while (position < tokens.size()) {
             PgnToken token = tokens.get(position);
             log.trace("TOKEN: position={}, type={}, value='{}'", position, token.type(), token.value());
@@ -325,7 +328,13 @@ public class PgnParser {
                         break;
                     }
 
-                    parseMoveWithGuiLogic(moveText);
+                    try {
+                        parseMoveWithGuiLogic(moveText);
+                        moveCount++;
+                    } catch (Exception e) {
+                        log.error("[PARSE] Failed to parse move '{}': {}", moveText, e.getMessage());
+                        skippedMoves++;
+                    }
 
                     variationParser.syncWithParser(
                             treeBuilder.getCurrentNode(),
@@ -569,6 +578,11 @@ public class PgnParser {
 
             MoveNode moveNode = new MoveNode(move, movingPiece, isCapture, promotionPiece);
 
+            String sanWithSuffix = cleanMoveText;
+            if (hasCheck) sanWithSuffix += MoveAnnotation.CHECK.getSymbol();
+            if (hasMate) sanWithSuffix += MoveAnnotation.MATE.getSymbol();
+            moveNode.setSan(sanWithSuffix);
+
             treeBuilder.setAbsolutePlyForNode(moveNode);
 
             moveNode.setSavedFenBefore(fenBefore);
@@ -592,6 +606,12 @@ public class PgnParser {
      * Парсит аннотацию
      */
     private void parseAnnotation(String annotation) {
+        // ========== NAG ($1, $5, $142...) — пока игнорируем ==========
+        if (annotation != null && annotation.startsWith("$")) {
+            log.trace("Skipping NAG: {}", annotation);
+            return;
+        }
+
         ParentNode currentNode = treeBuilder.getCurrentNode();
         if (currentNode instanceof MoveNode moveNode) {
             MoveAnnotation ann = MoveAnnotation.fromSymbol(annotation);
@@ -973,23 +993,35 @@ public class PgnParser {
      * Рекурсивно находит максимальный absolutePly в дереве
      */
     private int findMaxPly(ParentNode node) {
+        return findMaxPly(node, new HashSet<>());
+    }
+
+    private int findMaxPly(ParentNode node, Set<ParentNode> visited) {
         if (node == null) return 0;
+        if (!visited.add(node)) return 0;
 
         int maxPly = 0;
-
         if (!node.isRoot()) {
             maxPly = Math.max(maxPly, node.getAbsolutePly());
         }
 
+        ParentNode nodeNext = node.getNext();
         for (Variation var : node.getSubVariations()) {
             if (var == null) continue;
+
+            ParentNode varFirst = var.getFirstNode();
+            // Пропускаем oldMainLine: его цепочка достижима через nodeNext
+            if (varFirst != null && !varFirst.isRoot() && varFirst == nodeNext) {
+                continue;
+            }
+
             for (ParentNode child : var.getMoves()) {
-                maxPly = Math.max(maxPly, findMaxPly(child));
+                maxPly = Math.max(maxPly, findMaxPly(child, visited));
             }
         }
 
-        if (node.getNext() != null && !node.getNext().isRoot()) {
-            maxPly = Math.max(maxPly, findMaxPly(node.getNext()));
+        if (nodeNext != null && !nodeNext.isRoot()) {
+            maxPly = Math.max(maxPly, findMaxPly(nodeNext, visited));
         }
 
         return maxPly;
@@ -1069,6 +1101,7 @@ public class PgnParser {
             variationParser.clear();
 
             parseMovesWithGuiLogic();
+
             treeBuilder.getNamingService().updateAllVariationNames(treeBuilder.getRootVariation());
 
             GameTree gameTree = new GameTree(
@@ -1076,9 +1109,11 @@ public class PgnParser {
                     treeBuilder.getMainLine(),
                     treeBuilder.getRootVariation()
             );
+
             gameTree.setDeleted(headers.containsKey("Deleted") &&
                     "true".equalsIgnoreCase(headers.get("Deleted")));
             gameTree.setInitialFen(treeBuilder.getInitialBoard().getFen());
+
             gameTree.setStartWithBlack(false);
             gameTree.setInitialBoard(treeBuilder.getInitialBoard());
 
@@ -1087,7 +1122,6 @@ public class PgnParser {
                 result = headers.getOrDefault("Result", "*");
             }
             gameTree.setResult(result);
-
 
             log.debug("RootNode subVariations count: {}",
                     treeBuilder.getRootVariation().getFirstNode().getSubVariations().size());

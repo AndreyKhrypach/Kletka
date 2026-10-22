@@ -5,6 +5,55 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 и этот проект следует [Семантическому Версионированию](https://semver.org/lang/ru/spec/v2.0.0.html).
 
+🇷🇺 Русский
+
+## [1.7.0] - 2026-10-22
+
+### Добавлено
+
+- **Создание Polyglot-книги из PGN-файла** — новая функция в меню **Книги → Создать книгу из PGN...**. В отличие от «Экспорта дерева в Polyglot» (1.5.0, одна партия/репертуар), эта функция строит **статистическую книгу** на основе **множества партий**. Партии обходятся по главной линии (без вариантов и комментариев), для каждого хода собирается статистика (wins/losses/draws), на основе которой вычисляется вес хода (`wins*2 + draws`). Поддерживаются базы любого размера (900 000+ партий). Результат — `.bin` файл, совместимый со Stockfish, Leela, ChessBase, Scid.
+
+- **Автоматическая проверка обновлений** — при запуске Kletka делает один HTTPS-запрос к GitHub API для проверки новой версии. Если обновление доступно, в верхнем меню появляется иконка **🔄**. Клик открывает страницу релизов. Запрос анонимный: отправляется только `User-Agent` (Kletka-UpdateChecker) и IP-адрес (как при любом HTTPS-запросе). Никакие персональные данные не собираются. Ручная проверка доступна в меню **Помощь → Проверить обновления**.
+
+### Ускорено
+
+- **Индексация PGN ускорена в 21 раз** — 900 000 партий индексируются за **~50 секунд** (ранее — ~17 минут). Достигнуто благодаря:
+  - `HeaderOnlyParser` — лёгкий парсер, который читает **только заголовки** партии, не токенизируя тело (комментарии, варианты).
+  - `BufferedOutputStream` при записи `.klt` — вместо 14.4M системных вызовов на запись используется буфер 1 МБ.
+- **Пакетная обработка ускорена в 2 раза** — `PgnBatchOperation` теперь делает `saveIndex` один раз в конце цикла (а не после каждой партии), а `BATCH_SIZE` увеличен с 500 до 1000. Удаление/вставка 100 000 партий стали заметно быстрее.
+
+### Исправлено
+
+- **Критический баг парсера: зависание на партиях с вложенными вариантами** — партии вида Spassky-Larsen (с NAG, комментариями и глубокой вложенностью) больше не вызывают бесконечную рекурсию в `findMaxPly`. Причина — дублирование путей через `oldMainLine` (архитектура развилки). Решение: `Set<ParentNode> visited` + пропуск `oldMainLine` при обходе (его цепочка достижима через `node.next`).
+- **NAG-аннотации (`$1`, `$5`, `$142`)** больше не ломают партию. Ранее `MoveAnnotation.fromSymbol("$1")` возвращал `null`, и партия могла не загрузиться.
+- **Фокус в диалогах на Linux (Wayland)** — диалог выбора вариантов (`VariationChoiceDialog`) теперь корректно получает фокус и клики мыши на **Debian Trixie**, **Fedora 41+**, **Ubuntu 24.04+**. Решение:
+  - `ListView` заменён на `VBox` с `Button` (виртуализация ListView конфликтует с Wayland).
+  - `Modality.NONE` + `setMouseTransparent(true)` на корневом узле сцены — обход `Focus Stealing Prevention` в GNOME.
+  - Принудительный `requestFocus()` на первую кнопку в `setOnShown`.
+  - Убрана зависимость от `-Djdk.gtk.version=2` (GTK 2 больше не требуется).
+- **Превращение пешки для движка** — `makeEngineMove()` больше не открывает диалог превращения. Добавлен `convertUciToMove(String, Board)`, который учитывает фигуру превращения из UCI-строки движка.
+- **Потеря данных при расстановке позиции** — в `setupPosition()` добавлена проверка `hasBodyChanges()`, диалог сохранения теперь показывается перед расстановкой.
+- **Сохранение «не туда»** — в `showSaveDialogBeforeLoading()` вызов `pgnService.saveGame()` заменён на `saveGameDataWithChoice()`. Пользователь сам выбирает: сохранить в PGN-файл или в базу данных.
+- **Порядковые номера при расстановке** — в `PositionSetupDialog` исправлен `removePieceFromSquare()` и другие методы, чтобы сбрасывать `fullMoveNumber` в 1 (а не тащить из старой партии).
+- **Права на рокировку** — при расстановке позиции теперь реально гарантируются (исправлен баг, когда права терялись).
+- **Залипание выделения возможных ходов** — в `setBoard()` добавлена очистка `selectedSquare` и `possibleMoves`. Зелёные точки больше не остаются после навигации.
+- **Фантомная горячая клавиша** — убран `Ctrl+Shift+E` из справки для настройки движка (её и так не было в коде).
+- **`PgnFilePreparer` больше не перезаписывает `[Deleted]`** — если тег уже есть, он оставляется как есть (append-only семантика). Если нет — добавляется на основе наличия тела партии. Исправлено «воскрешение» удалённых партий при переиндексации.
+
+### Изменено
+
+- **`PgnIndex`** — `addEntry()` и `updateEntry()` теперь работают за **O(1)** (вместо O(n) стримов). `activeCount` инкрементируется, `refreshCache()` вызывается один раз в конце батча.
+- **`BinaryIndexReader`** — `.klt` читается в `byte[]` через `FileChannel.read`, канал закрывается сразу. На Windows файл больше не блокируется → `saveIndex`/`move` проходят без `AccessDeniedException`.
+- **`BinaryIndexWriter`** — атомарный `move` с fallback: `ATOMIC_MOVE` + `REPLACE_EXISTING`, а при `AccessDeniedException` — `delete + move`.
+- **`LazyPgnIndex`** — добавлен `Map<Integer, LightGameEntry> lightById` для **O(1)** поиска. `addEntry`/`updateEntry` обновляют map и счётчики без O(n) стримов.
+- **`PgnFileBrowser` / `PgnBrowserManager`** — освобождение канала (`releaseIndexChannel`) при закрытии браузера и перед записью `.klt`. Защита от двойного `loadGames()` через `AtomicBoolean isLoading`.
+- **`MainController`** — перед `saveIndex` освобождает канал, если браузер открыт. После `saveIndex` перезагружает браузер (`refresh(false)`).
+- **Убран `-Djdk.gtk.version=2`** из `pom.xml` — приложение корректно работает на чистом GTK 3 + Wayland.
+
+### Известные проблемы
+
+- **macOS: Drag-and-drop** — фигура «хватается за угол» из-за известного бага JavaFX `JDK-8333919` (`dragViewOffsetX/Y` игнорируются). **Обходной путь:** используйте click-to-move (клик на фигуру → клик на клетку).
+
 ## [1.6.0] - 2026-10-07
 
 ### Добавлено
@@ -184,12 +233,62 @@
 
 ---
 
+🇬🇧 English
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.7.0] - 2026-10-22
+
+### Added
+
+- **Create Polyglot book from PGN file** — new feature in **Books → Create Book from PGN...**. Unlike "Export game tree to Polyglot" (1.5.0, one game/repertoire), this function builds a **statistical book** from **multiple games**. Games are traversed along the main line (without variations and comments), statistics (wins/losses/draws) are collected for each move, and the move weight is calculated (`wins*2 + draws`). Supports databases of any size (900,000+ games). The result is a `.bin` file compatible with Stockfish, Leela, ChessBase, and Scid.
+
+- **Automatic update check** — on launch, Kletka sends one HTTPS request to the GitHub API to check for a new version. If an update is available, a **🔄 icon** appears in the top menu. Clicking it opens the releases page. The request is anonymous: only the `User-Agent` (Kletka-UpdateChecker) and IP address are sent (as with any HTTPS request). No personal data is collected. Manual check is available in **Help → Check for updates**.
+
+### Performance
+
+- **PGN indexing accelerated 21×** — 900,000 games are indexed in **~50 seconds** (previously ~17 minutes). Achieved thanks to:
+  - `HeaderOnlyParser` — a lightweight parser that reads **only headers**, without tokenizing the body (comments, variations).
+  - `BufferedOutputStream` when writing `.klt` — instead of 14.4M system calls, a 1 MB buffer is used.
+- **Batch processing accelerated 2×** — `PgnBatchOperation` now calls `saveIndex` once at the end of the loop (not after each game), and `BATCH_SIZE` is increased from 500 to 1000. Deleting/inserting 100,000 games is noticeably faster.
+
+### Fixed
+
+- **Critical parser bug: hang on games with nested variations** — games like Spassky-Larsen (with NAG, comments, and deep nesting) no longer cause infinite recursion in `findMaxPly`. The cause was path duplication through `oldMainLine` (fork architecture). Solution: `Set<ParentNode> visited` + skipping `oldMainLine` during traversal (its chain is reachable via `node.next`).
+- **NAG annotations (`$1`, `$5`, `$142`)** no longer break the game. Previously `MoveAnnotation.fromSymbol("$1")` returned `null`, and the game might fail to load.
+- **Dialog focus on Linux (Wayland)** — the variation choice dialog (`VariationChoiceDialog`) now correctly receives focus and mouse clicks on **Debian Trixie**, **Fedora 41+**, **Ubuntu 24.04+**. Solution:
+  - `ListView` replaced with `VBox` + `Button` (ListView virtualization conflicts with Wayland).
+  - `Modality.NONE` + `setMouseTransparent(true)` on the scene root — bypasses `Focus Stealing Prevention` in GNOME.
+  - Forced `requestFocus()` on the first button in `setOnShown`.
+  - Removed dependency on `-Djdk.gtk.version=2` (GTK 2 is no longer required).
+- **Pawn promotion for the engine** — `makeEngineMove()` no longer opens the promotion dialog. Added `convertUciToMove(String, Board)`, which respects the promotion piece from the engine's UCI string.
+- **Data loss during position setup** — added `hasBodyChanges()` check in `setupPosition()`, the save dialog is now shown before setup.
+- **Saving to the wrong place** — in `showSaveDialogBeforeLoading()`, `pgnService.saveGame()` is replaced with `saveGameDataWithChoice()`. The user chooses: save to a PGN file or to the database.
+- **Move numbers during setup** — in `PositionSetupDialog`, `removePieceFromSquare()` and other methods are fixed to reset `fullMoveNumber` to 1 (instead of carrying it from the old game).
+- **Castling rights** — castling rights are now truly guaranteed during position setup (fixed a bug where rights were lost).
+- **Highlighting of possible moves stuck** — added clearing of `selectedSquare` and `possibleMoves` in `setBoard()`. Green dots no longer remain after navigation.
+- **Phantom hotkey** — removed `Ctrl+Shift+E` from the help for engine configuration (it wasn't in the code anyway).
+- **`PgnFilePreparer` no longer overwrites `[Deleted]`** — if the tag already exists, it is left as is (append-only semantics). If not, it is added based on the presence of the game body. Fixed the "resurrection" of deleted games during re-indexing.
+
+### Changed
+
+- **`PgnIndex`** — `addEntry()` and `updateEntry()` now run in **O(1)** (instead of O(n) streams). `activeCount` is incremented, `refreshCache()` is called once at the end of the batch.
+- **`BinaryIndexReader`** — `.klt` is read into a `byte[]` via `FileChannel.read`, the channel is closed immediately. On Windows, the file is no longer locked → `saveIndex`/`move` pass without `AccessDeniedException`.
+- **`BinaryIndexWriter`** — atomic `move` with fallback: `ATOMIC_MOVE` + `REPLACE_EXISTING`, and on `AccessDeniedException` — `delete + move`.
+- **`LazyPgnIndex`** — added `Map<Integer, LightGameEntry> lightById` for **O(1)** lookup. `addEntry`/`updateEntry` update the map and counters without O(n) streams.
+- **`PgnFileBrowser` / `PgnBrowserManager`** — channel release (`releaseIndexChannel`) on browser close and before writing `.klt`. Protection against double `loadGames()` via `AtomicBoolean isLoading`.
+- **`MainController`** — before `saveIndex`, releases the channel if the browser is open. After `saveIndex`, reloads the browser (`refresh(false)`).
+- **Removed `-Djdk.gtk.version=2`** from `pom.xml` — the app now works correctly on pure GTK 3 + Wayland.
+
+### Known Issues
+
+- **macOS: Drag-and-drop** — the piece "grabs by the corner" due to a known JavaFX bug `JDK-8333919` (`dragViewOffsetX/Y` are ignored). **Workaround:** use click-to-move (click on a piece → click on a square).
+
 
 ## [1.6.0] - 2026-10-07
 
@@ -370,12 +469,61 @@ If you are upgrading from version 1.2.x:
 
 ---
 
+🇨🇳 中文
+
 # 更新日志
 
 本文件记录项目的所有重要更改。
 
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/spec/v2.0.0.html)。
+
+## [1.7.0] - 2026-10-22
+
+### 新增
+
+- **从 PGN 文件创建 Polyglot 开局库** — 菜单 **书籍 → 从 PGN 创建开局库...** 中的新功能。与“将变例树导出为 Polyglot”（1.5.0，单个对局/棋路）不同，此功能从**多个对局**构建**统计开局库**。对局沿主线遍历（不含变着和注释），为每一步收集统计信息（胜/负/和），并计算走法权重（`wins*2 + draws`）。支持任意大小的数据库（900,000+ 对局）。结果为 `.bin` 文件，兼容 Stockfish、Leela、ChessBase 和 Scid。
+
+- **自动检查更新** — 启动时，Kletka 向 GitHub API 发送一个 HTTPS 请求以检查新版本。如果有可用更新，顶部菜单会出现 **🔄 图标**。点击后打开发布页面。请求是匿名的：只发送 `User-Agent`（Kletka-UpdateChecker）和 IP 地址（与任何 HTTPS 请求一样）。不收集任何个人数据。可在 **帮助 → 检查更新** 中手动检查。
+
+### 性能
+
+- **PGN 索引加速 21 倍** — 900,000 个对局在 **~50 秒** 内完成索引（之前约 17 分钟）。这得益于：
+  - `HeaderOnlyParser` — 轻量级解析器，**只读取标题**，不对正文（注释、变着）进行分词。
+  - 写入 `.klt` 时使用 `BufferedOutputStream` — 使用 1 MB 缓冲区，而不是 14.4M 次系统调用。
+- **批量处理加速 2 倍** — `PgnBatchOperation` 现在在循环结束时调用一次 `saveIndex`（而不是每个对局后），`BATCH_SIZE` 从 500 增加到 1000。删除/插入 100,000 个对局明显更快。
+
+### 修复
+
+- **关键解析器错误：在具有嵌套变着的对局上挂起** — 像 Spassky-Larsen 这样的对局（带有 NAG、注释和深度嵌套）不再导致 `findMaxPly` 中的无限递归。原因是 `oldMainLine` 的路径重复（分叉架构）。解决方案：`Set<ParentNode> visited` + 遍历时跳过 `oldMainLine`（其链可通过 `node.next` 到达）。
+- **NAG 注释（`$1`、`$5`、`$142`）** 不再破坏对局。之前 `MoveAnnotation.fromSymbol("$1")` 返回 `null`，对局可能无法加载。
+- **Linux（Wayland）上的对话框焦点** — 变着选择对话框（`VariationChoiceDialog`）现在在 **Debian Trixie**、**Fedora 41+**、**Ubuntu 24.04+** 上正确接收焦点和鼠标点击。解决方案：
+  - `ListView` 替换为 `VBox` + `Button`（ListView 虚拟化与 Wayland 冲突）。
+  - `Modality.NONE` + 场景根节点上的 `setMouseTransparent(true)` — 绕过 GNOME 的 `Focus Stealing Prevention`。
+  - 在 `setOnShown` 中强制 `requestFocus()` 到第一个按钮。
+  - 移除了对 `-Djdk.gtk.version=2` 的依赖（不再需要 GTK 2）。
+- **引擎的兵升变** — `makeEngineMove()` 不再打开升变对话框。添加了 `convertUciToMove(String, Board)`，它会考虑引擎 UCI 字符串中的升变棋子。
+- **摆棋时的数据丢失** — 在 `setupPosition()` 中添加了 `hasBodyChanges()` 检查，保存对话框现在在摆棋前显示。
+- **保存到错误位置** — 在 `showSaveDialogBeforeLoading()` 中，`pgnService.saveGame()` 替换为 `saveGameDataWithChoice()`。用户选择：保存到 PGN 文件或数据库。
+- **摆棋时的回合数** — 在 `PositionSetupDialog` 中，修复了 `removePieceFromSquare()` 和其他方法，将 `fullMoveNumber` 重置为 1（而不是从旧对局中延续）。
+- **易位权** — 摆棋时现在真正保证易位权（修复了权利丢失的错误）。
+- **可能走法的高亮卡住** — 在 `setBoard()` 中添加了 `selectedSquare` 和 `possibleMoves` 的清除。导航后绿点不再残留。
+- **幽灵快捷键** — 从引擎配置帮助中移除了 `Ctrl+Shift+E`（代码中本来就没有）。
+- **`PgnFilePreparer` 不再覆盖 `[Deleted]`** — 如果标签已存在，则保持原样（仅追加语义）。如果不存在，则根据对局正文的存在添加。修复了重新索引时已删除对局的“复活”。
+
+### 变更
+
+- **`PgnIndex`** — `addEntry()` 和 `updateEntry()` 现在以 **O(1)** 运行（而不是 O(n) 流）。`activeCount` 递增，`refreshCache()` 在批次结束时调用一次。
+- **`BinaryIndexReader`** — `.klt` 通过 `FileChannel.read` 读入 `byte[]`，通道立即关闭。在 Windows 上，文件不再被锁定 → `saveIndex`/`move` 通过，无 `AccessDeniedException`。
+- **`BinaryIndexWriter`** — 带后备的原子 `move`：`ATOMIC_MOVE` + `REPLACE_EXISTING`，在 `AccessDeniedException` 时 — `delete + move`。
+- **`LazyPgnIndex`** — 添加了 `Map<Integer, LightGameEntry> lightById` 用于 **O(1)** 查找。`addEntry`/`updateEntry` 更新 map 和计数器，无 O(n) 流。
+- **`PgnFileBrowser` / `PgnBrowserManager`** — 关闭浏览器时和写入 `.klt` 前释放通道（`releaseIndexChannel`）。通过 `AtomicBoolean isLoading` 防止双重 `loadGames()`。
+- **`MainController`** — 在 `saveIndex` 之前，如果浏览器已打开，则释放通道。在 `saveIndex` 之后，重新加载浏览器（`refresh(false)`）。
+- **从 `pom.xml` 中移除了 `-Djdk.gtk.version=2`** — 应用现在在纯 GTK 3 + Wayland 上正确工作。
+
+### 已知问题
+
+- **macOS：拖放** — 棋子“抓住角落”是由于已知的 JavaFX 错误 `JDK-8333919`（`dragViewOffsetX/Y` 被忽略）。**解决方法：** 使用点击移动（点击棋子 → 点击格子）。
 
 ## [1.6.0] - 2026-10-07
 

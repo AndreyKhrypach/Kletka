@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
+ *  * Copyright (c) 2025 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -1232,4 +1232,29 @@ public class LanguageKeys {
     public static final String PGN_BATCH_EXCEPTION_LIMIT = "pgn.batch.exception.limit";
     public static final String PGN_BATCH_EXCEPTION_ALREADY_DELETED = "pgn.batch.exception.already.deleted";
     public static final String PGN_BATCH_EXCEPTION_NOT_FOUND_IN_INDEX= "pgn.batch.exception.not.found.in.index";
+
+    // ========== СОЗДАНИЕ КНИГИ ИЗ PGN ==========
+    public static final String MENU_BOOKS_CREATE_FROM_PGN = "menu.books.create.from.pgn";
+    public static final String BOOK_CREATE_DIALOG_TITLE = "book.create.dialog.title";
+    public static final String BOOK_CREATE_FILE_FILTER_PGN = "book.create.file.filter.pgn";
+    public static final String BOOK_CREATE_FILE_FILTER_BIN = "book.create.file.filter.bin";
+    public static final String BOOK_CREATE_SAVE_DIALOG_TITLE = "book.create.save.dialog.title";
+    public static final String BOOK_CREATE_DEFAULT_NAME = "book.create.default.name";
+    public static final String BOOK_CREATE_INDEXING_NEEDED = "book.create.indexing.needed";
+    public static final String BOOK_CREATE_INDEXING_START = "book.create.indexing.start";
+    public static final String BOOK_CREATE_BUILDING = "book.create.building";
+    public static final String BOOK_CREATE_BUILDING_PROGRESS = "book.create.building.progress";
+    public static final String BOOK_CREATE_COMPLETE = "book.create.complete";
+    public static final String BOOK_CREATE_ERROR_TITLE = "book.create.error.title";
+    public static final String BOOK_CREATE_ERROR = "book.create.error";
+    public static final String BOOK_CREATE_NO_GAMES = "book.create.no.games";
+    public static final String BOOK_CREATE_LOAD_AFTER = "book.create.load.after";
+    public static final String BOOK_CREATE_LOAD_AFTER_TITLE = "book.create.load.after.title";
+
+    // ========== BOOK CREATE - STATUS ==========
+    public static final String BOOK_CREATE_STATUS_PROCESSING = "BOOK_CREATE_STATUS_PROCESSING";
+    public static final String BOOK_CREATE_STATUS_BUILDING  = "BOOK_CREATE_STATUS_BUILDING";
+    public static final String BOOK_CREATE_STATUS_WRITING   = "BOOK_CREATE_STATUS_WRITING";
+    public static final String BOOK_CREATE_STATUS_COMPLETE  = "BOOK_CREATE_STATUS_COMPLETE";
+    public static final String BOOK_CREATE_STATUS_PROCESSING_COMPLETE = "BOOK_CREATE_STATUS_PROCESSING_COMPLETE";
 }

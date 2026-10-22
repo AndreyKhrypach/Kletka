@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025-2026 Andrey Khrypach
+ * Copyright (c) 2025 Andrey Khrypach
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,8 +43,21 @@ public class BinaryIndexReader {
     public PgnIndex read(Path inputPath) throws IOException {
         log.debug("Reading full binary index from: {}", inputPath);
 
+        // Читаем в память, чтобы не держать mmap (Windows блокирует move/delete)
+        byte[] fileBytes;
+
         try (FileChannel channel = FileChannel.open(inputPath, StandardOpenOption.READ)) {
-            ByteBuffer buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
+            long size = channel.size();
+            if (size > Integer.MAX_VALUE) {
+                throw new IOException("Index file too large: " + size);
+            }
+            fileBytes = new byte[(int) size];
+            ByteBuffer buf = ByteBuffer.wrap(fileBytes);
+            while (buf.hasRemaining()) {
+                if (channel.read(buf) < 0) break;
+            }
+
+            ByteBuffer buffer = ByteBuffer.wrap(fileBytes);
 
             // Читаем заголовок
             int magic = buffer.getInt();
@@ -107,15 +120,34 @@ public class BinaryIndexReader {
     }
 
     /**
-     * Читает ЛЁГКИЙ индекс (только для отображения и поиска)
+     * Читает ЛЁГКИЙ индекс (только для отображения и поиска).
+     * ВАЖНО: читает файл в память через FileChannel.read и закрывает канал.
+     * НЕ использует mmap — на Windows mmap держит файл, и move/delete .klt
+     * падает с AccessDeniedException, пока MappedByteBuffer не собран GC.
      */
     public LazyPgnIndex readLazy(Path inputPath) throws IOException {
         log.debug("Reading lazy binary index from: {}", inputPath);
 
-        FileChannel channel = FileChannel.open(inputPath, StandardOpenOption.READ);
-        ByteBuffer buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
+        // ========== ЧИТАЕМ ФАЙЛ В ПАМЯТЬ, КАНАЛ ЗАКРЫВАЕМ ==========
+        byte[] fileBytes;
+        try (FileChannel channel = FileChannel.open(inputPath, StandardOpenOption.READ)) {
+            long size = channel.size();
+            if (size > Integer.MAX_VALUE) {
+                throw new IOException("Index file too large: " + size + " bytes");
+            }
+            fileBytes = new byte[(int) size];
+            ByteBuffer buf = ByteBuffer.wrap(fileBytes);
+            while (buf.hasRemaining()) {
+                if (channel.read(buf) < 0) {
+                    break;
+                }
+            }
+        }
+        // Канал закрыт — на Windows файл больше не заблокирован
 
-        // ========== 1. ЧИТАЕМ ЗАГОЛОВОК ==========
+        ByteBuffer buffer = ByteBuffer.wrap(fileBytes);
+
+        // ========== 1. ЗАГОЛОВОК ==========
         int magic = buffer.getInt();
         if (magic != BinaryIndexConstants.MAGIC) {
             throw new IOException("Invalid magic number: 0x" + Integer.toHexString(magic));
@@ -126,7 +158,6 @@ public class BinaryIndexReader {
             throw new IOException("Unsupported version: " + version);
         }
 
-        // Reserved 3 байта
         buffer.get();
         buffer.get();
         buffer.get();
@@ -140,19 +171,13 @@ public class BinaryIndexReader {
         String fileHash = new String(hashBytes, java.nio.charset.StandardCharsets.UTF_8);
 
         long timestamp = buffer.getLong();
-        buffer.getLong(); // Reserved
+        buffer.getLong();
 
         BinaryIndexHeader header = new BinaryIndexHeader(
-                magic,
-                version,
-                entryCount,
-                activeCount,
-                fileSize,
-                fileHash,
-                timestamp
+                magic, version, entryCount, activeCount, fileSize, fileHash, timestamp
         );
 
-        // ========== 2. ЧИТАЕМ ТАБЛИЦУ СМЕЩЕНИЙ ==========
+        // ========== 2. ТАБЛИЦА СМЕЩЕНИЙ ==========
         long[] entryOffsets = new long[entryCount];
         for (int i = 0; i < entryCount; i++) {
             entryOffsets[i] = buffer.getLong();
@@ -160,17 +185,16 @@ public class BinaryIndexReader {
 
         long dataStart = buffer.position();
 
-        // ========== 3. ЧИТАЕМ ЛЁГКИЕ ЗАПИСИ ==========
+        // ========== 3. ЛЁГКИЕ ЗАПИСИ ==========
         List<LightGameEntry> lightEntries = new ArrayList<>(entryCount);
 
         for (int i = 0; i < entryCount; i++) {
             buffer.position((int) (dataStart + entryOffsets[i]));
 
             int id = buffer.getInt();
-            // ========== ИСПРАВЛЕНО: читаем все поля, даже если не используем ==========
-            long offset = buffer.getLong();      // Нужно прочитать для правильного позиционирования
+            long offset = buffer.getLong();
             int length = buffer.getInt();
-            int versionEntry = buffer.getInt();  // Нужно прочитать
+            int versionEntry = buffer.getInt();
             boolean deleted = buffer.get() == 1;
             int hash = buffer.getInt();
 
@@ -180,41 +204,27 @@ public class BinaryIndexReader {
             String result = readString(buffer);
             String year = readString(buffer);
             String event = readString(buffer);
-            @SuppressWarnings("unused")
-            String site = readString(buffer);    // Нужно прочитать
+            String site = readString(buffer);
             String opening = readString(buffer);
-            @SuppressWarnings("unused")
-            String variation = readString(buffer); // Нужно прочитать
-            int plyCount = buffer.getInt();      // Нужно прочитать
+            String variation = readString(buffer);
+            int plyCount = buffer.getInt();
 
-            // ========== ИСПРАВЛЕНО: добавляем @SuppressWarnings или используем переменные ==========
-            // Можно добавить аннотацию, чтобы убрать предупреждения
-            // или использовать переменные в логе при необходимости
             if (log.isTraceEnabled()) {
                 log.trace("Reading entry: id={}, offset={}, length={}, version={}, deleted={}, plyCount={}",
                         id, offset, length, versionEntry, deleted, plyCount);
             }
 
             LightGameEntry light = new LightGameEntry(
-                    id,
-                    white,
-                    black,
-                    result,
-                    year,
-                    event,
-                    eco,
-                    opening,
-                    entryOffsets[i],
-                    length,
-                    deleted,
-                    hash
+                    id, white, black, result, year, event, eco, opening,
+                    entryOffsets[i], length, deleted, hash
             );
             lightEntries.add(light);
         }
 
         log.debug("Lazy index read: {} light entries", lightEntries.size());
 
-        return new LazyPgnIndex(header, channel, buffer, dataStart, lightEntries);
+        // ========== channel = null — LazyPgnIndex не держит файл ==========
+        return new LazyPgnIndex(header, null, buffer, dataStart, lightEntries);
     }
 
     /**

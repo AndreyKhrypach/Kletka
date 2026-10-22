@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
+ *  * Copyright (c) 2025 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -60,6 +60,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import static Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys.*;
@@ -171,6 +172,8 @@ public class PgnFileBrowser {
     @Setter
     private int restoreSelectionId = -1;
 
+    private final AtomicBoolean isLoading = new AtomicBoolean(false);
+
     // ========== КОНСТРУКТОР ==========
     public PgnFileBrowser(Path pgnPath, Stage ownerStage) {
         this.pgnPath = pgnPath;
@@ -188,6 +191,22 @@ public class PgnFileBrowser {
         stage.show();
         stage.toFront();
         updateTitle();
+    }
+
+    /**
+     * Освобождает mmap на .klt (закрывает FileChannel у LazyPgnIndex).
+     * Вызывать перед любой записью .klt и при закрытии браузера.
+     */
+    public void releaseIndexChannel() {
+        if (currentIndex instanceof LazyPgnIndex lazy) {
+            try {
+                lazy.close();
+                log.debug("Released LazyPgnIndex channel for: {}", pgnPath.getFileName());
+            } catch (Exception e) {
+                log.warn("Failed to close LazyPgnIndex: {}", e.getMessage());
+            }
+        }
+        currentIndex = null;
     }
 
     // ========== СОЗДАНИЕ ОКНА ==========
@@ -239,6 +258,7 @@ public class PgnFileBrowser {
         stage.setTitle("PGN Browser - " + pgnPath.getFileName());
 
         stage.setOnCloseRequest((WindowEvent event) -> {
+            releaseIndexChannel();
             PgnBrowserManager.getInstance().onBrowserClosed(this);
             stage.close();
             stage = null;
@@ -956,6 +976,11 @@ public class PgnFileBrowser {
     private void loadGames() {
         log.debug("🔧 [{}] loadGames() started", pgnPath.getFileName());
 
+        if (!isLoading.compareAndSet(false, true)) {
+            log.debug("loadGames already in progress, skipping");
+            return;
+        }
+
         progressIndicator.setVisible(true);
         statusLabel.setText(lang.get(PGN_BROWSER_STATUS_CHECKING_INDEX));
         currentPage = 0;
@@ -988,11 +1013,18 @@ public class PgnFileBrowser {
                     statusLabel.setText(String.format(lang.get(PGN_BROWSER_STATUS_ERROR), e.getMessage()));
                     progressIndicator.setVisible(false);
                 });
+            } finally {
+                isLoading.set(false);
             }
         }).start();
     }
 
     private void loadFromIndex(PgnIndexManager indexManager) throws IOException {
+        // Закрываем старый канал, если был
+        if (currentIndex instanceof LazyPgnIndex old) {
+            old.close();
+        }
+
         long startTime = System.currentTimeMillis();
 
         Platform.runLater(() -> {
@@ -1477,10 +1509,9 @@ public class PgnFileBrowser {
                     updateStatus();
 
                     if (onGameSelected != null) {
-                        log.debug("loadGame: calling onGameSelected with gameData");
                         onGameSelected.accept(finalGameData);
                     } else {
-                        log.warn("loadGame: onGameSelected is null");
+                        log.warn("[LOAD-GAME] onGameSelected is NULL");
                     }
                 });
 
@@ -1790,7 +1821,7 @@ public class PgnFileBrowser {
                 BatchOperationResult result = batchOp.deleteGamesBatch(entriesToDelete,
                         processed -> Platform.runLater(() -> progressDialog.updateProgress(
                                 (double) processed / total,
-                                String.format(lang.get(PGN_BROWSER_DELETING_PROCEED),  total, processed),
+                                String.format(lang.get(PGN_BROWSER_DELETING_PROCEED), total, processed),
                                 String.format(lang.get(PGN_BROWSER_DELETED), processed)
                         )));
 
@@ -1976,7 +2007,8 @@ public class PgnFileBrowser {
                     lang.get(PGN_BROWSER_MSG_COPY_START)
             );
             progressDialog.show();
-            progressDialog.setOnCancel(() -> {});
+            progressDialog.setOnCancel(() -> {
+            });
 
             new Thread(() -> {
                 try {
@@ -2298,6 +2330,10 @@ public class PgnFileBrowser {
 
             PgnIndexManager indexManager = new PgnIndexManager();
 
+            if (this.currentIndex instanceof LazyPgnIndex old) {
+                old.close();
+            }
+
             // ========== ВСЕГДА ЗАГРУЖАЕМ ЛЕНИВЫЙ ИНДЕКС ==========
             this.currentIndex = indexManager.loadLazyIndex(pgnPath);
             log.debug("Loaded LAZY index after refresh: {} entries", currentIndex.getGameCount());
@@ -2534,6 +2570,9 @@ public class PgnFileBrowser {
     }
 
     public void closeWindow() {
+        // Освобождаем mmap на .klt, иначе Windows блокирует move/delete индекса
+        releaseIndexChannel();
+
         if (stage != null) {
             stage.close();
             stage = null;

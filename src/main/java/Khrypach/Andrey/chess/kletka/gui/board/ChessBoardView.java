@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
+ *  * Copyright (c) 2025 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -149,6 +149,21 @@ public class ChessBoardView extends Application {
     @Override
     public void start(Stage primaryStage) {
         log.info("Starting ChessBoardView");
+
+        // ========== ЗАЩИТА ОТ БАГА JAVAFX DND ==========
+        Thread.currentThread().setUncaughtExceptionHandler((thread, throwable) -> {
+            if (throwable instanceof NullPointerException) {
+                String message = throwable.getMessage();
+                // Проверяем, что это именно баг с dragboard
+                if (message != null && message.contains("dragboard") && message.contains("dndGesture")) {
+                    log.warn("Перехвачено известное исключение JavaFX DnD (dndGesture is null) — игнорируем.");
+                    return; // Выходим, не выбрасывая исключение дальше
+                }
+            }
+
+            // Все остальные исключения обрабатываем как обычно (выводим в консоль)
+            Thread.getDefaultUncaughtExceptionHandler().uncaughtException(thread, throwable);
+        });
 
         this.primaryStage = primaryStage;
         chessBoard = new Board();
@@ -1405,39 +1420,29 @@ public class ChessBoardView extends Application {
             refreshBoard();
 
         } else if (chessBoard.isStaleMate()) {
-            String message = isMainLinePosition
-                    ? lang.get(GAME_STALEMATE)
-                    : "⚠️ " + lang.get(GAME_STALEMATE) + " ";
-            showGameOverMessage(message);
-
-            if (isMainLinePosition) {
-                notationView.setGameResult("1/2-1/2");
-                updateGameDataResult("1/2-1/2");
-            } else {
-                notationView.refreshFromMainLine();
-            }
-
-            selectedSquare = null;
-            possibleMoves.clear();
-            refreshBoard();
+            getMessageForPosition(isMainLinePosition, GAME_STALEMATE);
 
         } else if (chessBoard.isInsufficientMaterial()) {
-            String message = isMainLinePosition
-                    ? lang.get(GAME_INSUFFICIENT_MATERIAL)
-                    : "⚠️ " + lang.get(GAME_INSUFFICIENT_MATERIAL) + " ";
-            showGameOverMessage(message);
-
-            if (isMainLinePosition) {
-                notationView.setGameResult("1/2-1/2");
-                updateGameDataResult("1/2-1/2");
-            } else {
-                notationView.refreshFromMainLine();
-            }
-
-            selectedSquare = null;
-            possibleMoves.clear();
-            refreshBoard();
+            getMessageForPosition(isMainLinePosition, LanguageKeys.GAME_INSUFFICIENT_MATERIAL);
         }
+    }
+
+    private void getMessageForPosition(boolean isMainLinePosition, String gameStalemate) {
+        String message = isMainLinePosition
+                ? lang.get(gameStalemate)
+                : "⚠️ " + lang.get(gameStalemate) + " ";
+        showGameOverMessage(message);
+
+        if (isMainLinePosition) {
+            notationView.setGameResult("1/2-1/2");
+            updateGameDataResult("1/2-1/2");
+        } else {
+            notationView.refreshFromMainLine();
+        }
+
+        selectedSquare = null;
+        possibleMoves.clear();
+        refreshBoard();
     }
 
     /**
@@ -1546,6 +1551,12 @@ public class ChessBoardView extends Application {
         if (board != null) {
             this.chessBoard = board.clone();
             this.initialBoard = this.chessBoard.clone();
+
+            // ========== СБРАСЫВАЕМ ВЫДЕЛЕНИЕ ==========
+            // Это убирает зелёные кружки и жёлтую подсветку при навигации
+            this.selectedSquare = null;
+            this.possibleMoves.clear();
+
             refreshBoard();
         }
     }
@@ -1784,7 +1795,8 @@ public class ChessBoardView extends Application {
         }
 
         try {
-            Move move = navController.getEngineManager().convertUciToMove(bestMoveUci);
+            // ========== КОНВЕРТИРУЕМ С УЧЁТОМ ПРЕВРАЩЕНИЯ ==========
+            Move move = navController.getEngineManager().convertUciToMove(bestMoveUci, chessBoard);
 
             if (!chessBoard.isMoveLegal(move, true)) {
                 log.warn("Engine move is illegal: {}", bestMoveUci);
@@ -1795,19 +1807,9 @@ public class ChessBoardView extends Application {
             Piece movingPiece = chessBoard.getPiece(move.getFrom());
             boolean isCapture = chessBoard.getPiece(move.getTo()) != Piece.NONE;
 
-            // ========== ОПРЕДЕЛЯЕМ ПРЕВРАЩЕНИЕ (если нужно) ==========
-            Piece promotionPiece = null;
-            if (movingPiece == Piece.WHITE_PAWN && move.getTo().getRank().ordinal() == 7) {
-                log.debug("EngineMove - PROMOTION for white pawn");
-                PromotionDialog dialog = new PromotionDialog(primaryStage, true);
-                promotionPiece = dialog.showAndWait();
-                if (promotionPiece == null) promotionPiece = Piece.WHITE_QUEEN;
-            } else if (movingPiece == Piece.BLACK_PAWN && move.getTo().getRank().ordinal() == 0) {
-                log.debug("EngineMove - PROMOTION for black pawn");
-                PromotionDialog dialog = new PromotionDialog(primaryStage, false);
-                promotionPiece = dialog.showAndWait();
-                if (promotionPiece == null) promotionPiece = Piece.BLACK_QUEEN;
-            }
+            // ========== ДЛЯ ДВИЖКА ПРЕВРАЩЕНИЕ УЖЕ ЗАКОДИРОВАНО В UCI ==========
+            // Не открываем диалог, берём фигуру из Move
+            Piece promotionPiece = move.getPromotion();
 
             // ========== ОСТАНАВЛИВАЕМ АНАЛИЗ ПЕРЕД ХОДОМ ==========
             navController.getEngineManager().stopAnalysis();
