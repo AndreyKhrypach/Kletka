@@ -1309,6 +1309,11 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.BOOK_CREATE_NO_GAMES, "No active games in file");
         strings.put(LanguageKeys.BOOK_CREATE_LOAD_AFTER, "Book created. Load it now?");
         strings.put(LanguageKeys.BOOK_CREATE_LOAD_AFTER_TITLE, "Load book");
+        strings.put(LanguageKeys.BOOK_CREATE_STATUS_PROCESSING, "Processing games...");
+        strings.put(LanguageKeys.BOOK_CREATE_STATUS_BUILDING,  "Building statistics...");
+        strings.put(LanguageKeys.BOOK_CREATE_STATUS_WRITING,   "Writing file...");
+        strings.put(LanguageKeys.BOOK_CREATE_STATUS_COMPLETE,  "Book created!");
+        strings.put(LanguageKeys.BOOK_CREATE_STATUS_PROCESSING_COMPLETE,  "All games processed (100%)");
     }
 
     private static StringBuilder createShortcutsContent() {

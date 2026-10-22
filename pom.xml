@@ -417,7 +417,7 @@
                                 --vendor "Khrypach Andrey"
                                 --description "Cross-platform chess analyzer"
                                 --copyright "© 2026 Khrypach Andrey"
-                                --java-options "-Xmx2g"
+                                --java-options "-Xmx4g"
                                 --java-options "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
                                 --java-options "--add-opens=java.base/sun.misc=ALL-UNNAMED"
                                 --java-options "--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED"

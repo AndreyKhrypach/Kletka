@@ -1250,4 +1250,11 @@ public class LanguageKeys {
     public static final String BOOK_CREATE_NO_GAMES = "book.create.no.games";
     public static final String BOOK_CREATE_LOAD_AFTER = "book.create.load.after";
     public static final String BOOK_CREATE_LOAD_AFTER_TITLE = "book.create.load.after.title";
+
+    // ========== BOOK CREATE - STATUS ==========
+    public static final String BOOK_CREATE_STATUS_PROCESSING = "BOOK_CREATE_STATUS_PROCESSING";
+    public static final String BOOK_CREATE_STATUS_BUILDING  = "BOOK_CREATE_STATUS_BUILDING";
+    public static final String BOOK_CREATE_STATUS_WRITING   = "BOOK_CREATE_STATUS_WRITING";
+    public static final String BOOK_CREATE_STATUS_COMPLETE  = "BOOK_CREATE_STATUS_COMPLETE";
+    public static final String BOOK_CREATE_STATUS_PROCESSING_COMPLETE = "BOOK_CREATE_STATUS_PROCESSING_COMPLETE";
 }

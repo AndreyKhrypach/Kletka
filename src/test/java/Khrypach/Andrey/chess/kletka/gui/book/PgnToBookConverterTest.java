@@ -1,35 +1,26 @@
-/*
- * Copyright (c) 2025 Andrey Khrypach
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
-
 package Khrypach.Andrey.chess.kletka.gui.book;
 
 import Khrypach.Andrey.chess.kletka.gui.book.enums.Outcome;
+import Khrypach.Andrey.chess.kletka.pgn.index.PgnIndexingFacade;
 import com.github.bhlangonijr.chesslib.Board;
 import com.github.bhlangonijr.chesslib.Piece;
 import com.github.bhlangonijr.chesslib.move.Move;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class PgnToBookConverterTest {
 
@@ -160,18 +151,8 @@ class PgnToBookConverterTest {
         @Test
         void knightMove() {
             Board board = new Board();
+            applyMoves(board, "e4", "e5");
 
-            // Делаем ход e4 (белые)
-            Move e4 = PgnToBookConverter.sanToMove(board, "e4");
-            assertThat(e4).isNotNull();
-            board.doMove(e4);
-
-            // Делаем ход e5 (черные)
-            Move e5 = PgnToBookConverter.sanToMove(board, "e5");
-            assertThat(e5).isNotNull();
-            board.doMove(e5);
-
-            // Проверяем Nf3 (белые)
             Move move = PgnToBookConverter.sanToMove(board, "Nf3");
 
             assertThat(move).isNotNull();
@@ -239,14 +220,12 @@ class PgnToBookConverterTest {
         @Test
         void normalMove() {
             short code = PgnToBookConverter.encodeUciToPolyglot("e2e4");
-            // from=E2(12), to=E4(28). Код = 12 << 6 | 28 = 796
             assertThat(code).isEqualTo((short) ((0) | (12 << 6) | 28));
         }
 
         @Test
         void promotionQueen() {
             short code = PgnToBookConverter.encodeUciToPolyglot("e7e8q");
-            // promo=4, from=E7(52), to=E8(60). Код = 4 << 12 | 52 << 6 | 60
             assertThat(code).isEqualTo((short) ((4 << 12) | (52 << 6) | 60));
         }
 
@@ -257,7 +236,7 @@ class PgnToBookConverterTest {
         }
     }
 
-    // ========== 4. ТЕСТЫ ЛОГИКИ (processGame, buildEntries) ==========
+    // ========== 4. ТЕСТЫ ЛОГИКИ ==========
 
     @Nested
     @DisplayName("processGame")
@@ -268,36 +247,32 @@ class PgnToBookConverterTest {
             List<String> sans = List.of("e4", "e5");
             PgnToBookConverter.processGame(sans, Outcome.WHITE_WIN, PgnToBookConverter.BuildOptions.defaults(), stats);
 
-            // Проверяем начальную позицию (ход белых e4)
             Board board = new Board();
             long startKey = ZobristHasher.calculateWithoutCache(board);
             int[] e4Stats = stats.get(startKey).get("e2e4");
-            assertThat(e4Stats).containsExactly(1, 0, 0); // white win
+            assertThat(e4Stats).containsExactly(1, 0, 0);
 
-            // Проверяем позицию после e4 (ход черных e5)
             board.doMove(PgnToBookConverter.sanToMove(board, "e4"));
             long afterE4Key = ZobristHasher.calculateWithoutCache(board);
             int[] e5Stats = stats.get(afterE4Key).get("e7e5");
-            assertThat(e5Stats).containsExactly(0, 1, 0); // black loss
+            assertThat(e5Stats).containsExactly(0, 1, 0);
         }
 
         @Test
         void drawStatistics() {
             Map<Long, Map<String, int[]>> stats = new HashMap<>();
-            List<String> sans = List.of("d4", "d5");
-            PgnToBookConverter.processGame(sans, Outcome.DRAW, PgnToBookConverter.BuildOptions.defaults(), stats);
+            PgnToBookConverter.processGame(List.of("d4", "d5"), Outcome.DRAW, PgnToBookConverter.BuildOptions.defaults(), stats);
 
             Board board = new Board();
             long startKey = ZobristHasher.calculateWithoutCache(board);
             int[] d4Stats = stats.get(startKey).get("d2d4");
-            assertThat(d4Stats).containsExactly(0, 0, 1); // draw
+            assertThat(d4Stats).containsExactly(0, 0, 1);
         }
 
         @Test
         void unknownOutcomeSkipsGame() {
             Map<Long, Map<String, int[]>> stats = new HashMap<>();
-            List<String> sans = List.of("e4", "e5");
-            PgnToBookConverter.processGame(sans, Outcome.UNKNOWN, PgnToBookConverter.BuildOptions.defaults(), stats);
+            PgnToBookConverter.processGame(List.of("e4", "e5"), Outcome.UNKNOWN, PgnToBookConverter.BuildOptions.defaults(), stats);
 
             assertThat(stats).isEmpty();
         }
@@ -310,14 +285,14 @@ class PgnToBookConverterTest {
         void buildsCorrectWeight() {
             Map<Long, Map<String, int[]>> stats = new HashMap<>();
             long key = ZobristHasher.calculateWithoutCache(new Board());
-            stats.computeIfAbsent(key, k -> new HashMap<>()).put("e2e4", new int[]{3, 1, 2}); // 3W, 1L, 2D
+            stats.computeIfAbsent(key, k -> new HashMap<>()).put("e2e4", new int[]{3, 1, 2});
 
             List<PolyglotEntry> entries = PgnToBookConverter.buildEntries(stats, PgnToBookConverter.BuildOptions.defaults());
 
             assertThat(entries).hasSize(1);
             PolyglotEntry entry = entries.get(0);
             assertThat(entry.key()).isEqualTo(key);
-            assertThat(entry.weight()).isEqualTo(3 * 2 + 2); // 8
+            assertThat(entry.weight()).isEqualTo(8);
             assertThat(entry.games()).isEqualTo(6);
         }
 
@@ -325,9 +300,9 @@ class PgnToBookConverterTest {
         void respectsMinGames() {
             Map<Long, Map<String, int[]>> stats = new HashMap<>();
             long key = ZobristHasher.calculateWithoutCache(new Board());
-            stats.computeIfAbsent(key, k -> new HashMap<>()).put("e2e4", new int[]{1, 0, 0}); // только 1 партия
+            stats.computeIfAbsent(key, k -> new HashMap<>()).put("e2e4", new int[]{1, 0, 0});
 
-            PgnToBookConverter.BuildOptions options = new PgnToBookConverter.BuildOptions(40, 2); // minGames = 2
+            PgnToBookConverter.BuildOptions options = new PgnToBookConverter.BuildOptions(40, 2);
             List<PolyglotEntry> entries = PgnToBookConverter.buildEntries(stats, options);
 
             assertThat(entries).isEmpty();
@@ -337,12 +312,177 @@ class PgnToBookConverterTest {
         void weightNeverZero() {
             Map<Long, Map<String, int[]>> stats = new HashMap<>();
             long key = ZobristHasher.calculateWithoutCache(new Board());
-            stats.computeIfAbsent(key, k -> new HashMap<>()).put("e2e4", new int[]{0, 5, 0}); // только поражения
+            stats.computeIfAbsent(key, k -> new HashMap<>()).put("e2e4", new int[]{0, 5, 0});
 
             List<PolyglotEntry> entries = PgnToBookConverter.buildEntries(stats, PgnToBookConverter.BuildOptions.defaults());
 
             assertThat(entries).hasSize(1);
-            assertThat(entries.get(0).weight()).isEqualTo(1); // сбросилось на 1
+            assertThat(entries.get(0).weight()).isEqualTo(1);
+        }
+    }
+
+    // ========== 5. ИНТЕГРАЦИОННЫЕ ТЕСТЫ ==========
+
+    @Nested
+    @DisplayName("buildStats (интеграция)")
+    class BuildStatsIntegration {
+
+        private static final String TWO_GAMES_PGN = """
+                [Event "Test"]
+                [Site "?"]
+                [Date "2026.01.01"]
+                [White "A"]
+                [Black "B"]
+                [Result "1-0"]
+                
+                1. e4 e5 2. Nf3 Nc6 1-0
+                
+                [Event "Test"]
+                [Site "?"]
+                [Date "2026.01.01"]
+                [White "C"]
+                [Black "D"]
+                [Result "0-1"]
+                
+                1. e4 c5 2. Nf3 d6 0-1
+                """;
+
+        @Test
+        @DisplayName("Собирает статистику из двух партий")
+        void collectsStatsFromTwoGames(@TempDir Path tempDir) throws IOException {
+            // 1. Готовим PGN
+            Path pgnPath = tempDir.resolve("test.pgn");
+            Files.writeString(pgnPath, TWO_GAMES_PGN);
+
+            // 2. Создаём .klt (через полный цикл индексации)
+            new PgnIndexingFacade().indexFile(pgnPath, null);
+
+            // 3. Вызываем buildStats
+            PgnToBookConverter.BuildOptions options = PgnToBookConverter.BuildOptions.defaults();
+            StatsResult result = PgnToBookConverter.buildStats(pgnPath, options, null);
+
+            // 4. Проверяем
+            assertThat(result.processed()).isEqualTo(2);
+            assertThat(result.skipped()).isEqualTo(0);
+            assertThat(result.entries()).isNotEmpty();
+
+            // Проверяем вес e4 (1 победа белых, 1 победа чёрных)
+            long startKey = ZobristHasher.calculateWithoutCache(new Board());
+            PolyglotEntry e4 = result.entries().stream()
+                    .filter(e -> e.key() == startKey && e.getUciMove().equals("e2e4"))
+                    .findFirst().orElse(null);
+
+            assertThat(e4).isNotNull();
+            // 1-0 (wins для белых) + 0-1 (losses для белых) → weight = 1*2 + 0 = 2
+            assertThat(e4.weight()).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("progressCb вызывается с правильными статусами")
+        void progressCallbackIsCalled(@TempDir Path tempDir) throws IOException {
+            Path pgnPath = tempDir.resolve("test.pgn");
+            Files.writeString(pgnPath, TWO_GAMES_PGN);
+            new PgnIndexingFacade().indexFile(pgnPath, null);
+
+            List<Double> progresses = new ArrayList<>();
+            List<String> statuses = new ArrayList<>();
+
+            PgnToBookConverter.buildStats(pgnPath, PgnToBookConverter.BuildOptions.defaults(),
+                    (progress, status) -> {
+                        progresses.add(progress);
+                        statuses.add(status);
+                    });
+
+            // Должно быть: 0.90 (building), 1.0 (processing complete)
+            assertThat(progresses).isNotEmpty();
+            assertThat(progresses).contains(0.90);
+            assertThat(progresses).contains(1.0);
+        }
+
+        @Test
+        @DisplayName("PGN не найден → IOException")
+        void missingPgnThrows() {
+            assertThatThrownBy(() -> PgnToBookConverter.buildStats(
+                    Path.of("nonexistent.pgn"),
+                    PgnToBookConverter.BuildOptions.defaults(),
+                    null))
+                    .isInstanceOf(IOException.class)
+                    .hasMessageContaining("not found");
+        }
+    }
+
+    @Nested
+    @DisplayName("convert (полный цикл)")
+    class ConvertIntegration {
+
+        private static final String SIMPLE_GAME_PGN = """
+                [Event "Test"]
+                [Site "?"]
+                [Date "2026.01.01"]
+                [White "A"]
+                [Black "B"]
+                [Result "1-0"]
+                
+                1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 1-0
+                """;
+
+        @Test
+        @DisplayName("Создаёт .bin, который читается обратно")
+        void createsReadableBin(@TempDir Path tempDir) throws IOException {
+            // 1. Готовим PGN + индекс
+            Path pgnPath = tempDir.resolve("test.pgn");
+            Files.writeString(pgnPath, SIMPLE_GAME_PGN);
+            new PgnIndexingFacade().indexFile(pgnPath, null);
+
+            Path binPath = tempDir.resolve("test.bin");
+
+            // 2. Конвертируем
+            PgnToBookConverter.BuildResult result = PgnToBookConverter.convert(
+                    pgnPath, binPath,
+                    PgnToBookConverter.BuildOptions.defaults(),
+                    null);
+
+            // 3. Проверяем результат
+            assertThat(result.gamesProcessed()).isEqualTo(1);
+            assertThat(result.entriesWritten()).isGreaterThan(0);
+            assertThat(Files.exists(binPath)).isTrue();
+
+            // 4. Читаем .bin обратно
+            try (PolyglotBookParser parser = new PolyglotBookParser()) {
+                parser.open(binPath);
+
+                assertThat(parser.getTotalEntries()).isEqualTo(result.entriesWritten());
+
+                // Проверяем стартовую позицию
+                long startKey = ZobristHasher.calculateWithoutCache(new Board());
+                List<PolyglotEntry> rootMoves = parser.findAllEntries(startKey);
+
+                assertThat(rootMoves).isNotEmpty();
+                assertThat(rootMoves.stream().anyMatch(e -> e.getUciMove().equals("e2e4"))).isTrue();
+            }
+        }
+
+        @Test
+        @DisplayName("progressCb вызывается с правильной последовательностью")
+        void convertCallsProgress(@TempDir Path tempDir) throws IOException {
+            Path pgnPath = tempDir.resolve("test.pgn");
+            Files.writeString(pgnPath, SIMPLE_GAME_PGN);
+            new PgnIndexingFacade().indexFile(pgnPath, null);
+
+            Path binPath = tempDir.resolve("test.bin");
+
+            AtomicInteger callCount = new AtomicInteger();
+            List<Double> progresses = new ArrayList<>();
+
+            PgnToBookConverter.convert(pgnPath, binPath,
+                    PgnToBookConverter.BuildOptions.defaults(),
+                    (progress, status) -> {
+                        callCount.incrementAndGet();
+                        progresses.add(progress);
+                    });
+
+            assertThat(callCount.get()).isGreaterThanOrEqualTo(3); // stats-start, write, complete
+            assertThat(progresses).last().isEqualTo(1.0);
         }
     }
 }

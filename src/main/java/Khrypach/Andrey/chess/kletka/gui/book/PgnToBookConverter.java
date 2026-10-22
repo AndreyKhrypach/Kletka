@@ -18,6 +18,8 @@
 package Khrypach.Andrey.chess.kletka.gui.book;
 
 import Khrypach.Andrey.chess.kletka.gui.book.enums.Outcome;
+import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
+import Khrypach.Andrey.chess.kletka.gui.languages.LanguageManager;
 import Khrypach.Andrey.chess.kletka.pgn.index.PgnFileEditor;
 import Khrypach.Andrey.chess.kletka.pgn.index.PgnIndexManager;
 import Khrypach.Andrey.chess.kletka.pgn.index.binary.LazyPgnIndex;
@@ -37,7 +39,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 /**
  * Конвертер PGN-файла (через .klt-индекс) в Polyglot-книгу.
@@ -59,6 +61,7 @@ import java.util.function.Consumer;
 public final class PgnToBookConverter {
 
     private static final Logger log = LoggerFactory.getLogger(PgnToBookConverter.class);
+    private static final LanguageManager lang = LanguageManager.getInstance();
 
     private PgnToBookConverter() {
     }
@@ -103,14 +106,46 @@ public final class PgnToBookConverter {
     public static BuildResult convert(Path pgnPath,
                                       Path outputBook,
                                       BuildOptions options,
-                                      Consumer<Double> progressCb) throws IOException {
+                                      BiConsumer<Double, String> progressCb) throws IOException {
+
+        // 1. Обработка партий + сборка статистики
+        StatsResult statsResult = buildStats(pgnPath, options, progressCb);
+
+        // 2. Запись файла
+        if (progressCb != null) {
+            progressCb.accept(0.95, lang.get(LanguageKeys.BOOK_CREATE_STATUS_WRITING));
+        }
+
+        List<PolyglotEntry> entries = statsResult.entries();
+        if (!entries.isEmpty()) {
+            PolyglotBookWriter.createBook(outputBook, entries);
+        }
+
+        if (progressCb != null) {
+            progressCb.accept(1.0, lang.get(LanguageKeys.BOOK_CREATE_STATUS_COMPLETE));
+        }
+
+        return new BuildResult(statsResult.processed(), statsResult.skipped(),
+                statsResult.positions(), entries.size(), statsResult.elapsedMs());
+    }
+
+    /**
+     * Проходит по всем партиям в PGN-файле, собирает статистику ходов
+     * и возвращает готовый список {@link PolyglotEntry} для записи в .bin.
+     * <p>
+     * НЕ пишет файл — это делает {@code MainController} отдельно,
+     * чтобы показать пользователю статус "Запись файла...".
+     */
+    public static StatsResult buildStats(Path pgnPath,
+                                         BuildOptions options,
+                                         BiConsumer<Double, String> progressCb) throws IOException {
         long start = System.currentTimeMillis();
 
         if (pgnPath == null || !java.nio.file.Files.exists(pgnPath)) {
             throw new IOException("PGN file not found: " + pgnPath);
         }
 
-        log.info("[BOOK BUILD] Start: pgn={}, out={}, opts={}", pgnPath, outputBook, options);
+        log.info("[BOOK BUILD] Start stats collection: pgn={}, opts={}", pgnPath, options);
 
         // 1. Загружаем ленивый индекс (все лёгкие записи в памяти)
         PgnIndexManager indexManager = new PgnIndexManager();
@@ -122,7 +157,7 @@ public final class PgnToBookConverter {
 
         if (total == 0) {
             log.warn("[BOOK BUILD] No active games, nothing to do");
-            return new BuildResult(0, 0, 0, 0, System.currentTimeMillis() - start);
+            return new StatsResult(0, 0, 0, List.of(), System.currentTimeMillis() - start);
         }
 
         // 2. Статистика: key -> (uci -> [wins, losses, draws])
@@ -167,10 +202,8 @@ public final class PgnToBookConverter {
                     }
 
                     Outcome winner = parseOutcome(rawPgn);
-                    // winner == null && Result == "*" → тоже skip (неизвестный результат)
                     String resultTag = extractTag(rawPgn, "Result");
                     if (winner == null && !"1/2-1/2".equals(resultTag)) {
-                        // либо "*", либо тега нет — пропускаем, чтобы не искажать статистику
                         skipped++;
                         skipBadResult++;
                         continue;
@@ -180,7 +213,6 @@ public final class PgnToBookConverter {
                     List<String> sans = extractMainLineSans(body);
 
                     if (sans.isEmpty()) {
-                        // Партия есть, но ходов нет (тело пустое или только заголовки)
                         log.debug("[BOOK BUILD] Skip game {} (no moves in body)", light.id());
                         skipped++;
                         skipNoMoves++;
@@ -195,8 +227,11 @@ public final class PgnToBookConverter {
                     skipException++;
                 }
 
+                // ========== ПРОГРЕСС ОБРАБОТКИ ПАРТИЙ ==========
                 if (progressCb != null && processed % 1000 == 0) {
-                    progressCb.accept((double) processed / total);
+                    progressCb.accept((double) processed / total,
+                            String.format(lang.get(LanguageKeys.BOOK_CREATE_BUILDING_PROGRESS),
+                                    processed, total, (int) ((double) processed / total * 100)));
                 }
             }
         }
@@ -204,28 +239,22 @@ public final class PgnToBookConverter {
         log.info("[BOOK BUILD] Skip reasons: noBody={}, noMoves={}, setUp={}, badResult={}, illegalSan={}, exceptions={}",
                 skipNoBody, skipNoMoves, skipSetUp, skipBadResult, skipIllegalSan, skipException);
 
-        // 4. Финализируем прогресс
+        // ========== ПАРТИИ ОБРАБОТАНЫ ==========
         if (progressCb != null) {
-            progressCb.accept(1.0);
+            progressCb.accept(1.0, lang.get(LanguageKeys.BOOK_CREATE_STATUS_PROCESSING_COMPLETE));
         }
 
-        // 5. Собираем PolyglotEntry из статистики
+        // ========== СБОРКА СТАТИСТИКИ ==========
+        if (progressCb != null) {
+            progressCb.accept(0.90, lang.get(LanguageKeys.BOOK_CREATE_STATUS_BUILDING));
+        }
         List<PolyglotEntry> entries = buildEntries(stats, options);
 
-        log.info("[BOOK BUILD] Games processed={}, skipped={}, positions={}, entries={}",
-                processed, skipped, stats.size(), entries.size());
-
-        // 6. Пишем .bin
-        if (!entries.isEmpty()) {
-            PolyglotBookWriter.createBook(outputBook, entries);
-        } else {
-            log.warn("[BOOK BUILD] No entries generated");
-        }
-
         long elapsed = System.currentTimeMillis() - start;
-        log.info("[BOOK BUILD] Done in {} ms", elapsed);
+        log.info("[BOOK BUILD] Stats collected: processed={}, skipped={}, positions={}, entries={}, elapsed={}ms",
+                processed, skipped, stats.size(), entries.size(), elapsed);
 
-        return new BuildResult(processed, skipped, stats.size(), entries.size(), elapsed);
+        return new StatsResult(processed, skipped, stats.size(), entries, elapsed);
     }
 
     // ========== ОБРАБОТКА ОДНОЙ ПАРТИИ ==========
@@ -500,7 +529,6 @@ public final class PgnToBookConverter {
             }
         }
 
-        boolean isCapture = san.contains("x");
         san = san.replace("x", "");
 
         // Последние 2 символа — целевая клетка

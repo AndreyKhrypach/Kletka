@@ -1294,6 +1294,11 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.BOOK_CREATE_NO_GAMES, "文件中没有活动对局");
         strings.put(LanguageKeys.BOOK_CREATE_LOAD_AFTER, "开局库已创建。现在加载吗？");
         strings.put(LanguageKeys.BOOK_CREATE_LOAD_AFTER_TITLE, "加载开局库");
+        strings.put(LanguageKeys.BOOK_CREATE_STATUS_PROCESSING, "正在处理对局...");
+        strings.put(LanguageKeys.BOOK_CREATE_STATUS_BUILDING,  "正在构建统计...");
+        strings.put(LanguageKeys.BOOK_CREATE_STATUS_WRITING,   "正在写入文件...");
+        strings.put(LanguageKeys.BOOK_CREATE_STATUS_COMPLETE,  "开局库已创建！");
+        strings.put(LanguageKeys.BOOK_CREATE_STATUS_PROCESSING_COMPLETE,  "已处理所有对局（100%）");
     }
 
 

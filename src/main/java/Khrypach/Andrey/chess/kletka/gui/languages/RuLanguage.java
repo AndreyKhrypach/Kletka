@@ -1308,6 +1308,11 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.BOOK_CREATE_NO_GAMES, "В файле нет активных партий");
         strings.put(LanguageKeys.BOOK_CREATE_LOAD_AFTER, "Книга создана. Загрузить её сейчас?");
         strings.put(LanguageKeys.BOOK_CREATE_LOAD_AFTER_TITLE, "Загрузка книги");
+        strings.put(LanguageKeys.BOOK_CREATE_STATUS_PROCESSING, "Обработка партий...");
+        strings.put(LanguageKeys.BOOK_CREATE_STATUS_BUILDING,  "Сборка статистики...");
+        strings.put(LanguageKeys.BOOK_CREATE_STATUS_WRITING,   "Запись файла...");
+        strings.put(LanguageKeys.BOOK_CREATE_STATUS_COMPLETE,  "Книга создана!");
+        strings.put(LanguageKeys.BOOK_CREATE_STATUS_PROCESSING_COMPLETE,  "Обработано 100% партий");
     }
 
     private static StringBuilder createShortcutsContent() {

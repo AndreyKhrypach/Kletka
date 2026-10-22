@@ -30,10 +30,7 @@ import Khrypach.Andrey.chess.kletka.database.service.PgnService;
 import Khrypach.Andrey.chess.kletka.engine.UciEngineManager;
 import Khrypach.Andrey.chess.kletka.gui.KletkaGui;
 import Khrypach.Andrey.chess.kletka.gui.board.*;
-import Khrypach.Andrey.chess.kletka.gui.book.BookManager;
-import Khrypach.Andrey.chess.kletka.gui.book.PgnToBookConverter;
-import Khrypach.Andrey.chess.kletka.gui.book.PolyglotBookParser;
-import Khrypach.Andrey.chess.kletka.gui.book.TreeToBookExporter;
+import Khrypach.Andrey.chess.kletka.gui.book.*;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.EngineSetupDialog;
 import Khrypach.Andrey.chess.kletka.gui.dialogs.PositionSetupDialog;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
@@ -579,32 +576,63 @@ public class MainController {
 
         new Thread(() -> {
             try {
-                PgnToBookConverter.BuildResult result = PgnToBookConverter.convert(
+                // ========== ЭТАП 1: ОБРАБОТКА ПАРТИЙ И СБОРКА СТАТИСТИКИ ==========
+                StatsResult statsResult = PgnToBookConverter.buildStats(
                         pgnPath,
-                        binPath,
                         PgnToBookConverter.BuildOptions.defaults(),
-                        progress -> Platform.runLater(() -> {
+                        (progress, statusText) -> Platform.runLater(() -> {
                             if (progressDialog != null) {
-                                int processed = (int) (progress * total); // ← вычисляем из доли
+                                int processed = (int) (progress * total);
                                 IndexingProgress ip = IndexingProgress.builder()
                                         .totalGames(total)
                                         .processedGames(processed)
-                                        .status(String.format(
-                                                lang.get(LanguageKeys.BOOK_CREATE_BUILDING_PROGRESS),
-                                                processed, total, (int) (progress * 100)))
+                                        .status(statusText)  // ← всегда statusText, от buildStats
                                         .build();
                                 progressDialog.updateProgress(ip);
                             }
                         })
                 );
 
+                // ========== ЭТАП 2: ПАУЗА ДЛЯ ОТОБРАЖЕНИЯ "100% ОБРАБОТАНО" ==========
+                // Даём UI шанс отрисовать финальное состояние
+                Thread.sleep(500);
+
+                // ========== ЭТАП 3: ЗАПИСЬ ФАЙЛА ==========
+                Platform.runLater(() -> {
+                    if (progressDialog != null) {
+                        progressDialog.updateProgress(IndexingProgress.builder()
+                                .totalGames(total)
+                                .processedGames(total)
+                                .status(lang.get(LanguageKeys.BOOK_CREATE_STATUS_WRITING))
+                                .build());
+                    }
+                });
+
+                if (!statsResult.entries().isEmpty()) {
+                    PolyglotBookWriter.createBook(binPath, statsResult.entries());
+                }
+
+                // ========== ЭТАП 4: ФИНАЛ ==========
+                Platform.runLater(() -> {
+                    if (progressDialog != null) {
+                        progressDialog.updateProgress(IndexingProgress.builder()
+                                .totalGames(total)
+                                .processedGames(total)
+                                .status(lang.get(LanguageKeys.BOOK_CREATE_STATUS_COMPLETE))
+                                .build());
+                    }
+                });
+
+                Thread.sleep(500);
+
+                // ========== ЭТАП 5: ЗАКРЫТИЕ ДИАЛОГА ==========
                 Platform.runLater(() -> {
                     if (progressDialog != null) {
                         progressDialog.close();
                         progressDialog = null;
                     }
 
-                    if (result.entriesWritten() == 0) {
+                    if (statsResult.entries().isEmpty()) {
                         showNotification(lang.get(LanguageKeys.BOOK_CREATE_NO_GAMES));
                         return;
                     }
@@ -612,9 +640,9 @@ public class MainController {
                     String msg = String.format(
                             lang.get(LanguageKeys.BOOK_CREATE_COMPLETE),
                             binPath.getFileName(),
-                            result.entriesWritten(),
-                            result.gamesProcessed(),
-                            result.gamesSkipped()
+                            statsResult.entries().size(),
+                            statsResult.processed(),
+                            statsResult.skipped()
                     );
                     showNotification(msg);
 
