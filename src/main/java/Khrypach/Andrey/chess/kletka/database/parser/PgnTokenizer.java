@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
+ *  * Copyright (c) 2025 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -99,11 +99,6 @@ public class PgnTokenizer {
             iterations++;
             char current = input.charAt(position);
 
-            if (iterations % 100 == 0) {
-                log.trace("Iteration {}: position={}, char='{}' (0x{})",
-                        iterations, position, current, Integer.toHexString(current));
-            }
-
             if (Character.isWhitespace(current)) {
                 boolean isPartOfPositionAnnotation = false;
                 for (MoveAnnotation ann : MoveAnnotation.values()) {
@@ -127,12 +122,7 @@ public class PgnTokenizer {
             if (token != null) {
                 tokens.add(token);
                 tokenCount++;
-                if (tokenCount % 10 == 0) {
-                    log.trace("Token #{}: {}", tokenCount, token);
-                }
             } else {
-                log.trace("Failed to parse at position {}: '{}' (0x{})",
-                        position, current, Integer.toHexString(current));
                 position++;
                 column++;
             }
@@ -172,9 +162,6 @@ public class PgnTokenizer {
         int startLine = line;
         int startColumn = column;
 
-        log.trace("parseNextToken: position={}, char='{}' (code=0x{}), line={}, col={}",
-                position, current, Integer.toHexString(current), line, column);
-
         if (current == '[') {
             position++;
             column++;
@@ -210,7 +197,6 @@ public class PgnTokenizer {
         if (current == '=' && position + 1 < input.length() && input.charAt(position + 1) == ')') {
             position++;
             column++;
-            log.trace("Created standalone '=' token from '=)'");
             return new PgnToken(PgnTokenType.VARIATION_END, ")", startLine, startColumn);
         }
 
@@ -231,7 +217,6 @@ public class PgnTokenizer {
                 if (!isPartOfMove) {
                     position += 2;
                     column += 2;
-                    log.trace("Annotation part of move: '{}'", twoChars);
                     return new PgnToken(PgnTokenType.ANNOTATION, twoChars, startLine, startColumn);
                 }
             }
@@ -263,7 +248,6 @@ public class PgnTokenizer {
                     if (!isPartOfMove) {
                         position += symbol.length();
                         column += symbol.length();
-                        log.trace("Annotation: '{}'", symbol);
                         return new PgnToken(PgnTokenType.ANNOTATION, symbol, startLine, startColumn);
                     }
                 }
@@ -275,7 +259,6 @@ public class PgnTokenizer {
             String tokenValue = matcher.group();
 
             if (tokenValue.startsWith("=") || (tokenValue.matches("[#+]+") && !tokenValue.isEmpty())) {
-                log.trace("Skipping special token: '{}'", tokenValue);
                 position += tokenValue.length();
                 column += tokenValue.length();
                 return null;
@@ -288,10 +271,6 @@ public class PgnTokenizer {
             // Токен пропущен (например, "--"), уже сдвинули позицию
             return createToken(tokenValue, startLine, startColumn);
         }
-
-        log.trace("Unknown token at position {}: '{}' (0x{}). Context: '...{}...'",
-                position, current, Integer.toHexString(current),
-                input.substring(Math.max(0, position - 20), Math.min(input.length(), position + 20)));
 
         position++;
         column++;

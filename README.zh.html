@@ -1,6 +1,6 @@
 <!--
   ~ /*
-  ~  * Copyright (c) 2024 Andrey Khrypach
+  ~  * Copyright (c) 2025 Andrey Khrypach
   ~  *
   ~  * This program is free software: you can redistribute it and/or modify
   ~  * it under the terms of the GNU General Public License as published by
@@ -174,6 +174,7 @@
         <li>🧩 完整支持变着和注释</li>
         <li>📚 <strong>Polyglot 开局库</strong> — 加载、浏览和 <strong>编辑</strong> 开局变着</li>
         <li>📤 <strong>将变例树导出为 Polyglot 开局库</strong> — 保存个人棋路</li>
+        <li>🏗️ <strong>从 PGN 文件创建 Polyglot 开局库</strong> — 从成千上万的对局构建统计开局库</li>
         <li>🔍 使用 <strong>Stockfish</strong> (UCI 引擎) 进行局面分析</li>
         <li>🎨 可定制的棋盘主题</li>
         <li>📋 <strong>复制局面</strong> 为 FEN + ASCII 格式 (Ctrl+Shift+P)</li>
@@ -250,6 +251,15 @@
     <p>树中的所有走法（主线 + 所有变着）都会进入开局库。转置和重复自动去重。</p>
     <p>生成的开局库可以重新加载到 Kletka，也可以在 Stockfish、Leela、ChessBase、Scid、Arena 等兼容软件中使用。</p>
 
+    <h3>从 PGN 文件创建 Polyglot 开局库：</h3>
+    <p>从大型 PGN 数据库（例如 900,000 个对局）构建 <strong>统计开局库</strong>：</p>
+    <ol>
+        <li>进入 <strong>书籍 → 从 PGN 创建开局库...</strong></li>
+        <li>选择源 <code>.pgn</code> 文件和目标 <code>.bin</code> 文件</li>
+        <li>应用程序解析每个对局（仅主线），为每一步累积胜/和/负统计信息，并写入 Polyglot 开局库。</li>
+    </ol>
+    <p>这与 <strong>“将变例树导出为 Polyglot”</strong>（从单个分析对局创建个人棋路）不同。PGN 到开局库的功能从成千上万个真实对局构建 <strong>统计开局库</strong>。生成的开局库兼容 Stockfish、Leela、ChessBase、Scid 和 Arena。</p>
+
     <h3>书籍的系统要求</h3>
     <p>Kletka 的开局书功能需要以下环境：</p>
     <ul>
@@ -278,12 +288,15 @@
         <li>✅ 在 Windows 上不会再出现"文件被另一个进程占用"的错误</li>
     </ul>
 
-    <h3>Linux：已知问题</h3>
-    <p>在 <strong>Debian Trixie / Ubuntu 24.04+</strong> 上使用 <strong>Wayland</strong> 时，对话框可能无法获得焦点（键盘可以工作，但鼠标无法工作）。这是 <strong>JavaFX 17 + GTK 3 + Wayland 的已知 bug</strong>。</p>
-    <p><strong>解决方案：</strong> 已在 Kletka 中包含——应用程序启动时带有 <code>-Djdk.gtk.version=2</code> 标志，通过 XWayland 使用 GTK 2。</p>
-    <p>在 <strong>Fedora 41+</strong> 上，对话框也可能无法获得焦点，直到您按下 <strong>Tab</strong>。这是由于 Wayland 上 GNOME 的 <strong>焦点窃取防护</strong>（Focus Stealing Prevention），加上 Fedora 41+ 移除了 GNOME X11 会话（登录界面不再有 "GNOME on Xorg" 选项）。</p>
-    <p><strong>临时解决方案：</strong> 对话框出现时按一次 <strong>Tab</strong> — 之后焦点将正常使用键盘和鼠标。</p>
-    <p>这是 <strong>已知的 JavaFX + Wayland bug</strong>，跟踪于 <a href="https://bugs.openjdk.org/browse/JDK-8353643">JDK-8353643</a>。</p>
+    <h3>Linux：Wayland 焦点修复</h3>
+    <p>在 <strong>Debian Trixie / Ubuntu 24.04+ / Fedora 41+</strong> 上使用 <strong>Wayland</strong> 时，对话框可能无法获得焦点（键盘可以工作，但鼠标无法工作）。这是 JavaFX 17 的已知 bug，跟踪于 <a href="https://bugs.openjdk.org/browse/JDK-8353643">JDK-8353643</a>。</p>
+    <p><strong>我们在 Kletka 中修复了它：</strong></p>
+    <ul>
+        <li>将 <code>ListView</code> 替换为 <code>VBox</code> + <code>Button</code>（ListView 虚拟化与 Wayland 冲突）。</li>
+        <li>使用 <code>Modality.NONE</code> + 场景根节点上的 <code>setMouseTransparent(true)</code> 绕过 GNOME 的焦点窃取防护（Focus Stealing Prevention）。</li>
+        <li>移除了对 <code>-Djdk.gtk.version=2</code> 标志的依赖（现在支持纯 GTK 3 + Wayland）。</li>
+    </ul>
+    <p><strong>结果：</strong> 对话框现在在 Wayland 上的工作方式与 Windows/macOS 完全相同 — 不再需要按 Tab 的临时解决方案。</p>
 
     <h3>推荐书籍：</h3>
     <p>为获得最佳效果，我们推荐使用 <strong><code>uho-pohl.bin</code></strong> 开局库，其中包含大量高质量的开局变着。</p>
@@ -295,6 +308,24 @@
         <li><a href="https://www.chessdb.com/">UHO-Pohl openings</a> — 高质量开局数据库</li>
         <li><a href="https://www.chesstempo.com/">ChessTempo's Polyglot books</a></li>
         <li>使用 Polyglot 格式创建自己的书籍</li>
+    </ul>
+
+    <hr>
+
+    <h2>⚡ 性能</h2>
+    <ul>
+        <li><strong>PGN 索引加速 21 倍</strong> — 900,000 个对局在 <strong>~50 秒</strong> 内完成索引（之前约 17 分钟）。</li>
+        <li><strong>批量处理加速 2 倍</strong> — 删除/插入 100,000 个对局明显更快。</li>
+    </ul>
+
+    <hr>
+
+    <h2>🔄 自动更新检查</h2>
+    <p>启动时，Kletka 向 GitHub API 发送 <strong>一个 HTTPS 请求</strong> 以检查新版本。如果有可用更新，顶部菜单会出现 <strong>🔄 图标</strong>。点击后打开发布页面。</p>
+    <ul>
+        <li><strong>匿名：</strong> 只发送 <code>User-Agent</code>（Kletka-UpdateChecker）和 IP 地址（与任何 HTTPS 请求一样）。</li>
+        <li><strong>不收集任何个人数据。</strong></li>
+        <li>也可以手动检查：<strong>帮助 → 检查更新</strong>。</li>
     </ul>
 
     <hr>
@@ -387,7 +418,15 @@
     <p>从 <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a> 页面下载 <code>Kletka.exe</code> 并运行安装程序。</p>
 
     <h3>macOS</h3>
-    <p>从 <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a> 页面下载 <code>Kletka.dmg</code>，打开并将 <code>Kletka.app</code> 拖到 <code>Applications</code> 文件夹。</p>
+    <p>从 <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a> 页面下载适用于您处理器的 <code>.dmg</code>：</p>
+    <ul>
+        <li><strong>Apple Silicon (M1/M2/M3... MacBook Air/Pro):</strong> <code>Kletka-1.7.0-air.dmg</code></li>
+        <li><strong>Intel (x86_64):</strong> <code>Kletka-1.7.0-intel.dmg</code></li>
+    </ul>
+    <p>打开 <code>.dmg</code>，将 <code>Kletka.app</code> 拖入 <code>Applications</code>（应用程序）文件夹。</p>
+    <blockquote>
+        ⚠️ <strong>macOS 重要提示：</strong> 安装新版本前，请<strong>从 <code>Applications</code> 中删除旧版「Клетка」</strong>。由于 macOS 处理 app bundles 的方式，覆盖现有副本可能会导致设置或文件关联问题。
+    </blockquote>
 
     <h3>Linux (Debian/Ubuntu)</h3>
     <p>从 <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a> 页面下载 <code>Kletka.deb</code></p>
@@ -420,8 +459,11 @@ mvn clean package</code></pre>
     <pre><code># Windows
 mvn clean package -P windows
 
-# Linux (Debian/Ubuntu)
+# Linux (Debian)
 mvn clean package -P linux-debian
+
+# Linux (Ubuntu)
+mvn clean package -P linux-ubuntu
 
 # Linux (Fedora / RHEL / openSUSE)
 mvn clean package -P linux-rpm

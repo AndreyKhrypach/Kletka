@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
+ *  * Copyright (c) 2025 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -1292,6 +1292,23 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.PGN_BATCH_EXCEPTION_ALREADY_DELETED, "Game already deleted: %d");
         strings.put(LanguageKeys.PGN_BATCH_EXCEPTION_NOT_FOUND_IN_INDEX, "Game with ID %d not found in index");
 
+        // ========== СОЗДАНИЕ КНИГИ ИЗ PGN ==========
+        strings.put(LanguageKeys.MENU_BOOKS_CREATE_FROM_PGN, "Create book from PGN…");
+        strings.put(LanguageKeys.BOOK_CREATE_DIALOG_TITLE, "Select PGN file to create book");
+        strings.put(LanguageKeys.BOOK_CREATE_FILE_FILTER_PGN, "PGN files");
+        strings.put(LanguageKeys.BOOK_CREATE_FILE_FILTER_BIN, "Polyglot Book");
+        strings.put(LanguageKeys.BOOK_CREATE_SAVE_DIALOG_TITLE, "Save book as");
+        strings.put(LanguageKeys.BOOK_CREATE_DEFAULT_NAME, "book_from_pgn.bin");
+        strings.put(LanguageKeys.BOOK_CREATE_INDEXING_NEEDED, "File is not indexed. Starting indexing…");
+        strings.put(LanguageKeys.BOOK_CREATE_INDEXING_START, "Indexing PGN…");
+        strings.put(LanguageKeys.BOOK_CREATE_BUILDING, "Building Polyglot book…");
+        strings.put(LanguageKeys.BOOK_CREATE_BUILDING_PROGRESS, "Processed games: %d of %d (%d%%)");
+        strings.put(LanguageKeys.BOOK_CREATE_COMPLETE, "Book created: %s (entries: %d, games: %d, skipped: %d)");
+        strings.put(LanguageKeys.BOOK_CREATE_ERROR_TITLE, "Book creation error ");
+        strings.put(LanguageKeys.BOOK_CREATE_ERROR, "Failed to create book: %s");
+        strings.put(LanguageKeys.BOOK_CREATE_NO_GAMES, "No active games in file");
+        strings.put(LanguageKeys.BOOK_CREATE_LOAD_AFTER, "Book created. Load it now?");
+        strings.put(LanguageKeys.BOOK_CREATE_LOAD_AFTER_TITLE, "Load book");
     }
 
     private static StringBuilder createShortcutsContent() {
@@ -1335,7 +1352,6 @@ public class EnLanguage implements Language {
         shortcutsContent.append("\n⚙️ Engine:\n");
         shortcutsContent.append("  Space - Engine move\n");
         shortcutsContent.append("  Shift+Enter - Toggle analysis\n");
-        shortcutsContent.append("  Ctrl+Shift+E - Configure engine\n");
 
         // 📚 PGN/Browser
         shortcutsContent.append("\n📚 PGN/Browser:\n");

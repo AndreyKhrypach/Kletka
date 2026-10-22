@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025-2026 Andrey Khrypach
+ * Copyright (c) 2025 Andrey Khrypach
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -142,18 +142,32 @@ public class PgnIndexManager {
     }
 
     /**
-     * Сохраняет индекс в бинарный файл
+     * Сохраняет индекс в бинарный файл (полный — с пересчётом hash).
+     * Поведение по умолчанию: как раньше.
      */
     public void saveIndex(Path pgnPath, PgnIndex index) throws IOException {
-        log.info("Saving binary index for: {}", pgnPath);
+        saveIndex(pgnPath, index, false);
+    }
+
+    /**
+     * Сохраняет индекс в бинарный файл.
+     *
+     * @param skipHash если true — НЕ пересчитывает hash PGN-файла (быстрее).
+     *                 Использовать только для промежуточных/батчевых сохранений,
+     *                 когда PGN-файл ещё будет меняться. Финальное сохранение
+     *                 должно идти с skipHash=false, чтобы checkIndex работал.
+     */
+    public void saveIndex(Path pgnPath, PgnIndex index, boolean skipHash) throws IOException {
+        log.info("Saving binary index for: {} (skipHash={})", pgnPath, skipHash);
 
         // Обновляем метаданные
         index.setFileSize(Files.size(pgnPath));
-        index.setFileHash(computeFileHash(pgnPath));
+        if (!skipHash) {
+            index.setFileHash(computeFileHash(pgnPath));
+        }
 
         writer.write(index, getIndexPath(pgnPath));
 
-        // Просто логируем, если старый индекс существует.
         Path oldJsonIndex = pgnPath.getParent().resolve(
                 pgnPath.getFileName().toString().replaceAll("\\.[^.]+$", "") + ".idx"
         );

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025-2026 Andrey Khrypach
+ * Copyright (c) 2025 Andrey Khrypach
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,12 +22,12 @@ import Khrypach.Andrey.chess.kletka.pgn.index.model.PgnIndex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.file.*;
 import java.util.List;
 
 /**
@@ -67,7 +67,8 @@ public class BinaryIndexWriter {
         Path tempPath = outputPath.getParent().resolve(outputPath.getFileName() + ".tmp");
 
         try (FileOutputStream fos = new FileOutputStream(tempPath.toFile());
-             DataOutputStream dos = new DataOutputStream(fos)) {
+             BufferedOutputStream bos = new BufferedOutputStream(fos, 1 << 20);  // 1 MB
+             DataOutputStream dos = new DataOutputStream(bos)) {
 
             // Заголовок
             BinaryIndexHeader header = BinaryIndexHeader.create(
@@ -105,11 +106,28 @@ public class BinaryIndexWriter {
             throw e;
         }
 
-        // Атомарная замена
-        if (Files.exists(outputPath)) {
-            Files.delete(outputPath);
+        // ========== АТОМАРНАЯ ЗАМЕНА ==========
+        // ATOMIC_MOVE + REPLACE_EXISTING: на POSIX и Windows работает атомарно,
+        // нет окна, когда файла нет. Если ФС не поддерживает — фолбэк.
+        try {
+            Files.move(tempPath, outputPath,
+                    StandardCopyOption.REPLACE_EXISTING,
+                    StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException e) {
+            log.warn("Atomic move not supported, falling back: {}", e.getMessage());
+            Files.move(tempPath, outputPath, StandardCopyOption.REPLACE_EXISTING);
+        } catch (AccessDeniedException e) {
+            log.warn("Atomic move denied (file likely in use), trying delete+move: {}", e.getMessage());
+            try {
+                Files.deleteIfExists(outputPath);
+            } catch (AccessDeniedException ex) {
+                Files.deleteIfExists(tempPath);
+                throw new IOException(
+                        "Cannot replace index file because it is still in use: " + outputPath +
+                                ". Close the PGN browser for this file and retry.", ex);
+            }
+            Files.move(tempPath, outputPath, StandardCopyOption.REPLACE_EXISTING);
         }
-        Files.move(tempPath, outputPath);
 
         log.debug("Binary index written: {} bytes", Files.size(outputPath));
     }
@@ -118,25 +136,13 @@ public class BinaryIndexWriter {
      * Записывает одну запись в поток
      */
     private void writeEntry(DataOutputStream dos, GameIndexEntry entry) throws IOException {
-        // id (4 байта)
         dos.writeInt(entry.getId());
-
-        // offset (8 байт)
         dos.writeLong(entry.getOffset());
-
-        // length (4 байта)
         dos.writeInt(entry.getLength());
-
-        // version (4 байта)
         dos.writeInt(entry.getVersion());
-
-        // deleted (1 байт)
         dos.writeByte(entry.isDeleted() ? 1 : 0);
-
-        // hash (4 байта)
         dos.writeInt(entry.getHash());
 
-        // Строки: длина + содержимое (UTF-8)
         writeString(dos, entry.getWhite());
         writeString(dos, entry.getBlack());
         writeString(dos, entry.getEco());
@@ -147,7 +153,6 @@ public class BinaryIndexWriter {
         writeString(dos, entry.getOpening());
         writeString(dos, entry.getVariation());
 
-        // plyCount (4 байта)
         dos.writeInt(entry.getPlyCount());
     }
 

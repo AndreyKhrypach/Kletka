@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
+ *  * Copyright (c) 2025 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -656,6 +656,16 @@ public class MoveNavigationController {
             ));
         }
 
+        // ========== ЕСЛИ ДИАЛОГ УЖЕ ОТКРЫТ — ОТКЛАДЫВАЕМ ==========
+        if (VariationChoiceDialog.isAnyDialogOpen()) {
+            Platform.runLater(() -> {
+                Platform.runLater(() -> {
+                    showBranchChoiceDialog(node, variations, nextIsWhite);
+                });
+            });
+            return;
+        }
+
         VariationChoiceDialog dialog = new VariationChoiceDialog(choices, boardView.getPrimaryStage());
 
         VariationChoiceDialog.Choice selected = dialog.showAndWait();
@@ -723,11 +733,6 @@ public class MoveNavigationController {
             updateOpeningForCurrentPosition();
         }
 
-        if (hasForkAtNode(currentNode)) {
-            boolean isWhiteTurn = (currentNode.getAbsolutePly() % 2 == 0);
-            log.debug("  currentNode is fork, showing dialog recursively");
-            showBranchChoiceDialog(currentNode, isWhiteTurn);
-        }
         loadVariationsForNode(currentNode);
         updateCurrentVariations();
         selectedVariationIndex = 0;

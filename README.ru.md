@@ -27,6 +27,7 @@
 - 🧩 Полная поддержка вариантов и аннотаций
 - 📚 **Дебютные книги Polyglot** — загрузка, просмотр и **редактирование** дебютных вариантов
 - 📤 **Экспорт дерева в Polyglot книгу** — сохранение личного репертуара
+- 🏗️ **Создание Polyglot-книги из PGN-файла** — построение статистической книги из тысяч партий
 - 🔍 Анализ позиции с **Stockfish** (UCI движок)
 - 🎨 Настраиваемые темы доски
 - 📋 **Копирование позиции** в формате FEN + ASCII (Ctrl+Shift+P)
@@ -98,12 +99,23 @@
 
 Полученную книгу можно загрузить обратно в Клетку или использовать в Stockfish, Leela, ChessBase, Scid, Arena и других совместимых программах.
 
+### Создание Polyglot-книги из PGN-файла:
+
+Построение **статистической дебютной книги** из большой базы PGN (например, 900 000 партий):
+
+1. Перейдите в **Книги → Создать книгу из PGN...**
+2. Выберите исходный `.pgn` файл и целевой `.bin` файл
+3. Программа парсит каждую партию (только главную линию), накапливает статистику побед/поражений/ничьих для каждого хода и записывает Polyglot книгу.
+
+Это отличается от **«Экспорта дерева в Polyglot»** (который создаёт личный репертуар из одной проанализированной партии). Функция создания из PGN строит **статистическую книгу** из тысяч реальных партий. Полученная книга совместима со Stockfish, Leela, ChessBase, Scid и Arena.
+
 ### Системные требования для книг
 
 Для работы с дебютными книгами Клетка требует:
 
 - **Java 17 LTS** (рекомендуется Liberica Full JDK)
 - Аргументы JVM (автоматически применяются при запуске через лаунчер):
+
 
 ```
 --add-opens java.base/sun.nio.ch=ALL-UNNAMED
@@ -137,22 +149,20 @@ sun.misc.Unsafe.invokeCleaner(mappedByteBuffer);
 - ✅ Можно **заменять** файл книги на новый
 - ✅ Никаких ошибок "файл занят другим процессом" на Windows
 
-### Linux: известные проблемы
+### Linux: исправление фокуса на Wayland
 
-На Debian Trixie / Ubuntu 24.04+ с Wayland диалоги могут не получать фокус
-(клавиатура работает, мышь — нет). Это известный баг JavaFX 17 + GTK 3 + Wayland.
-
-Решение: уже включено в Клетку — приложение запускается с флагом
--Djdk.gtk.version=2, который использует GTK 2 через XWayland.
-
-На Fedora 41+ диалоги также могут не получать фокус, пока вы не нажмёте Tab.
-Это вызвано Focus Stealing Prevention в GNOME на Wayland в сочетании с
-удалением сессии GNOME X11 в Fedora 41+ (на экране входа больше нет опции "GNOME on Xorg").
-
-Обходной путь: нажмите Tab один раз при появлении диалога — после этого фокус
-будет работать нормально с клавиатурой и мышью.
-
+На Debian Trixie / Ubuntu 24.04+ / Fedora 41+ с Wayland диалоги могут не получать фокус (клавиатура работает, мышь — нет).
 Это известный баг JavaFX + Wayland, отслеживается в [JDK-8353643](https://bugs.openjdk.org/browse/JDK-8353643).
+
+Мы исправили это в Клетке:
+
+- Заменили ListView на VBox с кнопками (виртуализация ListView конфликтует с Wayland).
+
+- Использовали Modality.NONE + setMouseTransparent(true) на корневом узле сцены, чтобы обойти Focus Stealing Prevention в GNOME.
+
+- Убрали зависимость от флага -Djdk.gtk.version=2 (теперь поддерживается чистый GTK 3 + Wayland).
+
+Результат: диалоги теперь работают на Wayland так же, как на Windows/macOS — обходной путь с Tab больше не нужен.
 
 ---
 
@@ -169,6 +179,26 @@ sun.misc.Unsafe.invokeCleaner(mappedByteBuffer);
 - [UHO-Pohl openings](https://www.chessdb.com/) — качественная база дебютов
 - [ChessTempo's Polyglot books](https://www.chesstempo.com/)
 - Создайте свою собственную книгу в формате Polyglot
+
+---
+
+## ⚡ Производительность
+
+- Индексация PGN ускорена в 21 раз — 900 000 партий индексируются за ~50 секунд (ранее ~17 минут).
+
+- Пакетная обработка ускорена в 2 раза — удаление/вставка 100 000 партий стали заметно быстрее.
+
+---
+
+## 🔄 Автоматическая проверка обновлений
+
+При запуске Kletka делает один HTTPS-запрос к GitHub API для проверки новой версии. Если обновление доступно, в верхнем меню появляется иконка 🔄. Клик открывает страницу релизов.
+
+- Анонимно: отправляется только User-Agent (Kletka-UpdateChecker) и IP-адрес (как при любом HTTPS-запросе).
+
+- Никакие персональные данные не собираются.
+
+- Также можно проверить вручную: Помощь → Проверить обновления.
 
 ---
 
@@ -257,7 +287,13 @@ sun.misc.Unsafe.invokeCleaner(mappedByteBuffer);
 Скачайте `Kletka.exe` со страницы [Releases](https://github.com/AndreyKhrypach/Kletka/releases) и запустите установщик.
 
 ### macOS
-Скачайте `Kletka.dmg` со страницы [Releases](https://github.com/AndreyKhrypach/Kletka/releases), откройте его и перетащите `Kletka.app` в папку `Applications`.
+Скачайте .dmg для вашего процессора со страницы [Releases](https://github.com/AndreyKhrypach/Kletka/releases), откройте его и перетащите `Kletka.app` в папку `Applications`.
+
+- Apple Silicon (M1/M2/M3... MacBook Air/Pro): Kletka-1.7.0-air.dmg
+
+- Intel (x86_64): Kletka-1.7.0-intel.dmg
+
+⚠️ Важно для macOS: Перед установкой новой версии удалите старую «Клетку» из Applications.
 
 ### Linux (Debian/Ubuntu)
 Скачайте `Kletka.deb` со страницы [Releases](https://github.com/AndreyKhrypach/Kletka/releases)
@@ -303,8 +339,11 @@ mvn clean package
 # Windows
 mvn clean package -P windows
 
-# Linux (Debian/Ubuntu)
+# Linux (Debian)
 mvn clean package -P linux-debian
+
+# Linux (Ubuntu)
+mvn clean package -P linux-ubuntu
 
 # Linux (Fedora / RHEL / openSUSE)
 mvn clean package -P linux-rpm

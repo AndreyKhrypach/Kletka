@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
+ *  * Copyright (c) 2025 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -153,6 +153,8 @@ public class PositionSetupDialog {
         VBox centerPanel = createCenterPanel();
 
         VBox rightPanel = createRightPanel();
+        // ========== ЗАГРУЖАЕМ ПРАВА РОКИРОВКИ ИЗ FEN ==========
+        loadCastlingFromFen(resultBoard.getFen());
         ScrollPane rightScrollPane = new ScrollPane(rightPanel);
         rightScrollPane.setFitToWidth(true);
         rightScrollPane.setPrefWidth(280);
@@ -435,12 +437,66 @@ public class PositionSetupDialog {
         okBtn.setMaxWidth(Double.MAX_VALUE);
         okBtn.setOnAction(e -> {
             confirmed = true;
-            validateAndFixCastlingRights();
+
+            // ========== СОБИРАЕМ FEN С УЧЁТОМ ГАЛОЧЕК РОКИРОВКИ ==========
+            String fen = resultBoard.getFen();
+            String[] parts = fen.split(" ");
+            if (parts.length >= 6) {
+                // Собираем права рокировки из галочек + проверяем наличие фигур
+                StringBuilder castling = new StringBuilder();
+
+                Piece whiteKing = resultBoard.getPiece(Square.E1);
+                Piece whiteRookH1 = resultBoard.getPiece(Square.H1);
+                Piece whiteRookA1 = resultBoard.getPiece(Square.A1);
+                Piece blackKing = resultBoard.getPiece(Square.E8);
+                Piece blackRookH8 = resultBoard.getPiece(Square.H8);
+                Piece blackRookA8 = resultBoard.getPiece(Square.A8);
+
+                makeCastling(castling, whiteKing, whiteRookH1, whiteRookA1, blackKing, blackRookH8, blackRookA8);
+
+                String castlingStr = castling.isEmpty() ? "-" : castling.toString();
+
+                // Собираем итоговый FEN (с учётом галочек и сбросом счётчиков)
+                String fixedFen = parts[0] + " " + parts[1] + " " + castlingStr + " " +
+                        parts[3] + " 0 1";
+
+                try {
+                    resultBoard.loadFromFen(fixedFen);
+                } catch (Exception ex) {
+                    log.error("Failed to apply castling rights: {}", ex.getMessage());
+                }
+            }
+
+            // ========== ВАЛИДАЦИЯ СТОРОНЫ ХОДА ==========
             validateAndFixSideToMove();
             resultBoard.setSideToMove(sideToMove);
+
             dialogStage.close();
         });
         return okBtn;
+    }
+
+    private void makeCastling(StringBuilder castling, Piece whiteKing, Piece whiteRookH1, Piece whiteRookA1, Piece blackKing, Piece blackRookH8, Piece blackRookA8) {
+        if (whiteKingSideCastling.isSelected()
+                && whiteKing == Piece.WHITE_KING
+                && whiteRookH1 == Piece.WHITE_ROOK) {
+            castling.append("K");
+        }
+        if (whiteQueenSideCastling.isSelected()
+                && whiteKing == Piece.WHITE_KING
+                && whiteRookA1 == Piece.WHITE_ROOK) {
+            castling.append("Q");
+        }
+        if (blackKingSideCastling.isSelected()
+                && blackKing == Piece.BLACK_KING
+                && blackRookH8 == Piece.BLACK_ROOK) {
+            castling.append("k");
+        }
+        if (blackQueenSideCastling.isSelected()
+                && blackKing == Piece.BLACK_KING
+                && blackRookA8 == Piece.BLACK_ROOK) {
+            castling.append("q");
+        }
     }
 
     private Button getCopyFenBtn() {
@@ -828,8 +884,13 @@ public class PositionSetupDialog {
 
             rows[row] = newRow.toString();
             String newBoardPart = String.join("/", rows);
+
+            // ========== ИСПРАВЛЕНИЕ: СБРАСЫВАЕМ СЧЁТЧИКИ ==========
+            // parts[4] = halfMoveClock (обычно 0)
+            // parts[5] = fullMoveNumber (должен быть 1)
             String newFen = newBoardPart + " " + parts[1] + " " + parts[2] + " " +
-                    parts[3] + " " + parts[4] + " " + parts[5];
+                    parts[3] + " 0 1";  // ← ВСЕГДА 0 1, а не parts[4] и parts[5]
+
             resultBoard.loadFromFen(newFen);
         } catch (Exception e) {
             log.error("Error when trying remove piece: {}", e.getMessage());
@@ -909,21 +970,7 @@ public class PositionSetupDialog {
 
         StringBuilder castlingRights = new StringBuilder();
 
-        if (whiteKingSideCastling.isSelected() && whiteKing == Piece.WHITE_KING && whiteRookH1 == Piece.WHITE_ROOK) {
-            castlingRights.append("K");
-        }
-
-        if (whiteQueenSideCastling.isSelected() && whiteKing == Piece.WHITE_KING && whiteRookA1 == Piece.WHITE_ROOK) {
-            castlingRights.append("Q");
-        }
-
-        if (blackKingSideCastling.isSelected() && blackKing == Piece.BLACK_KING && blackRookH8 == Piece.BLACK_ROOK) {
-            castlingRights.append("k");
-        }
-
-        if (blackQueenSideCastling.isSelected() && blackKing == Piece.BLACK_KING && blackRookA8 == Piece.BLACK_ROOK) {
-            castlingRights.append("q");
-        }
+        makeCastling(castlingRights, whiteKing, whiteRookH1, whiteRookA1, blackKing, blackRookH8, blackRookA8);
 
         String newCastlingRights = !castlingRights.isEmpty() ? castlingRights.toString() : "-";
         String currentRights = parts.length > 2 ? parts[2] : "-";
@@ -940,9 +987,7 @@ public class PositionSetupDialog {
             if (newCastlingRights.contains("q")) blackQueenSideCastling.setSelected(true);
 
             String newFen = parts[0] + " " + parts[1] + " " + newCastlingRights + " " +
-                    (parts.length > 3 ? parts[3] : "-") + " " +
-                    (parts.length > 4 ? parts[4] : "0") + " " +
-                    (parts.length > 5 ? parts[5] : "1");
+                    (parts.length > 3 ? parts[3] : "-") + " 0 1";
 
             try {
                 resultBoard.loadFromFen(newFen);
@@ -1085,9 +1130,7 @@ public class PositionSetupDialog {
             if (newCastlingRights.contains("q")) blackQueenSideCastling.setSelected(true);
 
             String newFen = parts[0] + " " + parts[1] + " " + newCastlingRights + " " +
-                    (parts.length > 3 ? parts[3] : "-") + " " +
-                    (parts.length > 4 ? parts[4] : "0") + " " +
-                    (parts.length > 5 ? parts[5] : "1");
+                    (parts.length > 3 ? parts[3] : "-") + " 0 1";
 
             try {
                 resultBoard.loadFromFen(newFen);

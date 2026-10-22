@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2024 Andrey Khrypach
+ *  * Copyright (c) 2025 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -250,7 +250,7 @@ class PgnBatchOperationTest {
         void shouldHandleDeletingMoreThanBatchSize() throws IOException {
             // given
             // Сначала создаем достаточно партий в файле
-            int totalGames = 1500;
+            int totalGames = 2500;
             createTestPgnFile(totalGames);
             recreateIndex(totalGames);
             batchOperation = new PgnBatchOperation(pgnPath, index);
@@ -557,8 +557,7 @@ class PgnBatchOperationTest {
 
             // Теперь удаляем партии
             List<GameIndexEntry> entriesToDelete = new ArrayList<>();
-            int deleteCount = PgnBatchOperation.BATCH_SIZE * 2 + 100; // 1100
-            for (int i = 1; i <= deleteCount; i++) {
+            for (int i = 1; i <= totalGames; i++) {
                 entriesToDelete.add(index.getEntryById(i));
             }
 
@@ -568,14 +567,14 @@ class PgnBatchOperationTest {
             BatchOperationResult result = batchOperation.deleteGamesBatch(entriesToDelete, null);
 
             // then
-            assertThat(result.successful()).isEqualTo(deleteCount);
-            assertThat(result.totalRequested()).isEqualTo(deleteCount);
+            assertThat(result.successful()).isEqualTo(totalGames);
+            assertThat(result.totalRequested()).isEqualTo(totalGames);
             assertThat(result.isComplete()).isTrue();
 
             // Проверяем, что индекс сохранился и корректен
             PgnIndex updatedIndex = indexManager.loadIndex(pgnPath);
             assertThat(updatedIndex).isNotNull();
-            assertThat(updatedIndex.getActiveCount()).isEqualTo(initialActiveCount - deleteCount);
+            assertThat(updatedIndex.getActiveCount()).isEqualTo(initialActiveCount - totalGames);
         }
     }
 

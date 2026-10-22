@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025-2026 Andrey Khrypach
+ * Copyright (c) 2025 Andrey Khrypach
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -50,6 +51,9 @@ public class LazyPgnIndex extends PgnIndex {
     @Getter
     private final List<LightGameEntry> lightEntries;
 
+    /** O(1) поиск LightGameEntry по id */
+    private final Map<Integer, LightGameEntry> lightById;
+
     // Кэш полных записей (загружаются по требованию)
     @Getter
     private final Map<Integer, GameIndexEntry> fullEntryCache = new ConcurrentHashMap<>();
@@ -72,6 +76,12 @@ public class LazyPgnIndex extends PgnIndex {
         this.dataStart = dataStart;
         this.lightEntries = lightEntries;
 
+        // Строим map один раз
+        this.lightById = new HashMap<>(lightEntries.size() * 2);
+        for (LightGameEntry e : lightEntries) {
+            lightById.put(e.id(), e);
+        }
+
         // Устанавливаем метаданные
         setVersion(PgnIndex.FORMAT_VERSION);
         setFileHash(header.fileHash());
@@ -82,9 +92,6 @@ public class LazyPgnIndex extends PgnIndex {
 
     // ========== ЛЁГКИЕ ЗАПИСИ (ДЛЯ ПОИСКА И ОТОБРАЖЕНИЯ) ==========
 
-    /**
-     * Получает лёгкие записи с пагинацией
-     */
     public List<LightGameEntry> getLightEntriesPage(int start, int count) {
         if (start < 0) start = 0;
         if (start >= lightEntries.size()) return new ArrayList<>();
@@ -93,16 +100,10 @@ public class LazyPgnIndex extends PgnIndex {
         return lightEntries.subList(start, end);
     }
 
-    /**
-     * Получает первую страницу лёгких записей (50)
-     */
     public List<LightGameEntry> getFirstPage() {
         return getLightEntriesPage(0, 50);
     }
 
-    /**
-     * Поиск по лёгким записям (все в памяти)
-     */
     public List<LightGameEntry> search(String query) {
         if (query == null || query.trim().isEmpty()) {
             return lightEntries;
@@ -114,9 +115,6 @@ public class LazyPgnIndex extends PgnIndex {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Поиск с пагинацией
-     */
     public List<LightGameEntry> search(String query, int start, int count) {
         if (query == null || query.trim().isEmpty()) {
             return getLightEntriesPage(start, count);
@@ -136,13 +134,6 @@ public class LazyPgnIndex extends PgnIndex {
 
     // ========== ЗАГРУЗКА ПОЛНЫХ ЗАПИСЕЙ (БЛОКАМИ) ==========
 
-    /**
-     * Загружает полные записи для указанного диапазона лёгких записей
-     * @param start начальный индекс в lightEntries
-     * @param count количество записей для загрузки
-     * @param progressCallback колбэк прогресса
-     * @return список полных записей
-     */
     public List<GameIndexEntry> loadFullEntries(int start, int count, Consumer<Integer> progressCallback) {
         if (start < 0) start = 0;
         if (start >= lightEntries.size()) return new ArrayList<>();
@@ -153,7 +144,6 @@ public class LazyPgnIndex extends PgnIndex {
         for (int i = start; i < end; i++) {
             LightGameEntry light = lightEntries.get(i);
 
-            // Проверяем кэш
             GameIndexEntry cached = fullEntryCache.get(light.id());
             if (cached != null) {
                 result.add(cached);
@@ -175,9 +165,6 @@ public class LazyPgnIndex extends PgnIndex {
         return result;
     }
 
-    /**
-     * Загружает первые N полных записей (для начальной загрузки)
-     */
     public List<GameIndexEntry> loadInitialFullEntries(int count) {
         return loadFullEntries(0, count, null);
     }
@@ -185,7 +172,8 @@ public class LazyPgnIndex extends PgnIndex {
     // ========== ПОЛНАЯ ЗАПИСЬ ПО ID (ЛЕНИВО) ==========
 
     /**
-     * Получает полную запись по ID (лениво)
+     * Получает полную запись по ID (лениво).
+     * O(1) поиск LightGameEntry через map.
      */
     public GameIndexEntry getFullEntry(int id) {
         // Проверяем кэш
@@ -194,12 +182,8 @@ public class LazyPgnIndex extends PgnIndex {
             return cached;
         }
 
-        // Ищем лёгкую запись
-        LightGameEntry light = lightEntries.stream()
-                .filter(e -> e.id() == id)
-                .findFirst()
-                .orElse(null);
-
+        // O(1) поиск лёгкой записи
+        LightGameEntry light = lightById.get(id);
         if (light == null) {
             return null;
         }
@@ -217,9 +201,6 @@ public class LazyPgnIndex extends PgnIndex {
 
     // ========== ЗАГРУЗКА ВСЕХ ПОЛНЫХ ЗАПИСЕЙ ==========
 
-    /**
-     * Загружает все полные записи
-     */
     public void loadAllFullEntries(Consumer<Integer> progressCallback) {
         if (allFullEntriesLoaded) return;
 
@@ -245,9 +226,6 @@ public class LazyPgnIndex extends PgnIndex {
         log.info("All {} full entries loaded", fullEntryCache.size());
     }
 
-    /**
-     * Переопределяем метод для поиска по ID
-     */
     @Override
     public GameIndexEntry getEntryById(int id) {
         return getFullEntry(id);
@@ -255,35 +233,29 @@ public class LazyPgnIndex extends PgnIndex {
 
     @Override
     public GameIndexEntry getActiveEntryById(int id) {
-        return lightEntries.stream()
-                .filter(e -> e.id() == id && !e.deleted())
-                .findFirst()
-                .map(light -> {
-                    // Если есть в кэше - возвращаем оттуда
-                    GameIndexEntry cached = fullEntryCache.get(id);
-                    if (cached != null && !cached.isDeleted()) {
-                        return cached;
-                    }
-                    // Иначе загружаем
-                    try {
-                        return loadFullEntry(light);
-                    } catch (IOException e) {
-                        log.error("Failed to load full entry for {}", id, e);
-                        return null;
-                    }
-                })
-                .orElse(null);
+        LightGameEntry light = lightById.get(id);
+        if (light == null || light.deleted()) {
+            return null;
+        }
+
+        GameIndexEntry cached = fullEntryCache.get(id);
+        if (cached != null && !cached.isDeleted()) {
+            return cached;
+        }
+
+        try {
+            return loadFullEntry(light);
+        } catch (IOException e) {
+            log.error("Failed to load full entry for {}", id, e);
+            return null;
+        }
     }
 
     // ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ==========
 
-    /**
-     * Загружает полную запись из буфера по лёгкой записи
-     */
     private GameIndexEntry loadFullEntry(LightGameEntry light) throws IOException {
         long offset = dataStart + light.offset();
 
-        // Позиционируемся в буфере
         buffer.position((int) offset);
 
         int id = buffer.getInt();
@@ -324,9 +296,6 @@ public class LazyPgnIndex extends PgnIndex {
                 .build();
     }
 
-    /**
-     * Читает строку из буфера
-     */
     private String readString() {
         short length = buffer.getShort();
         if (length == 0) return "";
@@ -336,16 +305,10 @@ public class LazyPgnIndex extends PgnIndex {
         return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
     }
 
-    /**
-     * Получает количество записей
-     */
     public int getEntryCount() {
         return lightEntries.size();
     }
 
-    /**
-     * Закрывает ресурсы
-     */
     public void close() {
         try {
             if (channel != null && channel.isOpen()) {
@@ -356,7 +319,7 @@ public class LazyPgnIndex extends PgnIndex {
         }
     }
 
-    // ========== ПЕРЕОПРЕДЕЛЁННЫЙ МЕТОД ==========
+    // ========== ПЕРЕОПРЕДЕЛЁННЫЕ МЕТОДЫ ==========
 
     @Override
     public List<GameIndexEntry> getEntries() {
@@ -366,9 +329,6 @@ public class LazyPgnIndex extends PgnIndex {
         return new ArrayList<>(fullEntryCache.values());
     }
 
-    /**
-     * Переопределяем метод для получения активных записей
-     */
     @Override
     public List<GameIndexEntry> getActiveEntries() {
         if (!allFullEntriesLoaded) {
@@ -379,44 +339,27 @@ public class LazyPgnIndex extends PgnIndex {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Переопределяем метод для проверки наличия удалённых
-     */
     @Override
     public boolean hasDeletedGames(PgnIndex index) {
         if (index == null) return false;
         return lightEntries.stream().anyMatch(LightGameEntry::deleted);
     }
 
-    /**
-     * Переопределяем метод для получения количества удалённых
-     */
     public int getDeletedCount() {
         return (int) lightEntries.stream().filter(LightGameEntry::deleted).count();
     }
 
-    /**
-     * Получает только активные (не удалённые) лёгкие записи
-     */
     public List<LightGameEntry> getActiveLightEntries() {
         return lightEntries.stream()
                 .filter(entry -> !entry.deleted())
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Получает активную лёгкую запись по ID
-     */
     public LightGameEntry getActiveLightEntry(int id) {
-        return lightEntries.stream()
-                .filter(e -> e.id() == id && !e.deleted())
-                .findFirst()
-                .orElse(null);
+        LightGameEntry e = lightById.get(id);
+        return (e != null && !e.deleted()) ? e : null;
     }
 
-    /**
-     * Получает количество активных записей
-     */
     public int getActiveLightCount() {
         return (int) lightEntries.stream()
                 .filter(entry -> !entry.deleted())
@@ -425,12 +368,10 @@ public class LazyPgnIndex extends PgnIndex {
 
     @Override
     public int getNextId() {
-        log.debug("LazyPgnIndex.getNextId() called");
         int maxId = lightEntries.stream()
                 .mapToInt(LightGameEntry::id)
                 .max()
                 .orElse(0);
-        log.debug("Max ID from lightEntries: {}", maxId);
         return maxId + 1;
     }
 
@@ -442,39 +383,38 @@ public class LazyPgnIndex extends PgnIndex {
                 .orElse(0);
     }
 
-    // В LazyPgnIndex.java
     @Override
     public void addEntry(GameIndexEntry entry) {
         log.info("LazyPgnIndex.addEntry() called for ID: {}", entry.getId());
 
-        // Добавляем в кэш полных записей
         fullEntryCache.put(entry.getId(), entry);
 
-        // Создаём LightGameEntry из полной записи
         LightGameEntry light = LightGameEntry.fromFull(entry);
-
-        // Добавляем в список лёгких записей
         lightEntries.add(light);
+        lightById.put(light.id(), light);
 
-        // Обновляем счётчики
         setGameCount(lightEntries.size());
-        setActiveCount((int) lightEntries.stream().filter(e -> !e.deleted()).count());
-
-        log.info("After add: lightEntries={}, gameCount={}, activeCount={}",
-                lightEntries.size(), getGameCount(), getActiveCount());
+        if (!light.deleted()) {
+            setActiveCount(getActiveCount() + 1);
+        }
     }
 
     @Override
     public void updateEntry(GameIndexEntry entry) {
         fullEntryCache.put(entry.getId(), entry);
+
+        LightGameEntry newLight = LightGameEntry.fromFull(entry);
         for (int i = 0; i < lightEntries.size(); i++) {
             if (lightEntries.get(i).id() == entry.getId()) {
-                lightEntries.set(i, LightGameEntry.fromFull(entry));
+                LightGameEntry old = lightEntries.get(i);
+                if (old.deleted() != newLight.deleted()) {
+                    setActiveCount(getActiveCount() + (newLight.deleted() ? -1 : 1));
+                }
+                lightEntries.set(i, newLight);
+                lightById.put(newLight.id(), newLight);
                 break;
             }
         }
-        setGameCount(lightEntries.size());
-        setActiveCount((int) lightEntries.stream().filter(e -> !e.deleted()).count());
     }
 
     @Override
@@ -484,7 +424,7 @@ public class LazyPgnIndex extends PgnIndex {
 
     @Override
     public int getActiveCount() {
-        return (int) lightEntries.stream().filter(e -> !e.deleted()).count();
+        return super.getActiveCount();
     }
 
     @Override
@@ -534,9 +474,8 @@ public class LazyPgnIndex extends PgnIndex {
 
     @Override
     public void refreshCache() {
-        // Для LazyPgnIndex кэш обновляется автоматически
-        // Но пересчитываем счётчики
         setGameCount(lightEntries.size());
-        setActiveCount((int) lightEntries.stream().filter(e -> !e.deleted()).count());
+        int active = (int) lightEntries.stream().filter(e -> !e.deleted()).count();
+        setActiveCount(active);
     }
 }

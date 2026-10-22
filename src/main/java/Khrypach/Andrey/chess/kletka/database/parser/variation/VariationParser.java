@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
+ *  * Copyright (c) 2025 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -506,6 +506,8 @@ public class VariationParser {
 
             MoveNode moveNode = new MoveNode(move, movingPiece, isCapture, promotionPiece);
 
+            moveNode.setSan(cleanMoveText);
+
             int absolutePly = isWhiteMove ? (moveNumber - 1) * 2 + 1 : (moveNumber - 1) * 2 + 2;
             moveNode.setAbsolutePly(absolutePly);
 
@@ -820,6 +822,13 @@ public class VariationParser {
      * Обрабатывает аннотацию
      */
     private void handleAnnotation(String annotationValue) {
+
+        // ========== NAG — игнорируем ==========
+        if (annotationValue != null && annotationValue.startsWith("$")) {
+            log.trace("Skipping NAG: {}", annotationValue);
+            return;
+        }
+
         if (currentNode instanceof MoveNode moveNode) {
             MoveAnnotation ann = MoveAnnotation.fromSymbol(annotationValue);
             if (ann == null) {

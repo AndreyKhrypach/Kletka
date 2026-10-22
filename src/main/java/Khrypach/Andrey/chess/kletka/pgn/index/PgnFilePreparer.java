@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
+ *  * Copyright (c) 2025 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -25,18 +25,30 @@ import Khrypach.Andrey.chess.kletka.pgn.index.model.IndexingProgress;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
+import java.nio.file.StandardCopyOption;
 import java.util.function.Consumer;
+
 import static Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys.*;
 
 public class PgnFilePreparer {
     private static final Logger log = LoggerFactory.getLogger(PgnFilePreparer.class);
     private static final LanguageManager lang = LanguageManager.getInstance();
+
+    /**
+     * Размер буфера для BufferedReader / BufferedWriter.
+     * 64 KB достаточно, чтобы минимизировать системные вызовы.
+     */
+    private static final int BUFFER_SIZE = 64 * 1024;
+
+    /**
+     * Размер буфера для одной партии (чтобы не аллоцировать заново).
+     * Большинство партий укладывается в 8-16 KB.
+     */
+    private static final int GAME_BUFFER_INITIAL_SIZE = 16 * 1024;
 
     Path prepareFile(Path pgnPath, Consumer<IndexingProgress> progressCallback) throws IOException {
         log.info("Starting file preparation: {}", pgnPath);
@@ -45,205 +57,131 @@ public class PgnFilePreparer {
             throw new IOException("PGN file not found: " + pgnPath);
         }
 
-        byte[] fileContent = Files.readAllBytes(pgnPath);
-        int fileSize = fileContent.length;
+        Path tempPath = pgnPath.getParent().resolve(pgnPath.getFileName() + ".prepared");
+        Path backupPath = pgnPath.getParent().resolve(pgnPath.getFileName() + ".bak");
 
-        byte[] eventPattern = "[Event \"".getBytes(StandardCharsets.UTF_8);
+        long fileSize = Files.size(pgnPath);
+        log.debug("File size: {} bytes", fileSize);
 
-        List<Integer> gameStarts = new ArrayList<>();
-        int pos = 0;
-        while (pos < fileSize) {
-            int start = indexOfBytes(fileContent, eventPattern, pos);
-            if (start < 0) break;
-            gameStarts.add(start);
-            pos = start + 1;
-        }
-
-        log.debug("Found {} game starts", gameStarts.size());
-
+        // ========== ПРОГРЕСС: НАЧАЛО ==========
         if (progressCallback != null) {
             progressCallback.accept(IndexingProgress.builder()
-                    .totalGames(gameStarts.size())
+                    .totalGames(0)
                     .processedGames(0)
                     .status(lang.get(PREPARE_STATUS_SCANNING))
                     .build());
         }
 
-        List<ContentBlock> blocks = new ArrayList<>();
-        int currentOffset = 0;
-        int totalGames = gameStarts.size();
-        int processed = 0;
-        int garbageCount = 0;
-
-        for (int i = 0; i < gameStarts.size(); i++) {
-            int gameStart = gameStarts.get(i);
-            int nextGameStart = (i + 1 < gameStarts.size()) ? gameStarts.get(i + 1) : fileSize;
-
-            if (currentOffset < gameStart) {
-                int length = gameStart - currentOffset;
-                byte[] betweenBytes = new byte[length];
-                System.arraycopy(fileContent, currentOffset, betweenBytes, 0, length);
-                String betweenText = new String(betweenBytes, StandardCharsets.UTF_8);
-                String trimmed = betweenText.trim();
-
-                if (!trimmed.isEmpty() && !trimmed.startsWith("[")) {
-                    blocks.add(ContentBlock.createGarbage(currentOffset, length, betweenText));
-                    garbageCount++;
-                    log.debug("Found garbage before game {} at offset {}, length {}",
-                            i + 1, currentOffset, length);
-                }
-            }
-
-            int gameEnd = findFirstResult(fileContent, gameStart, nextGameStart);
-            if (gameEnd < 0 || gameEnd > nextGameStart) {
-                gameEnd = nextGameStart;
-            }
-
-            int length = gameEnd - gameStart;
-            byte[] gameBytes = new byte[length];
-            System.arraycopy(fileContent, gameStart, gameBytes, 0, length);
-            String gameContent = new String(gameBytes, StandardCharsets.UTF_8);
-
-            boolean hasBody = checkGameBody(gameContent);
-            blocks.add(ContentBlock.createGame(gameStart, length, gameContent, hasBody));
-
-            currentOffset = gameEnd;
-            processed++;
-
-            if (progressCallback != null && processed % 10 == 0) {
-                progressCallback.accept(IndexingProgress.builder()
-                        .totalGames(totalGames)
-                        .processedGames(processed)
-                        .status(String.format(lang.get(PREPARE_STATUS_PROCESSED), processed, totalGames))
-                        .build());
-            }
-        }
-
-        if (currentOffset < fileSize) {
-            int length = fileSize - currentOffset;
-            byte[] remainingBytes = new byte[length];
-            System.arraycopy(fileContent, currentOffset, remainingBytes, 0, length);
-            String remainingText = new String(remainingBytes, StandardCharsets.UTF_8);
-            String trimmed = remainingText.trim();
-
-            if (!trimmed.isEmpty() && !trimmed.startsWith("[")) {
-                blocks.add(ContentBlock.createGarbage(currentOffset, length, remainingText));
-                garbageCount++;
-                log.debug("Found garbage at end of file at offset {}, length {}",
-                        currentOffset, length);
-            }
-        }
-
-        if (progressCallback != null) {
-            progressCallback.accept(IndexingProgress.builder()
-                    .totalGames(totalGames + garbageCount)
-                    .processedGames(0)
-                    .status(lang.get(PREPARE_STATUS_BUILDING))
-                    .build());
-        }
-
-        StringBuilder result = new StringBuilder();
+        // ========== СЧЁТЧИКИ ==========
         int gameCount = 0;
-        int garbageProcessed = 0;
+        int garbageCount = 0;
+        long bytesRead = 0;
+        int lastProgressPercent = -1;
 
-        for (ContentBlock block : blocks) {
-            if (block.isGarbage()) {
-                String artificialGame = createArtificialGame(block.content());
-                String processedPart = processGamePart(artificialGame, false);
-                if (!result.isEmpty()) {
-                    result.append("\n");
+        StringBuilder gameBuffer = new StringBuilder(GAME_BUFFER_INITIAL_SIZE);
+        boolean inGame = false;
+
+        // ========== ОТКРЫВАЕМ ПОТОКИ ==========
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(Files.newInputStream(pgnPath), StandardCharsets.UTF_8),
+                BUFFER_SIZE);
+             BufferedWriter writer = new BufferedWriter(
+                     new OutputStreamWriter(Files.newOutputStream(tempPath), StandardCharsets.UTF_8),
+                     BUFFER_SIZE)) {
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                bytesRead += line.length() + 1; // +1 за '\n'
+
+                // ========== НАЧАЛО НОВОЙ ПАРТИИ ==========
+                if (line.startsWith("[Event ")) {
+                    // Если была предыдущая партия — записываем её
+                    if (inGame && !gameBuffer.isEmpty()) {
+                        String gameContent = gameBuffer.toString();
+                        boolean hasBody = checkGameBody(gameContent);
+                        String processed = processGamePart(gameContent, hasBody);
+                        writer.write(processed);
+                        writer.write('\n');
+                        gameCount++;
+                    }
+
+                    // Начинаем новую партию
+                    gameBuffer.setLength(0);
+                    inGame = true;
                 }
-                result.append(processedPart);
-                garbageProcessed++;
-            } else {
-                String processedPart = processGamePart(block.content(), block.hasBody());
-                if (!result.isEmpty()) {
-                    result.append("\n");
+
+                if (inGame) {
+                    gameBuffer.append(line).append('\n');
+                } else {
+                    // ========== МУСОР ДО ПЕРВОЙ ПАРТИИ ==========
+                    // Если строка не пустая и не заголовок — это мусор
+                    String trimmed = line.trim();
+                    if (!trimmed.isEmpty() && !trimmed.startsWith("[")) {
+                        // Создаём искусственную партию из мусора
+                        String artificialGame = createArtificialGame(trimmed);
+                        String processed = processGamePart(artificialGame, false);
+                        writer.write(processed);
+                        writer.write('\n');
+                        garbageCount++;
+                    }
                 }
-                result.append(processedPart);
+
+                // ========== ПРОГРЕСС (каждые 5%) ==========
+                if (progressCallback != null && fileSize > 0) {
+                    int percent = (int) (bytesRead * 100 / fileSize);
+                    if (percent >= lastProgressPercent + 5) {
+                        lastProgressPercent = percent;
+                        progressCallback.accept(IndexingProgress.builder()
+                                .totalGames(gameCount + garbageCount)
+                                .processedGames(gameCount + garbageCount)
+                                .bytesProcessed(bytesRead)
+                                .totalBytes(fileSize)
+                                .status(String.format(lang.get(PREPARE_STATUS_PROCESSED),
+                                        gameCount, gameCount + garbageCount))
+                                .build());
+                    }
+                }
+            }
+
+            // ========== ФИНАЛЬНАЯ ПАРТИЯ ==========
+            if (inGame && gameBuffer.length() > 0) {
+                String gameContent = gameBuffer.toString();
+                boolean hasBody = checkGameBody(gameContent);
+                String processed = processGamePart(gameContent, hasBody);
+                writer.write(processed);
+                writer.write('\n');
                 gameCount++;
             }
-
-            if (progressCallback != null && (gameCount + garbageProcessed) % 5 == 0) {
-                int total = blocks.size();
-                int current = gameCount + garbageProcessed;
-                progressCallback.accept(IndexingProgress.builder()
-                        .totalGames(total)
-                        .processedGames(current)
-                        .status(String.format(lang.get(PREPARE_STATUS_BUILDING_BLOCKS), current, total))
-                        .build());
-            }
         }
-
-        if (progressCallback != null) {
-            progressCallback.accept(IndexingProgress.builder()
-                    .totalGames(blocks.size())
-                    .processedGames(blocks.size())
-                    .status(lang.get(PREPARE_STATUS_SAVING))
-                    .build());
-        }
-
-        String finalResult = result.toString();
-        if (!finalResult.endsWith("\n\n")) {
-            if (finalResult.endsWith("\n")) {
-                finalResult = finalResult + "\n";
-            } else {
-                finalResult = finalResult + "\n\n";
-            }
-        }
-
-        Path tempPath = pgnPath.getParent().resolve(pgnPath.getFileName() + ".prepared");
-        Files.writeString(tempPath, finalResult);
-
-        Path backupPath = pgnPath.getParent().resolve(pgnPath.getFileName() + ".bak");
-        Files.deleteIfExists(backupPath);
-        Files.move(pgnPath, backupPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-        Files.move(tempPath, pgnPath);
 
         log.info("File preparation completed: {} games processed, {} garbage blocks converted to deleted games",
                 gameCount, garbageCount);
 
+        // ========== ПРОГРЕСС: СОХРАНЕНИЕ ==========
         if (progressCallback != null) {
             progressCallback.accept(IndexingProgress.builder()
                     .totalGames(gameCount + garbageCount)
                     .processedGames(gameCount + garbageCount)
-                    .status(String.format(lang.get(PREPARE_STATUS_COMPLETE), gameCount, garbageCount))
+                    .status(lang.get(PREPARE_STATUS_SAVING))
+                    .build());
+        }
+
+        // ========== ЗАМЕНА ФАЙЛА ==========
+        Files.deleteIfExists(backupPath);
+        Files.move(pgnPath, backupPath, StandardCopyOption.REPLACE_EXISTING);
+        Files.move(tempPath, pgnPath);
+
+        // ========== ПРОГРЕСС: ЗАВЕРШЕНО ==========
+        if (progressCallback != null) {
+            progressCallback.accept(IndexingProgress.builder()
+                    .totalGames(gameCount + garbageCount)
+                    .processedGames(gameCount + garbageCount)
+                    .status(String.format(lang.get(PREPARE_STATUS_COMPLETE),
+                            gameCount, garbageCount))
                     .build());
         }
 
         return pgnPath;
-    }
-
-    /**
-     * Находит ПЕРВЫЙ результат (1-0, 0-1, 1/2-1/2, *) в диапазоне
-     */
-    private int findFirstResult(byte[] fileBytes, int start, int end) {
-        byte[][] resultPatterns = {
-                "1-0".getBytes(StandardCharsets.UTF_8),
-                "0-1".getBytes(StandardCharsets.UTF_8),
-                "1/2-1/2".getBytes(StandardCharsets.UTF_8),
-                "*".getBytes(StandardCharsets.UTF_8)
-        };
-
-        for (byte[] pattern : resultPatterns) {
-            int index = indexOfBytes(fileBytes, pattern, start);
-            while (index > 0 && index < end) {
-                byte prevByte = fileBytes[index - 1];
-                if (prevByte == ' ' || prevByte == '\n' || prevByte == '\r') {
-                    int endOfLine = indexOfByte(fileBytes, (byte) '\n', index);
-                    if (endOfLine < 0 || endOfLine >= end) {
-                        endOfLine = end - 1;
-                    }
-                    int endOffset = Math.min(endOfLine + 1, end);
-
-                    log.trace("Found result at index {}, endOffset={}", index, endOffset);
-                    return endOffset;
-                }
-                index = indexOfBytes(fileBytes, pattern, index + 1);
-            }
-        }
-
-        return -1;
     }
 
     /**
@@ -286,52 +224,29 @@ public class PgnFilePreparer {
     }
 
     /**
-     * Ищет байтовый паттерн в байтовом массиве
-     */
-    private int indexOfBytes(byte[] array, byte[] pattern, int start) {
-        if (pattern.length == 0 || start >= array.length) return -1;
-        int maxStart = array.length - pattern.length;
-        for (int i = start; i <= maxStart; i++) {
-            boolean found = true;
-            for (int j = 0; j < pattern.length; j++) {
-                if (array[i + j] != pattern[j]) {
-                    found = false;
-                    break;
-                }
-            }
-            if (found) return i;
-        }
-        return -1;
-    }
-
-    /**
-     * Ищет один байт в байтовом массиве
-     */
-    private int indexOfByte(byte[] array, byte target, int start) {
-        for (int i = start; i < array.length; i++) {
-            if (array[i] == target) return i;
-        }
-        return -1;
-    }
-
-    /**
-     * Обрабатывает партию: добавляет/исправляет [Deleted]
+     * Обрабатывает партию: добавляет/исправляет [Deleted].
+     * ВАЖНО: если [Deleted] уже есть — оставляем как есть.
+     * Это метаданные приложения (append-only): удалённая партия имеет
+     * [Deleted " true"] и не должна "воскресать" при переиндексации.
+     * Если тега нет — добавляем на основе hasBody:
+     *   hasBody = true  → [Deleted "false"] (активная)
+     *   hasBody = false → [Deleted "true"]  (мусор / партия без ходов)
      */
     private String processGamePart(String gamePart, boolean hasBody) {
-        String deletedValue = Boolean.toString(!hasBody);
-
+        // ========== ТЕГ УЖЕ ЕСТЬ — НЕ ТРОГАЕМ ==========
         if (gamePart.contains("[Deleted")) {
-            String result = gamePart.replaceAll(
-                    "\\[Deleted\\s+\"[^\"]*\"]",
-                    "[Deleted \"" + deletedValue + "\"]"
-            );
-            return ensureTrailingNewline(result);
+            return ensureTrailingNewline(gamePart);
         }
 
+        // ========== ТЕГА НЕТ — ДОБАВЛЯЕМ ==========
+        String deletedValue = Boolean.toString(!hasBody);
+        String newTag = "[Deleted \"" + deletedValue + "\"]";
+
         String[] lines = gamePart.split("\n");
-        StringBuilder result = new StringBuilder();
+        StringBuilder result = new StringBuilder(gamePart.length() + 32);
         boolean inserted = false;
 
+        // Ищем [Result], после него вставляем [Deleted]
         int resultIndex = -1;
         for (int i = 0; i < lines.length; i++) {
             if (lines[i].trim().startsWith("[Result")) {
@@ -346,7 +261,7 @@ public class PgnFilePreparer {
             if (i == resultIndex) {
                 result.append(line).append("\n");
                 if (!inserted) {
-                    result.append("[Deleted \"").append(deletedValue).append("\"]\n");
+                    result.append(newTag).append("\n");
                     inserted = true;
                 }
                 continue;
@@ -356,7 +271,7 @@ public class PgnFilePreparer {
                 result.append(line).append("\n");
                 if (i + 1 < lines.length && lines[i + 1].trim().isEmpty()) {
                     if (!inserted) {
-                        result.append("[Deleted \"").append(deletedValue).append("\"]\n");
+                        result.append(newTag).append("\n");
                         inserted = true;
                     }
                 }
@@ -369,6 +284,7 @@ public class PgnFilePreparer {
             }
         }
 
+        // Fallback: если [Result] не найден — вставляем после последнего заголовка
         if (!inserted) {
             int lastHeaderIndex = -1;
             for (int i = 0; i < lines.length; i++) {
@@ -378,11 +294,11 @@ public class PgnFilePreparer {
             }
 
             if (lastHeaderIndex >= 0) {
-                StringBuilder newResult = new StringBuilder();
+                StringBuilder newResult = new StringBuilder(gamePart.length() + 32);
                 for (int i = 0; i < lines.length; i++) {
                     newResult.append(lines[i]);
                     if (i == lastHeaderIndex) {
-                        newResult.append("\n[Deleted \"").append(deletedValue).append("\"]");
+                        newResult.append("\n").append(newTag);
                     }
                     if (i < lines.length - 1) {
                         newResult.append("\n");
@@ -406,17 +322,4 @@ public class PgnFilePreparer {
         String trimmed = content.replaceAll("\\s+$", "");
         return trimmed + "\n";
     }
-
-    // ========== ВСПОМОГАТЕЛЬНЫЙ КЛАСС ==========
-
-    private record ContentBlock(long offset, int length, String content, boolean isGarbage, boolean hasBody) {
-
-        static ContentBlock createGame(long offset, int length, String content, boolean hasBody) {
-                return new ContentBlock(offset, length, content, false, hasBody);
-            }
-
-            static ContentBlock createGarbage(long offset, int length, String content) {
-                return new ContentBlock(offset, length, content, true, false);
-            }
-        }
 }

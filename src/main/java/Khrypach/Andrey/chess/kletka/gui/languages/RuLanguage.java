@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
+ *  * Copyright (c) 2025 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -168,7 +168,7 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.PGN_LOAD_SUCCESS, "Загружено %d партий из: %s");
         strings.put(LanguageKeys.PGN_LOAD_EMPTY, "В файле нет партий");
         strings.put(LanguageKeys.PGN_LOAD_ERROR, "Ошибка загрузки PGN");
-        strings.put(LanguageKeys.PGN_SAVE_SUCCESS, "Партия сохранена");
+        strings.put(LanguageKeys.PGN_SAVE_SUCCESS, "Партия сохранена ");
         strings.put(LanguageKeys.PGN_SAVE_EMPTY, "Нет ходов для сохранения");
         strings.put(LanguageKeys.PGN_SAVE_ERROR, "Ошибка сохранения");
 
@@ -1290,6 +1290,24 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.PGN_BATCH_EXCEPTION_LIMIT, "Слишком много партий для пакетного удаления: %d");
         strings.put(LanguageKeys.PGN_BATCH_EXCEPTION_ALREADY_DELETED, "Партия уже удалена:: %d");
         strings.put(LanguageKeys.PGN_BATCH_EXCEPTION_NOT_FOUND_IN_INDEX, "Партия c ID %d не найдена в индексе");
+
+        // ========== СОЗДАНИЕ КНИГИ ИЗ PGN ==========
+        strings.put(LanguageKeys.MENU_BOOKS_CREATE_FROM_PGN, "Создать книгу из PGN…");
+        strings.put(LanguageKeys.BOOK_CREATE_DIALOG_TITLE, "Выберите PGN-файл для создания книги");
+        strings.put(LanguageKeys.BOOK_CREATE_FILE_FILTER_PGN, "PGN файлы");
+        strings.put(LanguageKeys.BOOK_CREATE_FILE_FILTER_BIN, "Polyglot Book");
+        strings.put(LanguageKeys.BOOK_CREATE_SAVE_DIALOG_TITLE, "Сохранить книгу как");
+        strings.put(LanguageKeys.BOOK_CREATE_DEFAULT_NAME, "book_from_pgn.bin");
+        strings.put(LanguageKeys.BOOK_CREATE_INDEXING_NEEDED, "Файл не проиндексирован. Запускаю индексацию…");
+        strings.put(LanguageKeys.BOOK_CREATE_INDEXING_START, "Индексация PGN…");
+        strings.put(LanguageKeys.BOOK_CREATE_BUILDING, "Построение Polyglot-книги…");
+        strings.put(LanguageKeys.BOOK_CREATE_BUILDING_PROGRESS, "Обработано партий: %d из %d (%d%%)");
+        strings.put(LanguageKeys.BOOK_CREATE_COMPLETE, "Книга создана: %s (записей: %d, партий: %d, пропущено: %d)");
+        strings.put(LanguageKeys.BOOK_CREATE_ERROR_TITLE, "Ошибка создания книги ");
+        strings.put(LanguageKeys.BOOK_CREATE_ERROR, "Не удалось создать книгу: %s");
+        strings.put(LanguageKeys.BOOK_CREATE_NO_GAMES, "В файле нет активных партий");
+        strings.put(LanguageKeys.BOOK_CREATE_LOAD_AFTER, "Книга создана. Загрузить её сейчас?");
+        strings.put(LanguageKeys.BOOK_CREATE_LOAD_AFTER_TITLE, "Загрузка книги");
     }
 
     private static StringBuilder createShortcutsContent() {
@@ -1333,7 +1351,6 @@ public class RuLanguage implements Language {
         shortcutsContent.append("\n⚙️ Движок:\n");
         shortcutsContent.append("  Space - Ход движка\n");
         shortcutsContent.append("  Shift+Enter - Включить/выключить анализ\n");
-        shortcutsContent.append("  Ctrl+Shift+E - Настройка движка\n");
 
         // 📚 PGN/Браузер
         shortcutsContent.append("\n📚 PGN/Браузер:\n");

@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2024 Andrey Khrypach
+ *  * Copyright (c) 2025 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -35,11 +35,13 @@ import Khrypach.Andrey.chess.kletka.gui.languages.LanguageManager;
 import Khrypach.Andrey.chess.kletka.gui.model.RootNode;
 import Khrypach.Andrey.chess.kletka.gui.model.Variation;
 import Khrypach.Andrey.chess.kletka.gui.settings.AppPreferences;
+import Khrypach.Andrey.chess.kletka.gui.updates.UpdateChecker;
 import Khrypach.Andrey.chess.kletka.pgn.index.manager.PgnBrowserManager;
 import Khrypach.Andrey.chess.kletka.pgn.index.ui.PgnFileBrowser;
 import javafx.application.HostServices;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.Button;
@@ -121,6 +123,10 @@ public class CustomMenuBarFactory {
     @Setter
     private TimerPanel timerPanel;
 
+    private Button updateIconButton;
+    private UpdateChecker.Result currentUpdateResult;
+    private HBox  updateWrapperRef;
+
     public CustomMenuBarFactory(MainController controller, Stage primaryStage, BoardSizeController sizeController) {
         this.controller = controller;
         this.primaryStage = primaryStage;
@@ -201,8 +207,32 @@ public class CustomMenuBarFactory {
         HBox.setHgrow(spacer3, Priority.ALWAYS);
         menuContainer.getChildren().add(spacer3);
 
+        // ========== ИКОНКА ОБНОВЛЕНИЯ + ОТСТУП (пока скрыты) ==========
+        updateIconButton = createUpdateIcon();
+
+        // Контейнер для иконки обновления
+        HBox updateWrapper = new HBox();
+        updateWrapper.setAlignment(Pos.CENTER);
+        updateWrapper.getChildren().add(updateIconButton);
+        updateWrapper.setVisible(false);
+        updateWrapper.setManaged(false);
+        this.updateWrapperRef = updateWrapper;
+
+        // ========== ПРАВАЯ ЧАСТЬ: ОБНОВЛЕНИЕ + ЯЗЫКИ ==========
+        HBox rightControls = new HBox(10); // <-- 10px отступа между иконкой и флагами!
+        rightControls.setAlignment(Pos.CENTER_RIGHT);
+
+        // Получаем контейнер с флагами
         HBox languageButtons = createLanguageButtons();
-        menuContainer.getChildren().add(languageButtons);
+
+        // Собираем их вместе
+        rightControls.getChildren().addAll(updateWrapper, languageButtons);
+
+        // Отправляем в главное меню
+        menuContainer.getChildren().add(rightControls);
+
+        // ========== ЗАПУСК ПРОВЕРКИ ОБНОВЛЕНИЙ ==========
+        startAutoUpdateCheck();
 
         // Подписываемся на обновление меню окон
         PgnBrowserManager.getInstance().addBrowserListListener(this::updateWindowsMenu);
@@ -805,6 +835,16 @@ public class CustomMenuBarFactory {
         });
         menu.getItems().add(exportTreeItem);
 
+        // ========== СОЗДАТЬ КНИГУ ИЗ PGN ==========
+        MenuItem createFromPgnItem = new MenuItem(lang.get(MENU_BOOKS_CREATE_FROM_PGN));
+        createFromPgnItem.setOnAction(e -> {
+            if (controller != null) {
+                controller.createBookFromPgnFile();
+            }
+            returnFocusToBoard();
+        });
+        menu.getItems().add(createFromPgnItem);
+
         // ========== ОТМЕНА ХОДА В КНИГЕ ==========
         MenuItem undoBookItem = new MenuItem(lang.get(MENU_BOOKS_UNDO_MOVE));
         undoBookItem.setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCombination.ALT_DOWN));
@@ -1098,6 +1138,95 @@ public class CustomMenuBarFactory {
         });
 
         return button;
+    }
+
+    /**
+     * Создаёт иконку "есть обновление". Скрыта по умолчанию.
+     */
+    private Button createUpdateIcon() {
+        Button button = new Button();
+
+        // Загружаем картинку из ресурсов
+        try {
+            Image icon = new Image(
+                    Objects.requireNonNull(
+                            getClass().getResourceAsStream("/icons/update.png"),
+                            "Файл /icons/update.png не найден в ресурсах!"
+                    )
+            );
+            ImageView imageView = new ImageView(icon);
+            imageView.setFitWidth(16);
+            imageView.setFitHeight(16);
+            imageView.setPreserveRatio(true);
+            button.setGraphic(imageView);
+        } catch (Exception e) {
+            // Если картинка не загрузилась, используем текстовый символ (страховка)
+            log.error("Не удалось загрузить иконку обновления, используем текстовую", e);
+            button.setText("↻");
+        }
+
+        applyUpdateIconStyle(button, false);
+
+        button.setTooltip(new Tooltip(lang.get(MENU_HELP_UPDATE_AVAILABLE)));
+        button.setFocusTraversable(false);
+
+        button.setOnAction(e -> {
+            UpdateChecker.Result r = currentUpdateResult;
+            if (r != null && r.hasUpdate()) {
+                openUrl(UpdateChecker.releasesUrl());
+            }
+            returnFocusToBoard();
+        });
+
+        button.setOnMouseEntered(e -> applyUpdateIconStyle(button, true));
+        button.setOnMouseExited(e -> applyUpdateIconStyle(button, false));
+
+        return button;
+    }
+
+    private void applyUpdateIconStyle(Button button, boolean hover) {
+        String bg = hover ? "#1976D2" : "#2196F3";
+        button.setStyle(
+                "-fx-background-color: " + bg + "; " +
+                        "-fx-text-fill: white; " +
+                        "-fx-font-size: 16px; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-min-width: 28px; " +
+                        "-fx-min-height: 28px; " +
+                        "-fx-max-width: 28px; " +
+                        "-fx-max-height: 28px; " +
+                        "-fx-padding: 0; " +
+                        "-fx-border-radius: 14px; " +
+                        "-fx-background-radius: 14px; " +
+                        "-fx-cursor: hand;"
+        );
+    }
+
+    private void startAutoUpdateCheck() {
+        UpdateChecker.checkAsync(result -> {
+            currentUpdateResult = result;
+            if (result.hasUpdate() && updateWrapperRef != null) {
+                // Показываем весь контейнер с иконкой и отступом
+                updateWrapperRef.setVisible(true);
+                updateWrapperRef.setManaged(true);
+                log.info("Update available: {}", result.version());
+            } else if (result.isError()) {
+                log.debug("Auto update check failed: {}", result.errorMessage());
+            }
+        });
+    }
+
+    private void openUrl(String url) {
+        HostServices hs = KletkaGui.hostServices();
+        if (hs != null) {
+            hs.showDocument(url);
+        } else {
+            try {
+                Desktop.getDesktop().browse(URI.create(url));
+            } catch (Exception e) {
+                log.warn("Failed to open URL: {}", url, e);
+            }
+        }
     }
 
     // ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ==========
@@ -1480,71 +1609,20 @@ public class CustomMenuBarFactory {
         loadingAlert.setContentText(lang.get(MENU_HELP_CHECKING_UPDATES_MSG));
         loadingAlert.show();
 
-        new Thread(() -> {
-            try {
-                String apiUrl = "https://api.github.com/repos/AndreyKhrypach/Kletka/releases/latest";
-                java.net.URL url = new java.net.URL(apiUrl);
-                java.net.HttpURLConnection connection = (java.net.HttpURLConnection) url.openConnection();
-                connection.setRequestMethod("GET");
-                connection.setRequestProperty("Accept", "application/json");
-
-                int responseCode = connection.getResponseCode();
-                if (responseCode == 200) {
-                    String json = readAnswer(connection);
-                    String latestVersion = extractVersionFromJson(json);
-                    String currentVersion = getCurrentVersion();
-
-                    Platform.runLater(() -> {
-                        loadingAlert.close();
-                        if (isNewerVersion(latestVersion, currentVersion)) {
-                            showUpdateAvailableDialog(latestVersion);
-                        } else {
-                            showNoUpdatesDialog();
-                        }
-                    });
-                } else {
-                    Platform.runLater(() -> {
-                        loadingAlert.close();
-                        showError(lang.get(MENU_HELP_UPDATE_CHECK_ERROR));
-                    });
+        UpdateChecker.checkManualAsync(result -> {
+            loadingAlert.close();
+            if (result.hasUpdate()) {
+                showUpdateAvailableDialog(result.version());
+            } else if (result.isError()) {
+                String msg = lang.get(MENU_HELP_UPDATE_CHECK_ERROR);
+                if (result.errorMessage() != null && !result.errorMessage().isEmpty()) {
+                    msg += ": " + result.errorMessage();
                 }
-            } catch (Exception e) {
-                Platform.runLater(() -> {
-                    loadingAlert.close();
-                    showError(lang.get(MENU_HELP_UPDATE_CHECK_ERROR) + ": " + e.getMessage());
-                });
+                showError(msg);
+            } else {
+                showNoUpdatesDialog();
             }
-        }).start();
-    }
-
-    private String readAnswer(HttpURLConnection connection) throws IOException {
-        try (java.io.BufferedReader reader = new java.io.BufferedReader(
-                new java.io.InputStreamReader(connection.getInputStream()))) {
-            StringBuilder response = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                response.append(line);
-            }
-            return response.toString();
-        }
-    }
-
-    private String extractVersionFromJson(String json) {
-        String tagKey = "\"tag_name\":";
-        int tagIndex = json.indexOf(tagKey);
-        if (tagIndex < 0) return null;
-
-        int startQuote = json.indexOf("\"", tagIndex + tagKey.length());
-        if (startQuote < 0) return null;
-
-        int endQuote = json.indexOf("\"", startQuote + 1);
-        if (endQuote < 0) return null;
-
-        String tag = json.substring(startQuote + 1, endQuote);
-        if (tag.startsWith("v")) {
-            tag = tag.substring(1);
-        }
-        return tag;
+        });
     }
 
     private String getCurrentVersion() {
@@ -1561,21 +1639,6 @@ public class CustomMenuBarFactory {
         return "1.1.0";
     }
 
-    private boolean isNewerVersion(String latest, String current) {
-        if (latest == null || current == null) return false;
-        String[] latestParts = latest.split("\\.");
-        String[] currentParts = current.split("\\.");
-
-        int maxLength = Math.max(latestParts.length, currentParts.length);
-        for (int i = 0; i < maxLength; i++) {
-            int latestVal = i < latestParts.length ? Integer.parseInt(latestParts[i]) : 0;
-            int currentVal = i < currentParts.length ? Integer.parseInt(currentParts[i]) : 0;
-            if (latestVal > currentVal) return true;
-            if (latestVal < currentVal) return false;
-        }
-        return false;
-    }
-
     private void showUpdateAvailableDialog(String latestVersion) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(lang.get(MENU_HELP_UPDATE_AVAILABLE));
@@ -1588,13 +1651,8 @@ public class CustomMenuBarFactory {
 
         alert.showAndWait().ifPresent(response -> {
             if (response == downloadButton) {
-                try {
-                    java.awt.Desktop.getDesktop().browse(
-                            java.net.URI.create("https://github.com/AndreyKhrypach/Kletka/releases/latest")
-                    );
-                } catch (Exception e) {
-                    showError(lang.get(MENU_HELP_GITHUB_ERROR));
-                }
+                // Используем наш универсальный метод, который работает и на Windows, и на Linux
+                openUrl(UpdateChecker.releasesUrl());
             }
             returnFocusToBoard();
         });

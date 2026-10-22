@@ -1,6 +1,6 @@
 <!--
   ~ /*
-  ~  * Copyright (c) 2024 Andrey Khrypach
+  ~  * Copyright (c) 2025 Andrey Khrypach
   ~  *
   ~  * This program is free software: you can redistribute it and/or modify
   ~  * it under the terms of the GNU General Public License as published by
@@ -80,7 +80,7 @@
 <div class="container">
 
     <h1>🔒 Privacy Policy</h1>
-    <p class="updated">Last updated: <strong>2026-10-06</strong></p>
+    <p class="updated">Last updated: <strong>2026-10-21</strong></p>
 
     <div class="lang-switch">
         🌐 <strong>English</strong> ·
@@ -97,7 +97,7 @@
     <p>Kletka does not collect, store, or transmit:</p>
     <ul>
         <li>Your name, email, or any account information</li>
-        <li>Your IP address (except as seen by GitHub when you submit an issue)</li>
+        <li>Your IP address (except as seen by GitHub during update checks or when you submit an issue)</li>
         <li>The content of PGN files you open or edit</li>
         <li>The positions you analyze</li>
         <li>Your keyboard or mouse activity</li>
@@ -114,6 +114,8 @@
     </ul>
     <p>This file contains only your preferences (language, board theme, engine path, last opened folder).
         It is never sent anywhere.</p>
+
+    <p>Kletka does <strong>not</strong> store update-check results on disk. Each check is performed fresh on launch.</p>
 
     <h2>3. Reporting a problem on GitHub</h2>
     <p>Kletka has a <strong>"Report a problem"</strong> feature (Help menu). When you use it:</p>
@@ -147,13 +149,53 @@
     </ul>
 
     <h2>4. Third-party services</h2>
-    <p>Kletka itself does not connect to the internet, except when <strong>you explicitly trigger</strong>:</p>
+    <p>Kletka itself does not connect to the internet, except in the following cases:</p>
     <ul>
+        <li><strong>Automatic update check</strong> (on every launch — see 4.1)</li>
         <li>Opening a link (GitHub, YouTube, documentation)</li>
-        <li>Checking for updates (queries GitHub API for the latest release)</li>
+        <li>Manual update check (Help → Check for updates)</li>
         <li>Reporting a problem (opens GitHub issue form)</li>
     </ul>
     <p>In all these cases, your browser or GitHub's infrastructure handles the request, not Kletka itself.</p>
+
+    <h3>4.1. Automatic update check</h3>
+    <p>Every time Kletka starts, it sends <strong>one HTTPS request</strong> to the GitHub Releases API to check for a newer version:</p>
+    <ul>
+        <li><strong>Endpoint:</strong> <code>https://api.github.com/repos/AndreyKhrypach/Kletka/releases/latest</code></li>
+        <li><strong>Method:</strong> <code>GET</code></li>
+        <li><strong>User-Agent header:</strong> <code>Kletka-UpdateChecker</code></li>
+        <li><strong>Timeout:</strong> 5 seconds (failures are silent)</li>
+    </ul>
+
+    <p><strong>What is sent:</strong></p>
+    <ul>
+        <li>Your IP address (as with any HTTPS request, visible to GitHub)</li>
+        <li>The <code>User-Agent</code> string identifying the app and its purpose</li>
+    </ul>
+
+    <p><strong>What is NOT sent:</strong></p>
+    <ul>
+        <li>No personal data (name, email, account)</li>
+        <li>No information about your PGN files or chess positions</li>
+        <li>No system information (OS, Java version, locale)</li>
+        <li>No telemetry, no analytics, no unique identifiers</li>
+    </ul>
+
+    <p><strong>What happens with the response:</strong></p>
+    <ul>
+        <li>Kletka reads the latest version number from the response.</li>
+        <li>If the latest version is newer than yours, a small <strong>🔄 icon</strong> appears in the top menu.</li>
+        <li>Clicking the icon opens the GitHub releases page in your browser.</li>
+        <li>If there is no update (or the check fails), the icon does not appear.</li>
+    </ul>
+
+    <div class="highlight">
+        <strong>Opt-out:</strong> The update check is anonymous and does not require any action from you.
+        If you want to disable it completely, you can build Kletka from source with the
+        <code>UpdateChecker</code> disabled, or block <code>api.github.com</code> in your firewall.
+        GitHub's own <a href="https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement">Privacy Statement</a>
+        applies to data processed by GitHub (including your IP address).
+    </div>
 
     <h2>5. Chess engine</h2>
     <p>Kletka uses an external UCI chess engine (e.g. Stockfish) for analysis.
@@ -165,6 +207,9 @@
     <h2>7. Changes to this policy</h2>
     <p>If we change this policy, we will update the "Last updated" date above.
         Material changes will be announced in the <a href="https://github.com/AndreyKhrypach/Kletka/blob/master/CHANGELOG.md">CHANGELOG</a>.</p>
+
+    <p><strong>2026-10-21:</strong> Added section 4.1 describing the automatic update check
+        (one HTTPS request to GitHub API on launch).</p>
 
     <h2>8. Contact</h2>
     <p>For questions about this policy, please open an issue on GitHub:

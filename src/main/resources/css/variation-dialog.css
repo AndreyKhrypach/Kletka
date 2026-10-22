@@ -1,0 +1,133 @@
+/*
+ *
+ *  * Copyright (c) 2025 Andrey Khrypach
+ *  *
+ *  * This program is free software: you can redistribute it and/or modify
+ *  * it under the terms of the GNU General Public License as published by
+ *  * the Free Software Foundation, either version 3 of the License, or
+ *  * (at your option) any later version.
+ *  *
+ *  * This program is distributed in the hope that it will be useful,
+ *  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  * GNU General Public License for more details.
+ *  *
+ *  * You should have received a copy of the GNU General Public License
+ *  * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ *
+ */
+
+/* ============================================================
+   VariationChoiceDialog — стили
+   ============================================================ */
+
+/* Корневой контейнер диалога */
+.variation-dialog-root {
+    -fx-background-color: #f0f0f0;
+}
+
+/* Заголовок */
+.variation-dialog-title {
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-text-fill: #2c3e50;
+}
+
+/* Контейнер со строками */
+.variation-choices-box {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #c8c8c8;
+    -fx-border-width: 1;
+    -fx-border-radius: 3;
+    -fx-background-radius: 3;
+}
+
+/* ScrollPane (без серого фона) */
+.variation-scroll-pane {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+    -fx-border-color: transparent;
+}
+.variation-scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
+
+/* ============================================================
+   Строка выбора
+   ============================================================ */
+
+.variation-row {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 0;
+    -fx-border-color: transparent transparent #e0e0e0 transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 4 12 4 12;
+    -fx-min-height: 28px;
+    -fx-font-size: 13px;
+    -fx-text-fill: #000000;
+    -fx-font-weight: normal;
+    -fx-alignment: center-left;
+    -fx-cursor: hand;
+}
+
+/* Последняя строка без разделителя */
+.variation-row.last-row {
+    -fx-border-color: transparent; /* Граница есть, но она прозрачная — ничего не срезается */
+}
+
+/* Hover — легкая подсветка */
+.variation-row:hover {
+    -fx-background-color: #eef2f7;
+}
+
+/* Фокус / Выделение — ЧИСТЫЙ ГОЛУБОЙ */
+.variation-row:focused {
+    -fx-background-color: #3b82f6;  /* Чистый синий/голубой */
+    -fx-text-fill: #ffffff;         /* Белый текст на голубом фоне */
+    -fx-border-color: transparent transparent #2563eb transparent;
+}
+
+/* ============================================================
+   Главная линия (Жирная, чёрная)
+   ============================================================ */
+
+.variation-row.main-line {
+    -fx-font-weight: bold;          /* Жирный */
+    -fx-text-fill: #000000;         /* Чёрный */
+}
+
+/* Главная линия в фокусе — сохраняем белый текст и жирность */
+.variation-row.main-line:focused {
+    -fx-text-fill: #ffffff;         /* Белый текст, чтобы читалось на голубом */
+    -fx-font-weight: bold;
+}
+
+/* ============================================================
+   Кнопки OK / Cancel
+   ============================================================ */
+
+.variation-ok-button {
+    -fx-background-color: #8b5a2b;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 3;
+    -fx-padding: 6 18 6 18;
+    -fx-min-height: 32px; /* выравнивание */
+}
+
+.variation-ok-button:hover {
+    -fx-background-color: #a06a35;
+}
+
+.variation-cancel-button {
+    -fx-background-color: #d0d0d0;
+    -fx-text-fill: #2c3e50;
+    -fx-background-radius: 3;
+    -fx-padding: 6 18 6 18;
+    -fx-min-height: 32px; /* выравнивание */
+}
+
+.variation-cancel-button:hover {
+    -fx-background-color: #bcbcbc;
+}

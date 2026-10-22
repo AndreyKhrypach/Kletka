@@ -1,21 +1,6 @@
 /*
- *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
- *  *
- *  * This program is free software: you can redistribute it and/or modify
- *  * it under the terms of the GNU General Public License as published by
- *  * the Free Software Foundation, either version 3 of the License, or
- *  * (at your option) any later version.
- *  *
- *  * This program is distributed in the hope that it will be useful,
- *  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  * GNU General Public License for more details.
- *  *
- *  * You should have received a copy of the GNU General Public License
- *  * along with this program. If not, see <https://www.gnu.org/licenses/>.
- *
- *
+ * Copyright (c) 2025 Andrey Khrypach
+ * ...
  */
 
 package Khrypach.Andrey.chess.kletka.pgn.index;
@@ -35,8 +20,19 @@ import java.nio.file.Path;
 /**
  * Редактор PGN-файла с использованием индекса.
  * Обеспечивает чтение и запись партий по индексу через RandomAccessFile.
+ * ========== BATCH-РЕЖИМ ==========
+ * Для массовых операций (вставка/удаление 100k+ партий) используйте:
+ *   try (PgnFileEditor editor = new PgnFileEditor(pgnPath, index).batch()) {
+ *       for (...) {
+ *           editor.appendGame(pgn, id);       // ОДИН RandomAccessFile на весь цикл
+ *           editor.readGame(entry);
+ *       }
+ *   }
+ * Без batch() каждый вызов открывает/закрывает RandomAccessFile
+ * (медленно на 100k+ операций).
+ * ВАЖНО: batch-режим НЕ потокобезопасен. Все операции — в одном потоке.
  */
-public class PgnFileEditor {
+public class PgnFileEditor implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(PgnFileEditor.class);
 
     private final Path pgnPath;
@@ -44,14 +40,49 @@ public class PgnFileEditor {
     @Setter
     private PgnIndex index;
 
+    // ========== BATCH-РЕЖИМ ==========
+    private RandomAccessFile batchRaf;   // null = не в batch-режиме
+
     public PgnFileEditor(Path pgnPath, PgnIndex index) {
         this.pgnPath = pgnPath;
         this.index = index;
     }
 
     /**
-     * Читает партию по записи индекса
+     * Открывает RandomAccessFile и переводит редактор в batch-режим.
+     * Все последующие операции используют один и тот же файл.
+     * Закрыть через close() (try-with-resources).
+     *
+     * @return this (для try-with-resources)
      */
+    public PgnFileEditor batch() throws IOException {
+        if (batchRaf != null) {
+            return this;  // уже в batch-режиме
+        }
+        this.batchRaf = new RandomAccessFile(pgnPath.toFile(), "rw");
+        log.debug("PgnFileEditor: batch mode opened for {}", pgnPath);
+        return this;
+    }
+
+    @Override
+    public void close() {
+        if (batchRaf != null) {
+            try {
+                batchRaf.close();
+                log.debug("PgnFileEditor: batch mode closed for {}", pgnPath);
+            } catch (IOException e) {
+                log.warn("Failed to close batch RandomAccessFile: {}", e.getMessage());
+            }
+            batchRaf = null;
+        }
+    }
+
+    private boolean isBatch() {
+        return batchRaf != null;
+    }
+
+    // ========== ЧТЕНИЕ ==========
+
     public String readGame(GameIndexEntry entry) throws IOException {
         if (entry.isDeleted()) {
             throw new IllegalArgumentException("Game is deleted: " + entry.getId());
@@ -60,39 +91,42 @@ public class PgnFileEditor {
         String result = readGame(entry.getOffset(), entry.getLength());
         log.trace("readGame - entry.getLength() = {}, result.length() = {}",
                 entry.getLength(), result.length());
-
         return result;
     }
 
-    /**
-     * Читает партию по смещению и длине
-     */
     public String readGame(long offset, int length) throws IOException {
         log.trace("Reading game at offset={}, length={}", offset, length);
 
         byte[] buffer = new byte[length];
 
-        try (RandomAccessFile raf = new RandomAccessFile(pgnPath.toFile(), "r")) {
-            raf.seek(offset);
-            raf.readFully(buffer);
+        if (isBatch()) {
+            batchRaf.seek(offset);
+            batchRaf.readFully(buffer);
+        } else {
+            try (RandomAccessFile raf = new RandomAccessFile(pgnPath.toFile(), "r")) {
+                raf.seek(offset);
+                raf.readFully(buffer);
+            }
         }
 
         return new String(buffer, StandardCharsets.UTF_8);
     }
 
-    /**
-     * Читает только тело партии (без заголовков)
-     * Работает в БАЙТАХ
-     */
     public String readBody(GameIndexEntry entry) throws IOException {
         if (entry.isDeleted()) {
             throw new IllegalArgumentException("Game is deleted: " + entry.getId());
         }
 
         byte[] gameBytes = new byte[entry.getLength()];
-        try (RandomAccessFile raf = new RandomAccessFile(pgnPath.toFile(), "r")) {
-            raf.seek(entry.getOffset());
-            raf.readFully(gameBytes);
+
+        if (isBatch()) {
+            batchRaf.seek(entry.getOffset());
+            batchRaf.readFully(gameBytes);
+        } else {
+            try (RandomAccessFile raf = new RandomAccessFile(pgnPath.toFile(), "r")) {
+                raf.seek(entry.getOffset());
+                raf.readFully(gameBytes);
+            }
         }
 
         int lastBracket = -1;
@@ -123,23 +157,27 @@ public class PgnFileEditor {
         return new String(gameBytes, bodyStart, bodyLength, StandardCharsets.UTF_8);
     }
 
-    /**
-     * Записывает новую партию в конец файла
-     * Возвращает запись индекса для новой партии
-     */
+    // ========== ЗАПИСЬ ==========
+
     public GameIndexEntry appendGame(String pgnContent, int newId) throws IOException {
         log.info("Appending new game with ID: {}", newId);
 
         byte[] contentBytes = pgnContent.getBytes(StandardCharsets.UTF_8);
-
         long offset;
         int length;
 
-        try (RandomAccessFile raf = new RandomAccessFile(pgnPath.toFile(), "rw")) {
-            offset = raf.length();
-            raf.seek(offset);
-            raf.write(contentBytes);
+        if (isBatch()) {
+            offset = batchRaf.length();
+            batchRaf.seek(offset);
+            batchRaf.write(contentBytes);
             length = contentBytes.length;
+        } else {
+            try (RandomAccessFile raf = new RandomAccessFile(pgnPath.toFile(), "rw")) {
+                offset = raf.length();
+                raf.seek(offset);
+                raf.write(contentBytes);
+                length = contentBytes.length;
+            }
         }
 
         return GameIndexEntry.builder()
@@ -151,10 +189,6 @@ public class PgnFileEditor {
                 .build();
     }
 
-    /**
-     * Записывает новую версию партии в конец файла
-     * Возвращает обновленную запись индекса
-     */
     public GameIndexEntry updateGame(int gameId, String newPgnContent) throws IOException {
         log.info("Updating game ID: {}", gameId);
 
@@ -164,15 +198,21 @@ public class PgnFileEditor {
         }
 
         byte[] contentBytes = newPgnContent.getBytes(StandardCharsets.UTF_8);
-
         long newOffset;
         int newLength;
 
-        try (RandomAccessFile raf = new RandomAccessFile(pgnPath.toFile(), "rw")) {
-            newOffset = raf.length();
-            raf.seek(newOffset);
-            raf.write(contentBytes);
+        if (isBatch()) {
+            newOffset = batchRaf.length();
+            batchRaf.seek(newOffset);
+            batchRaf.write(contentBytes);
             newLength = contentBytes.length;
+        } else {
+            try (RandomAccessFile raf = new RandomAccessFile(pgnPath.toFile(), "rw")) {
+                newOffset = raf.length();
+                raf.seek(newOffset);
+                raf.write(contentBytes);
+                newLength = contentBytes.length;
+            }
         }
 
         return GameIndexEntry.builder()
@@ -195,10 +235,6 @@ public class PgnFileEditor {
                 .build();
     }
 
-    /**
-     * Заменяет партию на месте, если длины совпадают
-     * @return true если замена успешна, false если нужно добавить новую версию
-     */
     public boolean replaceGameInPlace(GameIndexEntry entry, String newContent) {
         if (entry == null || newContent == null) {
             return false;
@@ -207,23 +243,29 @@ public class PgnFileEditor {
         byte[] newBytes = newContent.getBytes(StandardCharsets.UTF_8);
         int newLength = newBytes.length;
 
-        // ========== ПРОВЕРЯЕМ ДЛИНУ ==========
         if (newLength != entry.getLength()) {
             log.warn("Length mismatch: old={}, new={}, cannot replace in place",
                     entry.getLength(), newLength);
             return false;
         }
 
-        // ========== ЗАМЕНЯЕМ НА МЕСТЕ ==========
-        try (RandomAccessFile raf = new RandomAccessFile(pgnPath.toFile(), "rw")) {
-            raf.seek(entry.getOffset());
-            raf.write(newBytes);
-            log.debug("Replaced game {} in place at offset {}", entry.getId(), entry.getOffset());
-            return true;
+        try {
+            if (isBatch()) {
+                batchRaf.seek(entry.getOffset());
+                batchRaf.write(newBytes);
+                log.debug("Replaced game {} in place at offset {}", entry.getId(), entry.getOffset());
+                return true;
+            }
+
+            try (RandomAccessFile raf = new RandomAccessFile(pgnPath.toFile(), "rw")) {
+                raf.seek(entry.getOffset());
+                raf.write(newBytes);
+                log.debug("Replaced game {} in place at offset {}", entry.getId(), entry.getOffset());
+                return true;
+            }
         } catch (IOException e) {
             log.error("Failed to replace game in place", e);
             return false;
         }
     }
-
 }

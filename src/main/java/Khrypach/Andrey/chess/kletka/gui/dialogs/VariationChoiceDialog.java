@@ -1,23 +1,3 @@
-/*
- *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
- *  *
- *  * This program is free software: you can redistribute it and/or modify
- *  * it under the terms of the GNU General Public License as published by
- *  * the Free Software Foundation, either version 3 of the License, or
- *  * (at your option) any later version.
- *  *
- *  * This program is distributed in the hope that it will be useful,
- *  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  * GNU General Public License for more details.
- *  *
- *  * You should have received a copy of the GNU General Public License
- *  * along with this program. If not, see <https://www.gnu.org/licenses/>.
- *
- *
- */
-
 package Khrypach.Andrey.chess.kletka.gui.dialogs;
 
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
@@ -26,30 +6,43 @@ import Khrypach.Andrey.chess.kletka.gui.model.Variation;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
 
 public class VariationChoiceDialog {
     private static final Logger log = LoggerFactory.getLogger(VariationChoiceDialog.class);
 
+    // Сколько строк показывать без скролла (примерно)
+    private static final int VISIBLE_ROWS = 8;
+    private static final double DIALOG_WIDTH = 460;
+    @Getter
+    private static boolean isAnyDialogOpen = false;
+
     private Choice selectedChoice = null;
     private final List<Choice> choices;
-    private ListView<String> listView;
     private final LanguageManager lang = LanguageManager.getInstance();
-
     private final javafx.stage.Window owner;
+
+    private final List<Button> choiceButtons = new ArrayList<>();
 
     public VariationChoiceDialog(List<Choice> choices, javafx.stage.Window owner) {
         this.choices = choices;
@@ -58,8 +51,8 @@ public class VariationChoiceDialog {
 
     public Choice showAndWait() {
         Stage dialogStage = new Stage();
-        dialogStage.initModality(Modality.APPLICATION_MODAL);
-        dialogStage.initStyle(StageStyle.UTILITY);
+        dialogStage.initModality(Modality.NONE );
+        dialogStage.initStyle(StageStyle.DECORATED);
         dialogStage.setTitle(lang.get(LanguageKeys.DIALOG_VARIATION_TITLE));
         dialogStage.setResizable(false);
 
@@ -67,111 +60,226 @@ public class VariationChoiceDialog {
             dialogStage.initOwner(owner);
         }
 
+        // ========== Корневой контейнер ==========
         VBox root = new VBox(15);
+        root.getStyleClass().add("variation-dialog-root");
         root.setPadding(new Insets(20));
-        root.setStyle("-fx-background-color: #f0f0f0;");
         root.setAlignment(Pos.CENTER);
-        root.setFocusTraversable(true);
+        root.setPrefWidth(DIALOG_WIDTH);
 
+        // ========== Заголовок ==========
         Label label = new Label(lang.get(LanguageKeys.DIALOG_VARIATION_CHOICE));
-        label.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        label.getStyleClass().add("variation-dialog-title");
 
-        listView = new ListView<>();
-        listView.setPrefWidth(400);
-        listView.setPrefHeight(200);
-        listView.setFocusTraversable(true);
+        // ========== Контейнер со строками ==========
+        VBox choicesBox = new VBox();
+        choicesBox.getStyleClass().add("variation-choices-box");
+        choicesBox.setFillWidth(true);
 
-        for (Choice choice : choices) {
-            listView.getItems().add(choice.description);
+        for (int i = 0; i < choices.size(); i++) {
+            Choice choice = choices.get(i);
+            Button btn = new Button(choice.description());
+            btn.getStyleClass().add("variation-row");
+            btn.setMaxWidth(Double.MAX_VALUE);
+            btn.setAlignment(Pos.CENTER_LEFT);
+            btn.setFocusTraversable(true);
+
+            // Главная линия — отдельный класс
+            if (choice.variation() != null && choice.variation().isMainLine()) {
+                btn.getStyleClass().add("main-line");
+            }
+
+            // Последняя строка — без нижней границы
+            if (i == choices.size() - 1) {
+                btn.getStyleClass().add("last-row");
+            }
+
+            // Одинарный клик мышью — выбор
+            btn.setOnAction(e -> {
+                selectedChoice = choice;
+                Platform.runLater(dialogStage::close);
+            });
+
+            // Двойной клик — тоже выбор (страховка)
+            btn.setOnMouseClicked(e -> {
+                if (e.getClickCount() == 2) {
+                    selectedChoice = choice;
+                    Platform.runLater(dialogStage::close);
+                }
+            });
+
+            // Enter/Space на кнопке — выбор
+            btn.setOnKeyPressed(e -> {
+                if (e.getCode() == KeyCode.ENTER || e.getCode() == KeyCode.SPACE) {
+                    selectedChoice = choice;
+                    Platform.runLater(dialogStage::close);
+                    e.consume();
+                }
+            });
+
+            choiceButtons.add(btn);
+            choicesBox.getChildren().add(btn);
         }
 
-        log.trace("=== VariationChoiceDialog ===");
-        log.trace("  choices.size(): {}", choices.size());
+        // ========== ScrollPane — включаем скролл, только если строк много ==========
+        ScrollPane scrollPane = new ScrollPane(choicesBox);
+        scrollPane.getStyleClass().add("variation-scroll-pane");
+        scrollPane.setFitToWidth(true);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setPrefWidth(DIALOG_WIDTH - 40);
 
-        if (!choices.isEmpty()) {
-            listView.getSelectionModel().select(0);
-            log.trace("  auto-selected index 0: '{}'", choices.get(0).description());
+        // Показываем без скролла, если строк <= VISIBLE_ROWS
+        if (choices.size() <= VISIBLE_ROWS) {
+            scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+            // Убираем жесткую высоту. Просто фиксируем максимум, чтобы VBox не растягивал ScrollPane.
+            scrollPane.setMaxHeight(Region.USE_PREF_SIZE);
+        } else {
+            // Если строк много, задаем высоту примерно на 8 строк (можно оставить жестко)
+            double h = VISIBLE_ROWS * 32 + 4; // 32 - чуть больше реальной высоты строки
+            scrollPane.setPrefHeight(h);
+            scrollPane.setMaxHeight(h);
+            scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         }
+        VBox.setVgrow(scrollPane, Priority.NEVER);
 
-        listView.setOnMouseClicked(e -> {
-            if (e.getClickCount() == 2) {
-                int index = listView.getSelectionModel().getSelectedIndex();
-                if (index >= 0) {
-                    selectedChoice = choices.get(index);
-                    dialogStage.close();
+        // ========== Кнопки OK / Cancel ==========
+        Button okButton = new Button(lang.get(LanguageKeys.DIALOG_VARIATION_SELECT));
+        okButton.getStyleClass().add("variation-ok-button");
+        okButton.setOnAction(e -> {
+            Button focused = getFocusedChoiceButton();
+            if (focused != null) {
+                int idx = choiceButtons.indexOf(focused);
+                if (idx >= 0 && idx < choices.size()) {
+                    selectedChoice = choices.get(idx);
                 }
             }
-        });
-
-        Button okButton = new Button(lang.get(LanguageKeys.DIALOG_VARIATION_SELECT));
-        okButton.setStyle("-fx-background-color: #8b5a2b; -fx-text-fill: white; -fx-font-weight: bold;");
-        okButton.setOnAction(e -> {
-            int index = listView.getSelectionModel().getSelectedIndex();
-            if (index >= 0) {
-                selectedChoice = choices.get(index);
-                dialogStage.close();
-            }
+            Platform.runLater(dialogStage::close);
         });
 
         Button cancelButton = new Button(lang.get(LanguageKeys.DIALOG_VARIATION_CANCEL));
-        cancelButton.setOnAction(e -> dialogStage.close());
+        cancelButton.getStyleClass().add("variation-cancel-button");
+        cancelButton.setOnAction(e -> Platform.runLater(dialogStage::close));
 
-        root.getChildren().addAll(label, listView, okButton, cancelButton);
+        HBox buttonsBox = new HBox(10, okButton, cancelButton);
+        buttonsBox.setAlignment(Pos.CENTER);
+        buttonsBox.setPadding(new Insets(5, 0, 0, 0));
+
+        root.getChildren().addAll(label, scrollPane, buttonsBox);
 
         Scene scene = new Scene(root);
+        attachStylesheet(scene);
 
+        // ========== Глобальный обработчик клавиш ==========
         scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
-            if (event.getCode() == KeyCode.RIGHT || event.getCode() == KeyCode.ENTER) {
-                int index = listView.getSelectionModel().getSelectedIndex();
-                log.trace("ENTER/RIGHT pressed, selected index: {}", index);
-                if (index >= 0) {
-                    selectedChoice = choices.get(index);
+            KeyCode code = event.getCode();
 
-                    log.trace("Returning choice: desc='{}', isNewVariation={}, varName='{}'",
-                            selectedChoice.description(), selectedChoice.isNewVariation(),
-                            selectedChoice.variation() != null ? selectedChoice.variation().getName() : "null");
-
-                    Platform.runLater(dialogStage::close);
+            if (code == KeyCode.UP) {
+                moveFocus(-1);
+                event.consume();
+            } else if (code == KeyCode.DOWN) {
+                moveFocus(+1);
+                event.consume();
+            } else if (code == KeyCode.ENTER || code == KeyCode.RIGHT) {
+                Button focused = getFocusedChoiceButton();
+                if (focused != null) {
+                    int idx = choiceButtons.indexOf(focused);
+                    if (idx >= 0 && idx < choices.size()) {
+                        selectedChoice = choices.get(idx);
+                        log.trace("ENTER/RIGHT — selected choice idx={}", idx);
+                        Platform.runLater(dialogStage::close);
+                    }
                 }
                 event.consume();
-            } else if (event.getCode() == KeyCode.LEFT || event.getCode() == KeyCode.ESCAPE) {
+            } else if (code == KeyCode.ESCAPE || code == KeyCode.LEFT) {
                 Platform.runLater(dialogStage::close);
-                event.consume();
-            } else if (event.getCode() == KeyCode.UP) {
-                int index = listView.getSelectionModel().getSelectedIndex();
-                if (index > 0) {
-                    listView.getSelectionModel().select(index - 1);
-                    listView.scrollTo(index - 1);
-                }
-                event.consume();
-            } else if (event.getCode() == KeyCode.DOWN) {
-                int index = listView.getSelectionModel().getSelectedIndex();
-                if (index < choices.size() - 1) {
-                    listView.getSelectionModel().select(index + 1);
-                    listView.scrollTo(index + 1);
-                }
                 event.consume();
             }
         });
 
-        listView.addEventFilter(KeyEvent.KEY_PRESSED, event -> scene.getRoot().fireEvent(event));
-
         dialogStage.setScene(scene);
+        dialogStage.sizeToScene();
 
-        // ========== ПРИНУДИТЕЛЬНЫЙ ФОКУС ДЛЯ macOS ==========
-        dialogStage.setOnShowing(e -> Platform.runLater(() -> {
-            listView.requestFocus();
-            dialogStage.toFront();
-        }));
+        // ========== ЗАЩИТА ОТ КЛИКОВ ПО ОСНОВНОМУ ОКНУ ==========
+        Node ownerRoot = null;
+        if (owner instanceof Stage) {
+            Scene ownerScene = ((Stage) owner).getScene();
+            if (ownerScene != null) {
+                ownerRoot = ownerScene.getRoot();
+            }
+        }
 
-        dialogStage.setOnShown(e -> Platform.runLater(() -> {
-            dialogStage.requestFocus();
-            listView.requestFocus();
-            dialogStage.toFront();
-        }));
+        final Node finalOwnerRoot = ownerRoot;
+        if (finalOwnerRoot != null) {
+            finalOwnerRoot.setMouseTransparent(true);
+        }
 
+        // ========== ФОКУС ПРИ ОТКРЫТИИ ==========
+        dialogStage.setOnShown(e -> {
+            if (!choiceButtons.isEmpty()) {
+                choiceButtons.get(0).requestFocus();
+            }
+        });
+
+        // ========== СНЯТИЕ БЛОКИРОВКИ ПРИ ЛЮБОМ ЗАКРЫТИИ ==========
+        isAnyDialogOpen = true;
+        dialogStage.setOnHidden(e -> {
+            if (finalOwnerRoot != null) {
+                finalOwnerRoot.setMouseTransparent(false);
+            }
+            if (owner != null) {
+                Platform.runLater(owner::requestFocus);
+            }
+            isAnyDialogOpen = false;
+        });
+
+        // ========== ОДИН ЕДИНСТВЕННЫЙ ВЫЗОВ ==========
         dialogStage.showAndWait();
         return selectedChoice;
+    }
+
+    /**
+     * Подключает CSS-файл к сцене диалога.
+     */
+    private void attachStylesheet(Scene scene) {
+        URL css = getClass().getResource("/css/variation-dialog.css");
+        if (css != null) {
+            scene.getStylesheets().add(css.toExternalForm());
+        } else {
+            log.warn("variation-dialog.css not found in /css/ — using inline styles");
+        }
+    }
+
+    private Button getFocusedChoiceButton() {
+        for (Button btn : choiceButtons) {
+            if (btn.isFocused()) {
+                return btn;
+            }
+        }
+        return choiceButtons.isEmpty() ? null : choiceButtons.get(0);
+    }
+
+    private void moveFocus(int delta) {
+        if (choiceButtons.isEmpty()) return;
+
+        int currentIdx = -1;
+        for (int i = 0; i < choiceButtons.size(); i++) {
+            if (choiceButtons.get(i).isFocused()) {
+                currentIdx = i;
+                break;
+            }
+        }
+
+        int newIdx;
+        if (currentIdx == -1) {
+            newIdx = (delta > 0) ? 0 : choiceButtons.size() - 1;
+        } else {
+            newIdx = currentIdx + delta;
+            if (newIdx < 0) newIdx = 0;
+            if (newIdx >= choiceButtons.size()) newIdx = choiceButtons.size() - 1;
+        }
+
+        choiceButtons.get(newIdx).requestFocus();
     }
 
     public record Choice(Variation variation, String description, boolean isNewVariation) {

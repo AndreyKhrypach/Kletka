@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025-2026 Andrey Khrypach
+ * Copyright (c) 2025 Andrey Khrypach
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -255,6 +255,23 @@ public class ZobristHasher {
         String fen = board.getFen();
 
         return cache.computeIfAbsent(fen, f -> calculateInternal(board));
+    }
+
+    /**
+     * Вычисляет Zobrist хеш БЕЗ кэширования.
+     * Используется в утилитах, которые обрабатывают миллионы позиций
+     * (например, PgnToBookConverter), чтобы не раздувать static cache.
+     */
+    public static long calculateWithoutCache(Board board) {
+        if (board == null) return 0L;
+        return calculateInternal(board);
+    }
+
+    /**
+     * Очищает static-кэш (для утилит, которые всё-таки используют calculate()).
+     */
+    public static void clearCache() {
+        cache.clear();
     }
 
     /**

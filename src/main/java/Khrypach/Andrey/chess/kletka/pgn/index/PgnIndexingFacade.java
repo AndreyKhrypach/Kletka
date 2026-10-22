@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright (c) 2025-2026 Andrey Khrypach
+ *  * Copyright (c) 2025 Andrey Khrypach
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -67,7 +67,9 @@ public class PgnIndexingFacade {
                     .build());
         }
 
+        long t0 = System.currentTimeMillis();
         Path preparedPath = preparer.prepareFile(pgnPath, progressCallback);
+        long t1 = System.currentTimeMillis();
 
         if (progressCallback != null) {
             progressCallback.accept(IndexingProgress.builder()
@@ -76,6 +78,7 @@ public class PgnIndexingFacade {
         }
 
         PgnIndex index = indexer.indexFile(preparedPath, progressCallback);
+        long t2 = System.currentTimeMillis();
 
         if (progressCallback != null) {
             progressCallback.accept(IndexingProgress.builder()
@@ -84,6 +87,7 @@ public class PgnIndexingFacade {
         }
 
         indexManager.saveIndex(preparedPath, index);
+        long t3 = System.currentTimeMillis();
 
         if (progressCallback != null) {
             progressCallback.accept(IndexingProgress.builder()
@@ -92,6 +96,9 @@ public class PgnIndexingFacade {
                     .totalGames(index.getGameCount())
                     .build());
         }
+
+        log.info("[INDEX-PERF] prepare={}ms, index={}ms, save={}ms, total={}ms",
+                t1 - t0, t2 - t1, t3 - t2, t3 - t0);
 
         log.info("Indexing completed: {}", index);
         return index;
