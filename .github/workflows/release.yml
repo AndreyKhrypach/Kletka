@@ -155,7 +155,7 @@ jobs:
         include:
           - os: macos-latest      # Apple Silicon (ARM64)
             suffix: air
-          - os: macos-13          # Intel (x86_64) - последний Intel runner
+          - os: macos-15-intel    # Intel (x86_64) - последний Intel runner
             suffix: intel
     runs-on: ${{ matrix.os }}
     steps:
