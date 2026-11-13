@@ -39,7 +39,7 @@ import static Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys.*;
  */
 public class RepackStatusWidget extends VBox {
 
-    private static final LanguageManager lang = LanguageManager.getInstance();
+    private final LanguageManager lang = LanguageManager.getInstance();
 
     private final Circle statusCircle;
     private final Label statusLabel;

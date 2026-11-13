@@ -24,7 +24,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Клетка — Бесплатный кроссплатформенный шахматный анализатор</title>
-    <meta name="description" content="Клетка — бесплатный open-source кроссплатформенный шахматный анализатор с поддержкой PGN, вариантов, аннотаций, дебютных книг Polyglot и движка Stockfish. Доступен для Windows, Linux и macOS.">
+    <meta name="description" content="Клетка — бесплатный open-source кроссплатформенный шахматный анализатор с поддержкой PGN, вариантов, аннотаций, дебютных книг Polyglot, мультизагрузки партий, массовой очистки комментариев, динамической памяти JVM и движка Stockfish. Доступен для Windows, Linux и macOS.">
     <link rel="canonical" href="https://andreykhrypach.github.io/Kletka/README.ru.html">
     <link rel="alternate" hreflang="en" href="https://andreykhrypach.github.io/Kletka/">
     <link rel="alternate" hreflang="ru" href="https://andreykhrypach.github.io/Kletka/README.ru.html">
@@ -32,14 +32,14 @@
     <link rel="alternate" hreflang="x-default" href="https://andreykhrypach.github.io/Kletka/">
 
     <meta property="og:title" content="Клетка — Бесплатный кроссплатформенный шахматный анализатор">
-    <meta property="og:description" content="Бесплатный open-source шахматный анализатор с PGN, Polyglot книгами и движком Stockfish.">
+    <meta property="og:description" content="Бесплатный open-source шахматный анализатор с PGN, Polyglot книгами, мультизагрузкой партий и движком Stockfish.">
     <meta property="og:image" content="https://andreykhrypach.github.io/Kletka/screenshots/ru/Main_ru.png">
     <meta property="og:url" content="https://andreykhrypach.github.io/Kletka/README.ru.html">
     <meta property="og:type" content="website">
     <meta property="og:locale" content="ru_RU">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Клетка — Бесплатный кроссплатформенный шахматный анализатор">
-    <meta name="twitter:description" content="Бесплатный open-source шахматный анализатор с PGN, Polyglot книгами и движком Stockfish.">
+    <meta name="twitter:description" content="Бесплатный open-source шахматный анализатор с PGN, Polyglot книгами, мультизагрузкой партий и движком Stockfish.">
     <meta name="twitter:image" content="https://andreykhrypach.github.io/Kletka/screenshots/ru/Main_ru.png">
 
     <style>
@@ -129,6 +129,15 @@
             display: block;
             margin: 0 auto;
         }
+
+        /* Mobile-friendly tweaks */
+        @media (max-width: 600px) {
+            .container { padding: 24px 14px; }
+            h1 { font-size: 1.6em; }
+            h2 { font-size: 1.25em; }
+            table td { padding: 4px; }
+            .btn { display: block; margin: 8px 0; text-align: center; }
+        }
     </style>
 </head>
 <body>
@@ -175,6 +184,9 @@
         <li>📚 <strong>Дебютные книги Polyglot</strong> — загрузка, просмотр и <strong>редактирование</strong> дебютных вариантов</li>
         <li>📤 <strong>Экспорт дерева в Polyglot книгу</strong> — сохранение личного репертуара</li>
         <li>🏗️ <strong>Создание Polyglot-книги из PGN-файла</strong> — построение статистической книги из тысяч партий</li>
+        <li>🚀 <strong>Мультизагрузка партий в Polyglot-книгу</strong> — выделите партии в PGN-браузере, нажмите Enter — книга создаётся и загружается мгновенно (до 10 000 партий)</li>
+        <li>🧹 <strong>Массовая очистка комментариев в PGN</strong> — потоковая обработка больших файлов (~1 ГБ за ~2.5 минуты) без загрузки в память</li>
+        <li>⚙️ <strong>Динамическое выделение памяти JVM</strong> — приложение автоматически адаптируется к объёму RAM (4/8/16/32 ГБ)</li>
         <li>🔍 Анализ позиции с <strong>Stockfish</strong> (UCI движок)</li>
         <li>🎨 Настраиваемые темы доски</li>
         <li>📋 <strong>Копирование позиции</strong> в формате FEN + ASCII (Ctrl+Shift+P)</li>
@@ -260,6 +272,17 @@
     </ol>
     <p>Это отличается от <strong>«Экспорта дерева в Polyglot»</strong> (который создаёт личный репертуар из одной проанализированной партии). Функция создания из PGN строит <strong>статистическую книгу</strong> из тысяч реальных партий. Полученная книга совместима со Stockfish, Leela, ChessBase, Scid и Arena.</p>
 
+    <h3>Мультизагрузка партий в Polyglot-книгу:</h3>
+    <p>Быстрый способ построить книгу из выбранных партий без промежуточных диалогов:</p>
+    <ol>
+        <li>Откройте PGN-браузер (Ctrl+B)</li>
+        <li>Выделите нужные партии (до 10 000) — мышью с Shift/Ctrl или Ctrl+A для всех</li>
+        <li>Нажмите <strong>Enter</strong></li>
+    </ol>
+    <p>Под капотом мгновенно создаётся Polyglot-книга во временной папке и тут же загружается в режим <strong>BOOK</strong>. Вы сразу видите все ходы и дебютные варианты — никаких диалогов «Сохранить как», никаких лишних кликов.</p>
+    <p>При создании книги проверяется <strong>3-кратное повторение</strong>: партия обрезается на моменте ничьей, ходы после неё не включаются.</p>
+    <p>Если книга уже была загружена и в ней есть несохранённые изменения — появится диалог <strong>Сохранить / Не сохранять / Отмена</strong> (для временной книги запрос показывается всегда).</p>
+
     <h3>Системные требования для книг</h3>
     <p>Для работы с дебютными книгами Клетка требует:</p>
     <ul>
@@ -273,6 +296,7 @@
 --add-opens java.base/sun.misc=ALL-UNNAMED \
 -jar Kletka.jar</code></pre>
     <p>Эти аргументы необходимы для быстрой работы с Polyglot книгами с использованием файлов, отображаемых в память (mmap).</p>
+    <p><strong>Память:</strong> Клетка использует динамическое выделение памяти JVM (<code>-XX:MaxRAMPercentage=70.0</code>) и автоматически адаптируется к объёму RAM. При создании Polyglot-книги из больших PGN-файлов может появиться предупреждение о нехватке памяти — оценка выполняется по количеству партий в файле.</p>
 
     <h3>🔧 Технические детали: Memory-Mapped Files</h3>
     <p>Клетка использует <strong>memory-mapped files</strong> (<code>MappedByteBuffer</code>) для молниеносно быстрой работы с Polyglot книгами, даже на HDD.</p>
@@ -314,8 +338,11 @@
 
     <h2>⚡ Производительность</h2>
     <ul>
-        <li><strong>Индексация PGN ускорена в 21 раз</strong> — 900 000 партий индексируются за <strong>~50 секунд</strong> (ранее ~17 минут).</li>
-        <li><strong>Пакетная обработка ускорена в 2 раза</strong> — удаление/вставка 100 000 партий стали заметно быстрее.</li>
+        <li><strong>Индексация PGN</strong> — 900 000 партий за <strong>~50 секунд</strong> (ускорение ×21).</li>
+        <li><strong>Пакетная обработка</strong> — удаление/вставка 100 000 партий заметно быстрее (×2).</li>
+        <li><strong>Загрузка сложных партий</strong> — алгоритм именования вариантов ускорен в <strong>5–6 раз</strong>.</li>
+        <li><strong>Массовая очистка комментариев</strong> — потоковая обработка PGN ~1 ГБ (900 000 партий) за <strong>~2.5 минуты</strong> без загрузки в память.</li>
+        <li><strong>Динамическая память JVM</strong> — <code>-XX:MaxRAMPercentage=70.0</code> вместо фиксированного <code>-Xmx4g</code>: приложение адаптируется к объёму RAM (4/8/16/32 ГБ).</li>
     </ul>
 
     <hr>
@@ -362,7 +389,7 @@
         <li>Используйте <strong>click-to-move</strong> (клик на фигуру → клик на клетку) вместо drag-and-drop.</li>
         <li>Или дождитесь миграции Клетки на <strong>JDK 25</strong> + <strong>JavaFX 25</strong> (планируется в будущих релизах).</li>
     </ul>
-    <p><strong>Статус:</strong> Отслеживается в issue #XXX. Будет исправлено при миграции на новый стек.</p>
+    <p><strong>Статус:</strong> Будет исправлено при миграции на JDK 25 + JavaFX 25 (планируется в будущих релизах).</p>
 
     <hr>
 
@@ -420,8 +447,8 @@
     <h3>macOS</h3>
     <p>Скачайте <code>.dmg</code> для вашего процессора со страницы <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a>:</p>
     <ul>
-        <li><strong>Apple Silicon (M1/M2/M3... MacBook Air/Pro):</strong> <code>Kletka-1.7.0-air.dmg</code></li>
-        <li><strong>Intel (x86_64):</strong> <code>Kletka-1.7.0-intel.dmg</code></li>
+        <li><strong>Apple Silicon (M1/M2/M3... MacBook Air/Pro):</strong> <code>Kletka-1.8.0-air.dmg</code></li>
+        <li><strong>Intel (x86_64):</strong> <code>Kletka-1.8.0-intel.dmg</code></li>
     </ul>
     <p>Откройте <code>.dmg</code> и перетащите <code>Kletka.app</code> в папку <code>Applications</code>.</p>
     <blockquote>

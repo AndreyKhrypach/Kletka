@@ -29,6 +29,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Чтение бинарного индекса
@@ -225,6 +226,179 @@ public class BinaryIndexReader {
 
         // ========== channel = null — LazyPgnIndex не держит файл ==========
         return new LazyPgnIndex(header, null, buffer, dataStart, lightEntries);
+    }
+
+    /**
+     * Потоковое чтение всех записей из .klt БЕЗ загрузки в память списка LightGameEntry.
+     * Читает заголовок → таблицу offset'ов (entryCount × 8 байт) → записи БЛОКАМИ по 1 МБ.
+     * Память: ~(entryCount × 8) + 1 МБ. На 11.7M партий ≈ 95 МБ.
+     *
+     * @param kltPath путь к .klt
+     * @param consumer вызывается для КАЖДОЙ записи (включая deleted — фильтруйте сами)
+     */
+    public void streamEntries(Path kltPath, Consumer<GameIndexEntry> consumer) throws IOException {
+        log.debug("Streaming binary index from: {}", kltPath);
+
+        final int BLOCK_SIZE = 1 << 20; // 1 МБ
+
+        try (FileChannel channel = FileChannel.open(kltPath, StandardOpenOption.READ)) {
+            long fileSize = channel.size();
+
+            // ========== 1. ЗАГОЛОВОК ==========
+            ByteBuffer headerBuf = ByteBuffer.allocate(BinaryIndexConstants.HEADER_SIZE);
+            readFully(channel, headerBuf);  // flip уже сделан
+
+            int magic = headerBuf.getInt();
+            if (magic != BinaryIndexConstants.MAGIC) {
+                throw new IOException("Invalid magic: 0x" + Integer.toHexString(magic));
+            }
+            byte version = headerBuf.get();
+            if (version != BinaryIndexConstants.VERSION) {
+                throw new IOException("Unsupported version: " + version);
+            }
+            headerBuf.get(); headerBuf.get(); headerBuf.get();
+
+            int entryCount = headerBuf.getInt();
+            headerBuf.getInt();
+            headerBuf.getLong();
+            headerBuf.position(headerBuf.position() + 8); // hash
+            headerBuf.getLong(); // timestamp
+            headerBuf.getLong(); // reserved
+
+            if (entryCount <= 0) {
+                log.debug("Empty index, nothing to stream");
+                return;
+            }
+
+            // ========== 2. ТАБЛИЦА OFFSET'ОВ ==========
+            long offsetsBytes = (long) entryCount * 8L;
+            if (offsetsBytes > Integer.MAX_VALUE - 16) {
+                throw new IOException("Index too large for in-memory offset table: " + offsetsBytes);
+            }
+            ByteBuffer offsetsBuf = ByteBuffer.allocate((int) offsetsBytes);
+            readFully(channel, offsetsBuf);  // flip уже сделан
+
+            long dataStart = BinaryIndexConstants.HEADER_SIZE + offsetsBytes;
+
+            // ========== 3. БЛОЧНОЕ ЧТЕНИЕ С ГАРАНТИЕЙ ЦЕЛОСТНОСТИ ЗАПИСИ ==========
+            ByteBuffer blockBuf = ByteBuffer.allocate(BLOCK_SIZE);
+            long blockStart = -1;
+            int blockLength = 0;
+
+            for (int i = 0; i < entryCount; i++) {
+                long relOffset = offsetsBuf.getLong(i * 8);
+                long entryOffset = dataStart + relOffset;
+
+                // ===== ДЛИНА ЗАПИСИ: разница со следующим offset'ом =====
+                long nextRelOffset = (i + 1 < entryCount)
+                        ? offsetsBuf.getLong((i + 1) * 8)
+                        : (fileSize - dataStart);
+                long entryLength = nextRelOffset - relOffset;
+
+                if (entryLength < 0 || entryLength > Integer.MAX_VALUE) {
+                    throw new IOException(String.format(
+                            "Invalid entry length at i=%d: %d (rel=%d, nextRel=%d)",
+                            i, entryLength, relOffset, nextRelOffset));
+                }
+
+                // ===== ЗАПИСЬ ДОЛЖНА ЦЕЛИКОМ ВЛЕЗАТЬ В БЛОК =====
+                boolean fits = (blockStart >= 0)
+                        && (entryOffset >= blockStart)
+                        && (entryOffset + entryLength <= blockStart + blockLength);
+
+                if (!fits) {
+                    blockBuf.clear();
+                    long remaining = fileSize - entryOffset;
+                    int toRead = (int) Math.min(Math.max((long) BLOCK_SIZE, entryLength), remaining);
+
+                    channel.position(entryOffset);
+                    int read = 0;
+                    while (read < toRead && blockBuf.hasRemaining()) {
+                        int n = channel.read(blockBuf);
+                        if (n < 0) break;
+                        read += n;
+                    }
+                    blockBuf.flip();
+                    blockStart = entryOffset;
+                    blockLength = read;
+
+                    if (entryLength > blockLength) {
+                        throw new IOException(String.format(
+                                "Entry %d (len=%d) does not fit in block (read=%d) at offset %d",
+                                i, entryLength, blockLength, entryOffset));
+                    }
+                }
+
+                // ===== ПОЗИЦИОНИРУЕМСЯ И ЧИТАЕМ =====
+                blockBuf.position((int) (entryOffset - blockStart));
+                GameIndexEntry entry = readEntryFromBuffer(blockBuf);
+                consumer.accept(entry);
+            }
+        }
+
+        log.debug("Streaming completed");
+    }
+
+    /**
+     * Быстро читает только заголовок .klt (48 байт) и возвращает количество партий.
+     * Используется для инициализации прогресс-бара ДО начала обработки.
+     */
+    public int readEntryCount(Path kltPath) throws IOException {
+        try (FileChannel channel = FileChannel.open(kltPath, StandardOpenOption.READ)) {
+            ByteBuffer headerBuf = ByteBuffer.allocate(BinaryIndexConstants.HEADER_SIZE);
+            readFully(channel, headerBuf);
+
+            int magic = headerBuf.getInt();
+            if (magic != BinaryIndexConstants.MAGIC) {
+                throw new IOException("Invalid magic: 0x" + Integer.toHexString(magic));
+            }
+            byte version = headerBuf.get();
+            if (version != BinaryIndexConstants.VERSION) {
+                throw new IOException("Unsupported version: " + version);
+            }
+            headerBuf.get(); headerBuf.get(); headerBuf.get(); // reserved
+
+            return headerBuf.getInt(); // entryCount
+        }
+    }
+
+    /** Дочитывает буфер до конца (read может вернуть меньше, чем capacity). */
+    private void readFully(FileChannel channel, ByteBuffer buf) throws IOException {
+        while (buf.hasRemaining()) {
+            if (channel.read(buf) < 0) {
+                throw new IOException("Unexpected EOF while reading index");
+            }
+        }
+        buf.flip();
+    }
+
+    /** Читает одну запись из позиционированного буфера. */
+    private GameIndexEntry readEntryFromBuffer(ByteBuffer buffer) {
+        int id = buffer.getInt();
+        long offset = buffer.getLong();
+        int length = buffer.getInt();
+        int version = buffer.getInt();
+        boolean deleted = buffer.get() == 1;
+        int hash = buffer.getInt();
+
+        String white = readString(buffer);
+        String black = readString(buffer);
+        String eco = readString(buffer);
+        String result = readString(buffer);
+        String year = readString(buffer);
+        String event = readString(buffer);
+        String site = readString(buffer);
+        String opening = readString(buffer);
+        String variation = readString(buffer);
+        int plyCount = buffer.getInt();
+
+        return GameIndexEntry.builder()
+                .id(id).offset(offset).length(length).version(version)
+                .deleted(deleted).hash(hash)
+                .white(white).black(black).eco(eco).result(result)
+                .year(year).event(event).site(site)
+                .opening(opening).variation(variation).plyCount(plyCount)
+                .build();
     }
 
     /**

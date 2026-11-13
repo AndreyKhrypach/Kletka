@@ -36,7 +36,7 @@ import javafx.stage.StageStyle;
 
 public class SplashScreen {
 
-    private static final LanguageManager lang = LanguageManager.getInstance();
+    private final LanguageManager lang = LanguageManager.getInstance();
 
     private Stage splashStage;
     private ProgressBar progressBar;

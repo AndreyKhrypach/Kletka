@@ -45,7 +45,7 @@ import static Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys.*;
  */
 public class PgnRepacker {
     private static final Logger log = LoggerFactory.getLogger(PgnRepacker.class);
-    private static final LanguageManager lang = LanguageManager.getInstance();
+    private final LanguageManager lang = LanguageManager.getInstance();
 
     private final PgnIndexManager indexManager;
 

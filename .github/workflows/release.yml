@@ -4,7 +4,7 @@ on:
   push:
     branches: [ develop, master ]
     tags:
-      - 'v*'                    # ← Триггер на тег v1.6.0, v1.7.0 и т.д.
+      - '*'                    # ← Триггер на тег 1.6.0, 1.7.0 и т.д.
   release:
     types: [ created ]
   workflow_dispatch:            # ← Ручной запуск через UI GitHub
@@ -53,7 +53,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           files: target/installer/*.exe
-        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'release'
 
   # ============================================================
   # LINUX .deb (Debian, Ubuntu)
@@ -105,7 +105,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           files: target/installer/kletka-${{ matrix.artifact }}_*.deb
-        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'release'
 
     # ============================================================
   # LINUX .rpm (Fedora, RHEL, Rocky, Alma, openSUSE)
@@ -142,7 +142,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           files: target/installer/*.rpm
-        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'release'
 
   # ============================================================
   # MACOS (.dmg) - Apple Silicon (air) + Intel (intel)
@@ -187,8 +187,8 @@ jobs:
 
       - name: Rename .dmg with architecture suffix
         run: |
-          # jpackage создает файл вида Kletka-1.7.0.dmg
-          # Переименовываем в Kletka-1.7.0-air.dmg или Kletka-1.7.0-intel.dmg
+          # jpackage создает файл вида Kletka-1.8.0.dmg
+          # Переименовываем в Kletka-1.8.0-air.dmg или Kletka-1.8.0-intel.dmg
           for f in target/installer/*.dmg; do
             mv "$f" "target/installer/Kletka-${APP_VERSION}-${{ matrix.suffix }}.dmg"
           done
@@ -204,4 +204,4 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           files: target/installer/Kletka-*-${{ matrix.suffix }}.dmg
-        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'release'

@@ -28,6 +28,9 @@
 - 📚 **Polyglot 开局库** — 加载、浏览和 **编辑** 开局变着
 - 📤 **将变例树导出为 Polyglot 开局库** — 保存个人棋路
 - 🏗️ **从 PGN 文件创建 Polyglot 开局库** — 从成千上万的对局构建统计开局库
+- 🚀 **多对局加载到 Polyglot 开局库** — 在 PGN 浏览器中选择对局，按 Enter — 开局库即时创建并加载（最多 10,000 个对局）
+- 🧹 **批量清除 PGN 中的注释** — 流式处理大型文件（~1 GB 约 2.5 分钟），不加载到内存
+- ⚙️ **JVM 动态内存分配** — 应用自动适应可用 RAM（4/8/16/32 GB）
 - 🔍 使用 **Stockfish** (UCI 引擎) 进行局面分析
 - 🎨 可定制的棋盘主题
 - 📋 **复制局面** 为 FEN + ASCII 格式 (Ctrl+Shift+P)
@@ -109,6 +112,20 @@ Kletka 允许您直接将走法添加到已加载的开局库中：
 
 这与 **“将变例树导出为 Polyglot”**（从单个分析对局创建个人棋路）不同。PGN 到开局库的功能从成千上万个真实对局构建 **统计开局库**。生成的开局库兼容 Stockfish、Leela、ChessBase、Scid 和 Arena。
 
+### 多对局加载到 Polyglot 开局库：
+
+无需中间对话框，快速从所选对局构建开局库：
+
+1. 打开 PGN 浏览器（Ctrl+B）
+2. 选择所需对局（最多 10,000 个）— 使用 Shift/Ctrl 或 Ctrl+A 全选
+3. 按 **Enter**
+
+系统在后台即时在临时文件夹中创建 Polyglot 开局库，并立即加载到 **BOOK** 模式。您可立即看到所有走法和开局变着 — 无需「另存为」对话框，无需额外点击。
+
+创建开局库时会检查**三次重复**：对局在和棋点被截断，之后的走法不包含在内。
+
+如果已加载的开局库有未保存的更改，将显示 **保存 / 不保存 / 取消** 对话框（临时开局库总是显示提示）。
+
 ### 书籍的系统要求
 
 Kletka 的开局书功能需要以下环境：
@@ -130,6 +147,8 @@ java --add-opens java.base/sun.nio.ch=ALL-UNNAMED \
 ```
 
 这些参数对于使用内存映射文件进行快速 Polyglot 开局库操作是必需的。
+
+**内存：** Kletka 使用 JVM 动态内存分配（`-XX:MaxRAMPercentage=70.0`），自动适应可用 RAM。从大型 PGN 文件创建 Polyglot 开局库时，可能会显示内存不足警告 — 根据文件中的对局数量进行估算。
 
 ### 🔧 技术细节：内存映射文件
 
@@ -183,9 +202,11 @@ sun.misc.Unsafe.invokeCleaner(mappedByteBuffer);
 
 ## ⚡ 性能
 
-- PGN 索引加速 21 倍 — 900,000 个对局在 ~50 秒 内完成索引（之前约 17 分钟）。
-
-- 批量处理加速 2 倍 — 删除/插入 100,000 个对局明显更快。
+- **PGN 索引** — 900,000 个对局约 50 秒（加速 21 倍）。
+- **批量处理** — 删除/插入 100,000 个对局明显更快（2 倍）。
+- **加载复杂对局** — 变着命名算法加速 5–6 倍。
+- **批量清除注释** — 流式处理 ~1 GB PGN（900,000 个对局）约 2.5 分钟，不加载到内存。
+- **JVM 动态内存** — 使用 `-XX:MaxRAMPercentage=70.0` 替代固定的 `-Xmx4g`：应用适应可用 RAM（4/8/16/32 GB）。
 
 ---
 
@@ -239,7 +260,7 @@ Kletka 当前使用 **Java 17** + **JavaFX 17**。
 - 或者等待 Kletka 迁移到 **JDK 25** + **JavaFX 25**（计划在未来版本中）。
 
 **状态：**
-在 issue #XXX 中跟踪。将在迁移到新堆栈时修复。
+将在迁移到 JDK 25 + JavaFX 25 时修复（计划在未来版本中）。
 
 ---
 
@@ -289,13 +310,13 @@ Kletka 当前使用 **Java 17** + **JavaFX 17**。
 
 从 [Releases](https://github.com/AndreyKhrypach/Kletka/releases) 页面下载适用于您处理器的 .dmg：
 
-- Apple Silicon (M1/M2/M3... MacBook Air/Pro): Kletka-1.7.0-air.dmg
+- Apple Silicon (M1/M2/M3... MacBook Air/Pro): Kletka-1.8.0-air.dmg
 
-- Intel (x86_64): Kletka-1.7.0-intel.dmg
+- Intel (x86_64): Kletka-1.8.0-intel.dmg
 
 打开 .dmg，将 Kletka.app 拖入 Applications（应用程序）文件夹。
 
-⚠️ macOS 重要提示： 安装新版本前，请从 Applications 中删除旧版「Клетка」。
+⚠️ macOS 重要提示： 安装新版本前，请从 Applications 中删除旧版「Kletka」。
 
 ### Linux (Debian/Ubuntu)
 

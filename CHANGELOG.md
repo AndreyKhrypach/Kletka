@@ -7,6 +7,203 @@
 
 🇷🇺 Русский
 
+[1.8.0] - 2026-11-13
+
+### Добавлено
+
+- **Мультизагрузка партий** в Polyglot-книгу — основная фича релиза. Пользователь выделяет партии в PGN-браузере → нажимает Enter → под капотом мгновенно создаётся Polyglot-книга во временной папке → она тут же загружается в режим BOOK. Пользователь сразу видит все ходы и дебютные варианты. Никаких диалогов «Сохранить как», никаких лишних кликов. Поддерживается до 10 000 партий за раз, с прогрессом загрузки и сворачиванием браузера.
+
+- **Массовая очистка комментариев в PGN-файлах** — новый пункт в меню Файл. Позволяет убрать комментарии во всём PGN-файле, а также удалить все комментарии для одной партии. Работает потоково: файл ~1 ГБ (900 000 партий) обрабатывается за ~2.5 минуты без загрузки в память. Подходит для больших PGN-баз.
+
+- **Компонент MultiGameBookBuilder** — сборка книги из выбранных партий (до 10 000) с проверкой 3-кратного повторения (партия обрезается при создании — ходы после ничьей не включаются).
+
+- **Компонент PgnToBookConverter** — конвертация * → DRAW (weight=1); исправлен SAN-парсер (b3, bxc3, b6 — пешка, а не слон); добавлен BuildOptions.forMultiGame() (300 полуходов).
+
+- **BookManager** — новые методы: temporaryMultiBook, promoteTemporaryToPermanent (с allowOverwrite), discardTemporaryMultiBook, автопереименование (1).bin, закрытие mmap перед move.
+
+- **PgnFileBrowser.startMultiGameLoad** — UI-триггер (Enter при multi-select), лимит 10 000, прогресс, сворачивание браузера.
+
+- **MainController.loadMultiGameBook** — загрузка временной книги.
+
+- **MainController.handleLoadedBookBeforeAction** — единая точка save/discard/cancel: для временной книги — всегда спрашивает; для обычной — только при изменениях.
+
+- **MoveNavigationController** — проверка 3-кратного повторения в BOOK-режиме: и мышкой (navigateToMoveInVariation), и клавиатурой (selectCurrentVariation).
+
+- **WINDOW_CLOSE_REQUEST** — объединённое условие + return (нет двойных диалогов).
+
+### Исправлено
+
+- **Экспорт позиции из партии в PGN** — порядковый номер хода теперь обнуляется при экспорте. ✅
+
+- **Порядок сохранения** — сначала выбирается, куда сохранять, а уже потом что сохранять (данные партии). ✅
+
+- **Сброс партии на новую** — исправлена проверка сохранения при терминальной позиции (мат, пат). Раньше ничего не предлагалось. ✅
+
+- **Расставленная, но не изменённая позиция** — если позиция отличается от начальной расстановки и ходы не сделаны, теперь предлагается сохранить изменения. ✅
+
+- **Нумерация ходов из загруженного PGN-файла** — когда спецификация не требует конкретного номера хода, нумерация в «Клетке» могла начинаться с 0-го хода вместо 1-го. Исправлено. ✅
+
+- **Движок не находил тактику** — сильнейшее продолжение не отображалось даже при большом списке линий вариантов и работало только через «Показать лучший ход». Теперь сильнейшее продолжение находится правильно. ✅
+
+- **Баг при создании Polyglot-книги** — ход пешкой с вертикали «b» понимался как ход фигурой (слоном), из-за чего терялись ходы. Исправлено. ✅
+
+- **Защита при зажатии клавиш навигации, пробела (движок) или быстром клике мышью по кнопкам навигации** — диалоги выбора вариантов теперь успевают закрываться, движок успевает обработать сторону хода. ✅
+
+- **Обнуление оценки движка** — при загрузке партии из PGN-файла или позиции оценка движка (или сам движок) теперь обнуляется. ✅
+
+- **Матовая позиция и запуск движка** — когда расставлена матовая позиция и ход матующей стороны, при попытке запустить движок выдаётся сообщение, что позиция невозможна, и запуск блокируется. ✅
+
+### Ускорено
+
+- **Загрузка сложных партий** — улучшен алгоритм именования вариантов, скорость выросла в 5–6 раз. ✅
+
+### Изменено
+
+- **Динамическое выделение памяти JVM** — вместо жёсткого -Xmx4g используется -XX:MaxRAMPercentage=70.0. Приложение автоматически адаптируется к объёму RAM машины (4 / 8 / 16 / 32 ГБ и более) и не падает на системах с малым объёмом памяти.
+
+- **Создание Polyglot-книги из больших PGN-файлов**:
+
+  - Добавлено предупреждение при нехватке памяти — оценка выполняется по количеству партий в файле.
+
+  - Исправлен SAN-парсер (b3, bxc3, b6 — пешка, не слон): партии больше не обрываются, книга получается полнее. Это увеличило потребление памяти на больших файлах — отсюда и переход на динамическое выделение памяти JVM.
+
+### Известные проблемы
+
+  - **macOS: Drag-and-drop** — фигура «хватается за угол» из-за известного бага JavaFX JDK-8333919 (dragViewOffsetX/Y игнорируются). Обходной путь: используйте click-to-move (клик на фигуру → клик на клетку).
+
+🇬🇧 English
+
+[1.8.0] - 2026-11-13
+
+### Added
+
+- **Multi-game loading into a Polyglot book** — the headline feature of this release. The user selects games in the PGN browser → presses Enter → under the hood a Polyglot book is instantly created in a temporary folder → it is immediately loaded into BOOK mode. The user instantly sees all moves and opening variations. No "Save As" dialogs, no extra clicks. Supports up to 10,000 games at once, with load progress and browser minimization.
+
+- **Mass comment removal in PGN files** — new item in the File menu. Allows removing comments across an entire PGN file, as well as removing all comments for a single game. Works streaming: a ~1 GB file (900,000 games) is processed in ~2.5 minutes without loading into memory. Suitable for large PGN databases.
+
+- **MultiGameBookBuilder component** — builds a book from selected games (up to 10,000) with threefold-repetition checking (the game is truncated at creation — moves after a draw are not included).
+
+- **PgnToBookConverter component** — converts * → DRAW (weight=1); fixed SAN parser (b3, bxc3, b6 — pawn, not bishop); added BuildOptions.forMultiGame() (300 half-moves).
+
+- **BookManager** — new methods: temporaryMultiBook, promoteTemporaryToPermanent (with allowOverwrite), discardTemporaryMultiBook, auto-rename (1).bin, closing mmap before move.
+
+- **PgnFileBrowser.startMultiGameLoad** — UI trigger (Enter on multi-select), 10,000 limit, progress, browser minimization.
+
+- **MainController.loadMultiGameBook** — loads the temporary book.
+
+- **MainController.handleLoadedBookBeforeAction** — single save/discard/cancel entry point: for a temporary book — always asks; for a regular one — only when there are changes.
+
+- **MoveNavigationController** — threefold-repetition check in BOOK mode: both with the mouse (navigateToMoveInVariation) and the keyboard (selectCurrentVariation).
+
+- **WINDOW_CLOSE_REQUEST** — combined condition + return (no double dialogs).
+
+### Fixed
+
+- **Exporting a position from a game to PGN** — the move number is now reset on export. ✅
+
+- **Save order** — the user first chooses where to save, and only then what to save (game data). ✅
+
+- **Resetting a game to a new one** — fixed the save check for terminal positions (checkmate, stalemate). Previously nothing was offered. ✅
+
+- **Position set up but not modified** — if the position differs from the initial setup and no moves have been made, the user is now prompted to save changes. ✅
+
+- **Move numbering from a loaded PGN file** — when the specification does not require a specific move number, numbering in Kletka could start from move 0 instead of move 1. Fixed. ✅
+
+- **Engine not finding tactics** — the strongest continuation was not shown even with a large list of variation lines, and worked only via "Show best move". The strongest continuation is now found correctly. ✅
+
+- **Bug when creating a Polyglot book** — a pawn move from the "b" file was interpreted as a piece (bishop) move, causing moves to be lost. Fixed. ✅
+
+- **Protection when holding navigation keys, Space (engine), or clicking navigation buttons rapidly** — variation choice dialogs now close in time, and the engine has time to process the side to move. ✅
+
+- **Engine evaluation reset** — when loading a game from a PGN file or a position, the engine evaluation (or the engine itself) is now reset. ✅
+
+- **Mate position and engine launch** — when a mate position is set up and it is the mating side's turn, attempting to launch the engine shows a message that the position is impossible and blocks the launch. ✅
+
+### Performance
+
+- **Loading complex games** — improved the variation naming algorithm; speed increased 5–6×. ✅
+
+### Changed
+
+- **Dynamic JVM memory allocation** — instead of a hard-coded -Xmx4g, the app now uses -XX:MaxRAMPercentage=70.0. The application automatically adapts to the machine's RAM (4 / 8 / 16 / 32 GB and more) and no longer fails on low-memory systems.
+
+- **Creating a Polyglot book from large PGN files**:
+
+  - Added a low-memory warning — estimated from the number of games in the file.
+
+  - Fixed the SAN parser (b3, bxc3, b6 — pawn, not bishop): games are no longer truncated, and the resulting book is fuller. This increased memory consumption on large files — hence the switch to dynamic JVM memory allocation.
+
+### Known Issues
+
+- **macOS: Drag-and-drop** — the piece "grabs by the corner" due to a known JavaFX bug JDK-8333919 (dragViewOffsetX/Y are ignored). Workaround: use click-to-move (click on a piece → click on a square).
+
+
+🇨🇳 中文
+
+[1.8.0] - 2026-11-13
+
+### 新增
+
+- **多对局加载到 Polyglot 开局库** — 本次发布的主要功能。用户在 PGN 浏览器中选择对局 → 按 Enter → 系统在后台即时在临时文件夹中创建 Polyglot 开局库 → 并立即加载到 BOOK 模式。用户可立即看到所有走法和开局变着。无需「另存为」对话框，无需额外点击。一次最多支持 10,000 个对局，带加载进度和浏览器最小化。
+
+- **批量清除 PGN 文件中的注释** — 文件 菜单中的新项目。可清除整个 PGN 文件中的注释，也可删除单个对局的所有注释。采用流式处理：~1 GB 文件（900,000 个对局）约 2.5 分钟 处理完成，不加载到内存。适用于大型 PGN 数据库。
+
+- **MultiGameBookBuilder 组件** — 从所选对局（最多 10,000 个）构建开局库，并进行三次重复检查（创建时截断对局——不包含和棋之后的走法）。
+
+- **PgnToBookConverter 组件** — 将 * 转换为 DRAW（weight=1）；修复 SAN 解析器（b3、bxc3、b6 — 兵，而非象）；新增 BuildOptions.forMultiGame()（300 个半回合）。
+
+- **BookManager** — 新增方法：temporaryMultiBook、promoteTemporaryToPermanent（带 allowOverwrite）、discardTemporaryMultiBook、自动重命名 (1).bin、move 前关闭 mmap。
+
+- **PgnFileBrowser.startMultiGameLoad** — UI 触发器（多选时按 Enter）、10,000 上限、进度、浏览器最小化。
+
+- **MainController.loadMultiGameBook** — 加载临时开局库。
+
+- **MainController.handleLoadedBookBeforeAction** — 统一的 save/discard/cancel 入口：临时开局库 — 总是询问；普通开局库 — 仅在有关更改时询问。
+
+- **MoveNavigationController** — BOOK 模式下的三次重复检查：鼠标（navigateToMoveInVariation）和键盘（selectCurrentVariation）均支持。
+
+- **WINDOW_CLOSE_REQUEST** — 合并条件 + return（无双重对话框）。
+
+### 修复
+
+- **从对局导出局面到 PGN** — 导出时回合数现在重置。✅
+
+- **保存顺序** — 用户先选择保存到哪里，然后再选择保存什么（对局数据）。✅
+
+- **重置对局为新对局** — 修复了终局局面（将杀、逼和）的保存检查。此前不会提示。✅
+
+- **已摆放但未修改的局面** — 如果局面与初始摆放不同且尚未走棋，现在会提示保存更改。✅
+
+- **从加载的 PGN 文件中的回合编号** — 当规范不要求具体回合号时，Kletka 中的编号可能从第 0 回合开始，而不是第 1 回合。已修复。✅
+
+- **引擎找不到战术** — 即使变着线路列表很大，最强续着也不显示，只能通过「显示最佳走法」找到。现在能正确找到最强续着。✅
+
+- **创建 Polyglot 开局库时的错误** — 「b」线的兵走法被理解为棋子（象）走法，导致走法丢失。已修复。✅
+
+- **按住导航键、空格（引擎）或快速点击导航按钮时的保护** — 变着选择对话框现在能及时关闭，引擎能及时处理行棋方。✅
+
+- **引擎评估重置** — 从 PGN 文件或局面加载对局时，引擎评估（或引擎本身）现在会重置。✅
+
+- **将杀局面与引擎启动** — 当摆放将杀局面且轮到将杀方走棋时，尝试启动引擎会显示「局面不可能」的提示并阻止启动。✅
+
+### 性能
+
+- **复杂对局加载** — 改进了变着命名算法，速度提升 5–6 倍。✅
+
+### 变更
+
+- **JVM 动态内存分配** — 不再使用固定的 -Xmx4g，改为 -XX:MaxRAMPercentage=70.0。应用会自动适应机器的 RAM 容量（4 / 8 / 16 / 32 GB 及以上），在低内存系统上不再失败。
+
+- **从大型 PGN 文件创建 Polyglot 开局库**：
+
+  - 新增内存不足警告 — 根据文件中的对局数量进行估算。
+
+  - 修复 SAN 解析器（b3、bxc3、b6 — 兵，而非象）：对局不再被截断，生成的开局库更完整。这增加了大型文件的内存消耗 — 因此改用 JVM 动态内存分配。
+
+### 已知问题
+
+- **macOS：拖放** — 棋子「抓住角落」是由于已知的 JavaFX 错误 JDK-8333919（dragViewOffsetX/Y 被忽略）。解决方法： 使用点击移动（点击棋子 → 点击格子）。
+
 ## [1.7.0] - 2026-10-22
 
 ### Добавлено

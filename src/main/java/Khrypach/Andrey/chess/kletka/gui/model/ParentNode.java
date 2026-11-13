@@ -128,4 +128,53 @@ public abstract class ParentNode {
         }
         return null;
     }
+
+    /**
+     * Считает количество "комментариев" (annotation + additionalAnnotations + comment + hasNagComment)
+     * в этом узле.
+     */
+    public int countAnnotationsAndComments() {
+        int count = 0;
+        if (annotation != null
+                && annotation != MoveAnnotation.CHECK
+                && annotation != MoveAnnotation.DOUBLE_CHECK
+                && annotation != MoveAnnotation.MATE) {
+            count++;
+        }
+        for (MoveAnnotation ann : additionalAnnotations) {
+            if (ann != MoveAnnotation.CHECK
+                    && ann != MoveAnnotation.DOUBLE_CHECK
+                    && ann != MoveAnnotation.MATE) {
+                count++;
+            }
+        }
+        if (comment != null && !comment.trim().isEmpty()) count++;
+        if (hasNagComment) count++;
+        return count;
+    }
+
+    /**
+     * Очищает все аннотации и комментарии в этом узле.
+     * @return количество удалённых элементов
+     */
+    public int clearAnnotationsAndComments() {
+        int removed = countAnnotationsAndComments();
+
+        if (annotation != null
+                && annotation != MoveAnnotation.CHECK
+                && annotation != MoveAnnotation.DOUBLE_CHECK
+                && annotation != MoveAnnotation.MATE) {
+            annotation = null;
+        }
+
+        additionalAnnotations.removeIf(ann ->
+                ann != MoveAnnotation.CHECK
+                        && ann != MoveAnnotation.DOUBLE_CHECK
+                        && ann != MoveAnnotation.MATE);
+
+        comment = null;
+        hasNagComment = false;
+
+        return removed;
+    }
 }

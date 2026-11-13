@@ -43,7 +43,7 @@ import static Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys.*;
  */
 public class PgnGameOperation {
     private static final Logger log = LoggerFactory.getLogger(PgnGameOperation.class);
-    private static final LanguageManager lang = LanguageManager.getInstance();
+    private final LanguageManager lang = LanguageManager.getInstance();
 
     private final Path pgnPath;
     private PgnIndex index;

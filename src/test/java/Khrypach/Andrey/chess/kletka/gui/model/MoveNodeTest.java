@@ -228,6 +228,28 @@ class MoveNodeTest {
             // then
             assertThat(uci).isEqualTo("e7e8b");
         }
+
+        @Test
+        @DisplayName("Должен кэшировать UCI после первого вычисления")
+        void shouldCacheUciAfterFirstCalculation() throws Exception {
+            // given
+            Move move = new Move(Square.E2, Square.E4, Piece.WHITE_PAWN);
+            MoveNode node = new MoveNode(move, Piece.WHITE_PAWN, false, null);
+
+            // when
+            String uci1 = node.getUciMove();
+            String uci2 = node.getUciMove();
+
+            // then
+            assertThat(uci1).isEqualTo(uci2);
+            assertThat(uci1).isEqualTo("e2e4");
+
+            // Проверяем, что uciCache закэширован через рефлексию
+            java.lang.reflect.Field uciCacheField = MoveNode.class.getDeclaredField("uciCache");
+            uciCacheField.setAccessible(true);
+            String cachedUci = (String) uciCacheField.get(node);
+            assertThat(cachedUci).isEqualTo(uci1);
+        }
     }
 
     // ============================================================

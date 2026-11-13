@@ -293,7 +293,7 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.MENU_ENGINE_CONFIGURE, "Настроить движок");
         strings.put(LanguageKeys.MENU_ENGINE_ANALYZE, "Показать лучший ход");
         strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_TITLE, "Нелегальная позиция");
-        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_HEADER, "Движок не может анализировать нелегальную позицию");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_HEADER, "Движок не может анализировать нелегальную или терминальную позицию");
         strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_CONTENT, "Позиция нелегальна: один или оба короля отсутствуют, \n" +
                 "или они находятся под шахом, или короли рядом.");
 
@@ -608,7 +608,7 @@ public class RuLanguage implements Language {
 
         strings.put(LanguageKeys.SAVE_GAME_SUCCESS, "Партия сохранена (в БД будет добавлено позже)");
 
-        strings.put(LanguageKeys.FEATURE_NOT_IMPLEMENTED, "Эта функция будет реализована в будущем");
+        strings.put(LanguageKeys.FEATURE_NOT_IMPLEMENTED, "Эта функция будет реализована в версии 2.0");
         strings.put(LanguageKeys.PGN_LOAD_MESSAGE, "Загрузка PGN");
         strings.put(LanguageKeys.PGN_SAVE_MESSAGE, "Сохранение PGN");
         strings.put(LanguageKeys.DB_OPEN_MESSAGE, "Открытие БД");
@@ -1109,6 +1109,7 @@ public class RuLanguage implements Language {
         // ========== PGN BROWSER - FILTER ==========
         strings.put(LanguageKeys.PGN_BROWSER_FILTER_TOTAL, "Всего: %d партий");
         strings.put(LanguageKeys.PGN_BROWSER_FILTER_FOUND, "Найдено: %d из %d партий");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_MULTI_LIMIT, "Выбрано %d партий. Максимум для мультизагрузки — %d.");
 
         // ========== PGN BROWSER - REPACK ==========
         strings.put(LanguageKeys.PGN_BROWSER_REPACK_TITLE, "🔄 Перепаковка PGN файла");
@@ -1308,11 +1309,61 @@ public class RuLanguage implements Language {
         strings.put(LanguageKeys.BOOK_CREATE_NO_GAMES, "В файле нет активных партий");
         strings.put(LanguageKeys.BOOK_CREATE_LOAD_AFTER, "Книга создана. Загрузить её сейчас?");
         strings.put(LanguageKeys.BOOK_CREATE_LOAD_AFTER_TITLE, "Загрузка книги");
+
+        strings.put(LanguageKeys.MEMORY_WARNING_TITLE, "Мало памяти");
+        strings.put(LanguageKeys.MEMORY_WARNING_CONTENT, "Файл содержит %d партий.\nДля построения книги нужно ~%d МБ памяти.\nДоступно: %d МБ.\n\nПостроение может зависнуть или завершиться ошибкой.\nЗакройте другие приложения или уменьшите количество партий.\n\nПродолжить?");
+        strings.put(LanguageKeys.MEMORY_WARNING_PROCEED, "Продолжить");
+        strings.put(LanguageKeys.MEMORY_WARNING_CANCEL, "Отмена");
+
         strings.put(LanguageKeys.BOOK_CREATE_STATUS_PROCESSING, "Обработка партий...");
         strings.put(LanguageKeys.BOOK_CREATE_STATUS_BUILDING,  "Сборка статистики...");
         strings.put(LanguageKeys.BOOK_CREATE_STATUS_WRITING,   "Запись файла...");
         strings.put(LanguageKeys.BOOK_CREATE_STATUS_COMPLETE,  "Книга создана!");
         strings.put(LanguageKeys.BOOK_CREATE_STATUS_PROCESSING_COMPLETE,  "Обработано 100% партий");
+
+        // ========== ОЧИСТКА КОММЕНТАРИЕВ ==========
+        strings.put(LanguageKeys.MENU_EDIT_CLEAR_COMMENTS,  "Очистить партию от комментариев");
+        strings.put(LanguageKeys.CLEAR_COMMENTS_TITLE,  "Очистка комментариев");
+        strings.put(LanguageKeys.CLEAR_COMMENTS_HEADER,  "Удалить все комментарии и аннотации?");
+        strings.put(LanguageKeys.CLEAR_COMMENTS_CONFIRM,  "Будет удалено элементов: %d.\nПродолжить?");
+        strings.put(LanguageKeys.CLEAR_COMMENTS_DONE,  "Удалено элементов: %d");
+        strings.put(LanguageKeys.CLEAR_COMMENTS_NOTHING,  "В партии нет комментариев или аннотаций");
+        strings.put(LanguageKeys.BOOK_MODE_NO_COMMENTS,  "В режиме книги комментариев нет");
+
+        // ========== ОЧИСТКА PGN-ФАЙЛА ==========
+        strings.put(LanguageKeys.MENU_EDIT_CLEAN_PGN_COMMENTS,  "Очистить PGN-файл от комментариев…");
+        strings.put(LanguageKeys.CLEAN_PGN_DIALOG_TITLE,  "Выбрать PGN-файл для очистки");
+        strings.put(LanguageKeys.CLEAN_PGN_PROGRESS_TITLE,  "Очистка PGN от комментариев");
+        strings.put(LanguageKeys.CLEAN_PGN_STATUS_STARTING,  "Подготовка…");
+        strings.put(LanguageKeys.CLEAN_PGN_STATUS_PROCESSING,  "Обработка партий…");
+        strings.put(LanguageKeys.CLEAN_PGN_STATUS_COUNT,  "Обработано: %d / %d");
+        strings.put(LanguageKeys.CLEAN_PGN_STATUS_COMPLETE,  "Готово");
+        strings.put(LanguageKeys.CLEAN_PGN_STATUS_CANCELLED,  "Операция отменена");
+        strings.put(LanguageKeys.CLEAN_PGN_SUCCESS_TITLE,  "Очистка завершена");
+        strings.put(LanguageKeys.CLEAN_PGN_SUCCESS_MSG,  "Файл: %s\n\nОбработано партий: %d\nУдалено:\n  • комментариев: %d\n  • NAG: %d\n  • суффиксов ! ?: %d\n\nВремя: %.1f с");
+        strings.put(LanguageKeys.CLEAN_PGN_OPEN_TITLE,  "Открыть результат?");
+        strings.put(LanguageKeys.CLEAN_PGN_OPEN_MSG,  "Открыть файл %s в браузере?");
+        strings.put(LanguageKeys.CLEAN_PGN_NO_SPACE_TITLE,  "Недостаточно места");
+        strings.put(LanguageKeys.CLEAN_PGN_NO_SPACE_MSG,  "Свободно: %s\nТребуется: ~%s\n\nОсвободите место на диске и повторите.");
+        strings.put(LanguageKeys.CLEAN_PGN_ERROR_TITLE,  "Ошибка очистки");
+        strings.put(LanguageKeys.CLEAN_PGN_STATUS_CHECKING_SPACE,  "Проверка свободного места…");
+        strings.put(LanguageKeys.CLEAN_PGN_STATUS_LAUNCHING,  "Запуск очистки…");
+
+        // =========== мультизагрузка партий: ============
+
+        strings.put(LanguageKeys.DRAW_BY_REPETITION_TITLE,  "Ничья");
+        strings.put(LanguageKeys.DRAW_BY_REPETITION_3FOLD,  "3-кратное повторение позиции — ничья (FIDE 9.2).");
+        strings.put(LanguageKeys.MULTI_GAME_LOAD_TITLE,  "Мультизагрузка");
+        strings.put(LanguageKeys.MULTI_GAME_PREPARING,  "Подготовка %d партий...");
+        strings.put(LanguageKeys.MULTI_GAME_IN_PROGRESS,  "Мультизагрузка: %d партий...");
+        strings.put(LanguageKeys.MULTI_GAME_PROGRESS,  "%d / %d");
+        strings.put(LanguageKeys.MULTI_GAME_ERROR_TITLE,  "Ошибка мультизагрузки");
+        strings.put(LanguageKeys.MULTI_GAME_ERROR_LOAD,  "Не удалось загрузить книгу");
+        strings.put(LanguageKeys.MULTI_GAME_ERROR_GENERIC,  "Ошибка");
+        strings.put(LanguageKeys.BOOK_BUILD_PROCESSING,  "Обработано %d из %d");
+        strings.put(LanguageKeys.BOOK_BUILD_ASSEMBLING,  "Сборка записей книги...");
+        strings.put(LanguageKeys.BOOK_BUILD_WRITING,  "Запись файла...");
+        strings.put(LanguageKeys.BOOK_BUILD_DONE,  "Готово");
     }
 
     private static StringBuilder createShortcutsContent() {
@@ -1335,6 +1386,7 @@ public class RuLanguage implements Language {
         shortcutsContent.append("  Ctrl+Shift+P - Копировать позицию\n");
         shortcutsContent.append("  Ctrl+Z - Отменить маркер\n");
         shortcutsContent.append("  Ctrl+Y - Вернуть маркер\n");
+        shortcutsContent.append("  Ctrl+Alt+E - Очистить комментарии в PGN-файле");
         shortcutsContent.append("  Ctrl+Shift+O - Настройки\n");
 
         // 👁️ Вид

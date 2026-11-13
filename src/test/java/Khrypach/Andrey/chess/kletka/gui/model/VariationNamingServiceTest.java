@@ -22,13 +22,11 @@ package Khrypach.Andrey.chess.kletka.gui.model;
 
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageManager;
+import Khrypach.Andrey.chess.kletka.gui.languages.RuLanguage;
 import com.github.bhlangonijr.chesslib.Piece;
 import com.github.bhlangonijr.chesslib.Square;
 import com.github.bhlangonijr.chesslib.move.Move;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,8 +39,14 @@ class VariationNamingServiceTest {
 
     @BeforeEach
     void setUp() {
+        LanguageManager.getInstance().setLanguage("en");
         namingService = new VariationNamingService();
         languageManager = LanguageManager.getInstance();
+    }
+
+    @AfterEach
+    void tearDown() {
+        LanguageManager.getInstance().setLanguage("en");
     }
 
     // ============================================================
@@ -269,7 +273,6 @@ class VariationNamingServiceTest {
 
             // then
             assertThat(name).isEqualTo("А)");
-            languageManager.setLanguage("en");
         }
 
         @Test
@@ -285,7 +288,6 @@ class VariationNamingServiceTest {
 
             // then
             assertThat(name).isEqualTo("а)");
-            languageManager.setLanguage("en");
         }
 
         @Test
@@ -301,7 +303,6 @@ class VariationNamingServiceTest {
 
             // then
             assertThat(name).isEqualTo("А1)");
-            languageManager.setLanguage("en");
         }
     }
 
@@ -310,75 +311,64 @@ class VariationNamingServiceTest {
     // ============================================================
 
     @Nested
-    @DisplayName("updateAllVariationNames() - Обновление всех имен")
-    class UpdateAllVariationNamesTests {
+    @DisplayName("renameAllIterative() - Полное переименование")
+    class RenameAllIterativeTests {
 
         @Test
-        @DisplayName("Должен обновлять имена корневых вариантов")
-        void shouldUpdateRootVariationNames() {
+        @DisplayName("Должен переименовывать корневые варианты")
+        void shouldRenameRootVariations() {
             // given
             RootNode root = new RootNode();
             Variation rootVariation = new Variation(languageManager.get(LanguageKeys.ROOT));
             rootVariation.setFirstNode(root);
 
             Variation var1 = new Variation("");
-            MoveNode node1 = createMoveNode("e4");
-            var1.setFirstNode(node1);
+            var1.setFirstNode(createMoveNode("e4"));
             var1.setMainLine(false);
             root.getSubVariations().add(var1);
 
             Variation var2 = new Variation("");
-            MoveNode node2 = createMoveNode("d4");
-            var2.setFirstNode(node2);
+            var2.setFirstNode(createMoveNode("d4"));
             var2.setMainLine(false);
             root.getSubVariations().add(var2);
 
             // when
-            namingService.updateAllVariationNames(rootVariation);
+            namingService.renameAllIterative(root, rootVariation, false);
 
             // then
-            assertThat(var1.getName()).isEqualTo((namingService.getUppercaseLetter(1) + ")"));
-            assertThat(var2.getName()).isEqualTo((namingService.getUppercaseLetter(2) + ")"));
+            assertThat(var1.getName()).isEqualTo(namingService.getUppercaseLetter(1) + ")");
+            assertThat(var2.getName()).isEqualTo(namingService.getUppercaseLetter(2) + ")");
         }
 
         @Test
-        @DisplayName("Должен обновлять имена с главной линией")
-        void shouldUpdateNamesWithMainLine() {
+        @DisplayName("Должен сохранять имя главной линии ~")
+        void shouldPreserveMainLineName() {
             // given
             RootNode root = new RootNode();
             Variation rootVariation = new Variation(languageManager.get(LanguageKeys.ROOT));
             rootVariation.setFirstNode(root);
 
             Variation mainLine = new Variation(languageManager.get(LanguageKeys.MAIN_LINE));
-            MoveNode mainNode = createMoveNode("e4");
-            mainLine.setFirstNode(mainNode);
+            mainLine.setFirstNode(createMoveNode("e4"));
             mainLine.setMainLine(true);
             root.getSubVariations().add(mainLine);
 
             Variation var1 = new Variation("");
-            MoveNode node1 = createMoveNode("d4");
-            var1.setFirstNode(node1);
+            var1.setFirstNode(createMoveNode("d4"));
             var1.setMainLine(false);
             root.getSubVariations().add(var1);
 
-            Variation var2 = new Variation("");
-            MoveNode node2 = createMoveNode("c4");
-            var2.setFirstNode(node2);
-            var2.setMainLine(false);
-            root.getSubVariations().add(var2);
-
             // when
-            namingService.updateAllVariationNames(rootVariation);
+            namingService.renameAllIterative(root, rootVariation, false);
 
             // then
-            assertThat(mainLine.getName()).isEqualTo("~");
+            assertThat(mainLine.getName()).isEqualTo(languageManager.get(LanguageKeys.MAIN_LINE));
             assertThat(var1.getName()).isEqualTo(namingService.getUppercaseLetter(1) + ")");
-            assertThat(var2.getName()).isEqualTo(namingService.getUppercaseLetter(2) + ")");
         }
 
         @Test
-        @DisplayName("Должен обновлять имена вложенных вариантов")
-        void shouldUpdateNestedVariationNames() {
+        @DisplayName("Должен переименовывать вложенные варианты")
+        void shouldRenameNestedVariations() {
             // given
             RootNode root = new RootNode();
             Variation rootVariation = new Variation(languageManager.get(LanguageKeys.ROOT));
@@ -388,51 +378,81 @@ class VariationNamingServiceTest {
             MoveNode node1 = createMoveNode("e4");
             var1.setFirstNode(node1);
             var1.setMainLine(false);
-            var1.setNameGenerated(true);
             root.getSubVariations().add(var1);
 
-            // Вложенный вариант
             Variation subVar1 = new Variation("");
-            MoveNode subNode1 = createMoveNode("e5");
-            subVar1.setFirstNode(subNode1);
+            subVar1.setFirstNode(createMoveNode("e5"));
             subVar1.setMainLine(false);
-            subVar1.setNameGenerated(true);
             node1.getSubVariations().add(subVar1);
 
-            // Второй вложенный вариант
             Variation subVar2 = new Variation("");
-            MoveNode subNode2 = createMoveNode("d5");
-            subVar2.setFirstNode(subNode2);
+            subVar2.setFirstNode(createMoveNode("d5"));
             subVar2.setMainLine(false);
-            subVar2.setNameGenerated(true);
             node1.getSubVariations().add(subVar2);
 
             // when
-            namingService.updateAllVariationNames(rootVariation);
+            namingService.renameAllIterative(root, rootVariation, false);
 
             // then
             assertThat(var1.getName()).isEqualTo(namingService.getUppercaseLetter(1) + ")");
-            // Вложенные варианты должны получить имена на основе A)
             assertThat(subVar1.getName()).isEqualTo(namingService.getUppercaseLetter(1) + "1)");
             assertThat(subVar2.getName()).isEqualTo(namingService.getUppercaseLetter(1) + "2)");
         }
 
         @Test
-        @DisplayName("Должен корректно обрабатывать null rootVariation")
-        void shouldHandleNullRootVariation() {
+        @DisplayName("Должен обрабатывать null rootNode безопасно")
+        void shouldHandleNullRootNode() {
             // when/then - не должно быть исключений
-            namingService.updateAllVariationNames(null);
+            namingService.renameAllIterative(null, new Variation(""), false);
         }
 
         @Test
-        @DisplayName("Должен корректно обрабатывать rootVariation без firstNode")
-        void shouldHandleRootVariationWithoutFirstNode() {
-            // given
-            Variation rootVariation = new Variation(languageManager.get(LanguageKeys.ROOT));
-            rootVariation.setFirstNode(null);
-
+        @DisplayName("Должен обрабатывать null rootVariation безопасно")
+        void shouldHandleNullRootVariation() {
             // when/then - не должно быть исключений
-            namingService.updateAllVariationNames(rootVariation);
+            namingService.renameAllIterative(new RootNode(), null, false);
+        }
+
+        @Test
+        @DisplayName("force=false должен сохранять кастомные имена")
+        void shouldPreserveCustomNamesWhenNotForced() {
+            // given
+            RootNode root = new RootNode();
+            Variation rootVariation = new Variation(languageManager.get(LanguageKeys.ROOT));
+            rootVariation.setFirstNode(root);
+
+            Variation var1 = new Variation("Custom Name");
+            var1.setFirstNode(createMoveNode("e4"));
+            var1.setMainLine(false);
+            var1.setNameGenerated(true);   // ? имя уже сгенерировано (кастомное)
+            root.getSubVariations().add(var1);
+
+            // when
+            namingService.renameAllIterative(root, rootVariation, false);
+
+            // then
+            assertThat(var1.getName()).isEqualTo("Custom Name");
+        }
+
+        @Test
+        @DisplayName("force=true должен перезаписывать кастомные имена")
+        void shouldOverwriteCustomNamesWhenForced() {
+            // given
+            RootNode root = new RootNode();
+            Variation rootVariation = new Variation(languageManager.get(LanguageKeys.ROOT));
+            rootVariation.setFirstNode(root);
+
+            Variation var1 = new Variation("Custom Name");
+            var1.setFirstNode(createMoveNode("e4"));
+            var1.setMainLine(false);
+            var1.setNameGenerated(true);
+            root.getSubVariations().add(var1);
+
+            // when
+            namingService.renameAllIterative(root, rootVariation, true);
+
+            // then
+            assertThat(var1.getName()).isEqualTo(namingService.getUppercaseLetter(1) + ")");
         }
     }
 
@@ -441,49 +461,92 @@ class VariationNamingServiceTest {
     // ============================================================
 
     @Nested
-    @DisplayName("updateNamesRecursive() - Вложенные варианты с продолжениями")
-    class UpdateNamesRecursiveContinuationTests {
+    @DisplayName("renameFromNodeIterative() - Локальное переименование")
+    class RenameFromNodeIterativeTests {
 
         @Test
-        @DisplayName("Должен правильно именовать варианты с продолжением")
-        void shouldCorrectlyNameVariationsWithContinuation() {
+        @DisplayName("Должен переименовывать поддерево от узла")
+        void shouldRenameSubtreeFromNode() {
             // given
-            RootNode root = new RootNode();
-            Variation rootVariation = new Variation(languageManager.get(LanguageKeys.ROOT));
-            rootVariation.setFirstNode(root);
+            ParentNode forkNode = new RootNode();
+            Variation parentVariation = new Variation(languageManager.get(LanguageKeys.MAIN_LINE));
+            parentVariation.setMainLine(true);
 
             Variation var1 = new Variation("");
-            MoveNode node1 = createMoveNode("e4");
-            var1.setFirstNode(node1);
+            var1.setFirstNode(createMoveNode("e4"));
+            var1.setMainLine(false);
+            forkNode.getSubVariations().add(var1);
+
+            Variation var2 = new Variation("");
+            var2.setFirstNode(createMoveNode("d4"));
+            var2.setMainLine(false);
+            forkNode.getSubVariations().add(var2);
+
+            // when
+            namingService.renameFromNodeIterative(forkNode, parentVariation);
+
+            // then
+            assertThat(var1.getName()).isEqualTo("a)");   // parent = mainLine ? строчные
+            assertThat(var2.getName()).isEqualTo("b)");
+        }
+
+        @Test
+        @DisplayName("Должен сохранять кастомные имена")
+        void shouldPreserveCustomNames() {
+            // given
+            ParentNode forkNode = new RootNode();
+            Variation parentVariation = new Variation("A)");   // ? родитель — обычный вариант
+
+            Variation var1 = new Variation("Custom");
+            var1.setFirstNode(createMoveNode("e4"));
+            var1.setMainLine(false);
+            var1.setNameGenerated(true);
+            forkNode.getSubVariations().add(var1);
+
+            // when
+            namingService.renameFromNodeIterative(forkNode, parentVariation);
+
+            // then
+            assertThat(var1.getName()).isEqualTo("Custom");
+        }
+
+        @Test
+        @DisplayName("Должен обрабатывать null startNode безопасно")
+        void shouldHandleNullStartNode() {
+            // when/then - не должно быть исключений
+            namingService.renameFromNodeIterative(null, new Variation(""));
+        }
+
+        @Test
+        @DisplayName("Должен обрабатывать null parentVariation безопасно")
+        void shouldHandleNullParentVariation() {
+            // when/then - не должно быть исключений
+            namingService.renameFromNodeIterative(new RootNode(), null);
+        }
+
+        @Test
+        @DisplayName("Должен обрабатывать дубликаты (visited)")
+        void shouldHandleDuplicateNodes() {
+            // given
+            RootNode root = new RootNode();
+            Variation parentVariation = new Variation(languageManager.get(LanguageKeys.MAIN_LINE));
+            parentVariation.setMainLine(true);
+
+            MoveNode node = createMoveNode("e4");
+
+            Variation var1 = new Variation("");
+            var1.setFirstNode(node);
             var1.setMainLine(false);
             root.getSubVariations().add(var1);
 
-            MoveNode node2 = createMoveNode("e5");
-            node1.setNext(node2);
-            node2.setParent(node1);
+            // Тот же node как next от root (дубликат)
+            root.setNext(node);
 
-            Variation continuation = new Variation("");
-            MoveNode contNode = createMoveNode("e6");
-            continuation.setFirstNode(contNode);
-            continuation.setMainLine(false);
-            node1.getSubVariations().add(continuation);
+            // when - не должно зациклиться (visited)
+            namingService.renameFromNodeIterative(root, parentVariation);
 
-            Variation newVar = new Variation("");
-            MoveNode newVarNode = createMoveNode("d5");
-            newVar.setFirstNode(newVarNode);
-            newVar.setMainLine(false);
-            node1.getSubVariations().add(newVar);
-
-            // when
-            namingService.updateAllVariationNames(rootVariation);
-
-            // then
-            assertThat(var1.getName()).isEqualTo((namingService.getUppercaseLetter(1) + ")"));
-            // Проверяем, что продолжение и новый вариант получили имена
-            assertThat(continuation.getName()).isNotEqualTo("");
-            assertThat(newVar.getName()).isNotEqualTo("");
-            // Имена должны быть разными
-            assertThat(continuation.getName()).isNotEqualTo(newVar.getName());
+            // then - var1 получил имя, не зависли
+            assertThat(var1.getName()).isEqualTo("a)");
         }
     }
 

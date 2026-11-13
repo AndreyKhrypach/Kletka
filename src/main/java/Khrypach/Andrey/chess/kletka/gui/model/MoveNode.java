@@ -45,6 +45,12 @@ public class MoveNode extends ParentNode {
     // Кэшированный SAN (вычисляется лениво)
     private transient String san;
 
+    // ========== КЭШ для getUciMove() ==========
+    // getUciMove() вызывается многократно (isFirstIsContinuation,
+    // addMoveToTree, findContinuation и т.д.). Без кэша — строит строку
+    // каждый раз. С кэшем — O(1).
+    private transient String uciCache;
+
     public MoveNode(Move move, Piece piece, boolean isCapture, Piece promotionPiece) {
         super();
         this.move = move;
@@ -60,11 +66,15 @@ public class MoveNode extends ParentNode {
 
     @Override
     public String getUciMove() {
+        if (uciCache != null) {
+            return uciCache;
+        }
         String uci = move.getFrom().toString().toLowerCase() +
                 move.getTo().toString().toLowerCase();
         if (promotionPiece != null) {
             uci += getPromotionChar(promotionPiece);
         }
+        uciCache = uci;
         return uci;
     }
 

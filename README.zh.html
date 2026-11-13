@@ -24,7 +24,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kletka — 免费跨平台国际象棋分析工具</title>
-    <meta name="description" content="Kletka 是一款免费开源跨平台国际象棋分析工具，支持 PGN 文件、变着、注释、Polyglot 开局库和 Stockfish 引擎。适用于 Windows、Linux 和 macOS。">
+    <meta name="description" content="Kletka 是一款免费开源跨平台国际象棋分析工具，支持 PGN 文件、变着、注释、Polyglot 开局库、多对局加载、批量清除注释、JVM 动态内存和 Stockfish 引擎。适用于 Windows、Linux 和 macOS。">
     <link rel="canonical" href="https://andreykhrypach.github.io/Kletka/README.zh.html">
     <link rel="alternate" hreflang="en" href="https://andreykhrypach.github.io/Kletka/">
     <link rel="alternate" hreflang="ru" href="https://andreykhrypach.github.io/Kletka/README.ru.html">
@@ -32,14 +32,14 @@
     <link rel="alternate" hreflang="x-default" href="https://andreykhrypach.github.io/Kletka/">
 
     <meta property="og:title" content="Kletka — 免费跨平台国际象棋分析工具">
-    <meta property="og:description" content="免费开源的国际象棋分析工具，支持 PGN、Polyglot 开局库和 Stockfish 引擎。">
+    <meta property="og:description" content="免费开源的国际象棋分析工具，支持 PGN、Polyglot 开局库、多对局加载和 Stockfish 引擎。">
     <meta property="og:image" content="https://andreykhrypach.github.io/Kletka/screenshots/zh/Main_zh.png">
     <meta property="og:url" content="https://andreykhrypach.github.io/Kletka/README.zh.html">
     <meta property="og:type" content="website">
     <meta property="og:locale" content="zh_CN">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Kletka — 免费跨平台国际象棋分析工具">
-    <meta name="twitter:description" content="免费开源的国际象棋分析工具，支持 PGN、Polyglot 开局库和 Stockfish 引擎。">
+    <meta name="twitter:description" content="免费开源的国际象棋分析工具，支持 PGN、Polyglot 开局库、多对局加载和 Stockfish 引擎。">
     <meta name="twitter:image" content="https://andreykhrypach.github.io/Kletka/screenshots/zh/Main_zh.png">
 
     <style>
@@ -129,6 +129,15 @@
             display: block;
             margin: 0 auto;
         }
+
+        /* Mobile-friendly tweaks */
+        @media (max-width: 600px) {
+            .container { padding: 24px 14px; }
+            h1 { font-size: 1.6em; }
+            h2 { font-size: 1.25em; }
+            table td { padding: 4px; }
+            .btn { display: block; margin: 8px 0; text-align: center; }
+        }
     </style>
 </head>
 <body>
@@ -175,6 +184,9 @@
         <li>📚 <strong>Polyglot 开局库</strong> — 加载、浏览和 <strong>编辑</strong> 开局变着</li>
         <li>📤 <strong>将变例树导出为 Polyglot 开局库</strong> — 保存个人棋路</li>
         <li>🏗️ <strong>从 PGN 文件创建 Polyglot 开局库</strong> — 从成千上万的对局构建统计开局库</li>
+        <li>🚀 <strong>多对局加载到 Polyglot 开局库</strong> — 在 PGN 浏览器中选择对局，按 Enter — 开局库即时创建并加载（最多 10,000 个对局）</li>
+        <li>🧹 <strong>批量清除 PGN 中的注释</strong> — 流式处理大型文件（~1 GB 约 2.5 分钟），不加载到内存</li>
+        <li>⚙️ <strong>JVM 动态内存分配</strong> — 应用自动适应可用 RAM（4/8/16/32 GB）</li>
         <li>🔍 使用 <strong>Stockfish</strong> (UCI 引擎) 进行局面分析</li>
         <li>🎨 可定制的棋盘主题</li>
         <li>📋 <strong>复制局面</strong> 为 FEN + ASCII 格式 (Ctrl+Shift+P)</li>
@@ -260,6 +272,17 @@
     </ol>
     <p>这与 <strong>“将变例树导出为 Polyglot”</strong>（从单个分析对局创建个人棋路）不同。PGN 到开局库的功能从成千上万个真实对局构建 <strong>统计开局库</strong>。生成的开局库兼容 Stockfish、Leela、ChessBase、Scid 和 Arena。</p>
 
+    <h3>多对局加载到 Polyglot 开局库：</h3>
+    <p>无需中间对话框，快速从所选对局构建开局库：</p>
+    <ol>
+        <li>打开 PGN 浏览器（Ctrl+B）</li>
+        <li>选择所需对局（最多 10,000 个）— 使用 Shift/Ctrl 或 Ctrl+A 全选</li>
+        <li>按 <strong>Enter</strong></li>
+    </ol>
+    <p>系统在后台即时在临时文件夹中创建 Polyglot 开局库，并立即加载到 <strong>BOOK</strong> 模式。您可立即看到所有走法和开局变着 — 无需「另存为」对话框，无需额外点击。</p>
+    <p>创建开局库时会检查<strong>三次重复</strong>：对局在和棋点被截断，之后的走法不包含在内。</p>
+    <p>如果已加载的开局库有未保存的更改，将显示 <strong>保存 / 不保存 / 取消</strong> 对话框（临时开局库总是显示提示）。</p>
+
     <h3>书籍的系统要求</h3>
     <p>Kletka 的开局书功能需要以下环境：</p>
     <ul>
@@ -273,6 +296,7 @@
 --add-opens java.base/sun.misc=ALL-UNNAMED \
 -jar Kletka.jar</code></pre>
     <p>这些参数对于使用内存映射文件进行快速 Polyglot 开局库操作是必需的。</p>
+    <p><strong>内存：</strong> Kletka 使用 JVM 动态内存分配（<code>-XX:MaxRAMPercentage=70.0</code>），自动适应可用 RAM。从大型 PGN 文件创建 Polyglot 开局库时，可能会显示内存不足警告 — 根据文件中的对局数量进行估算。</p>
 
     <h3>🔧 技术细节：内存映射文件</h3>
     <p>Kletka 使用 <strong>内存映射文件</strong> (<code>MappedByteBuffer</code>) 实现极快的 Polyglot 开局库操作，即使在 HDD 上也是如此。</p>
@@ -314,8 +338,11 @@
 
     <h2>⚡ 性能</h2>
     <ul>
-        <li><strong>PGN 索引加速 21 倍</strong> — 900,000 个对局在 <strong>~50 秒</strong> 内完成索引（之前约 17 分钟）。</li>
-        <li><strong>批量处理加速 2 倍</strong> — 删除/插入 100,000 个对局明显更快。</li>
+        <li><strong>PGN 索引</strong> — 900,000 个对局约 <strong>50 秒</strong>（加速 21 倍）。</li>
+        <li><strong>批量处理</strong> — 删除/插入 100,000 个对局明显更快（2 倍）。</li>
+        <li><strong>加载复杂对局</strong> — 变着命名算法加速 <strong>5–6 倍</strong>。</li>
+        <li><strong>批量清除注释</strong> — 流式处理 ~1 GB PGN（900,000 个对局）约 <strong>2.5 分钟</strong>，不加载到内存。</li>
+        <li><strong>JVM 动态内存</strong> — 使用 <code>-XX:MaxRAMPercentage=70.0</code> 替代固定的 <code>-Xmx4g</code>：应用适应可用 RAM（4/8/16/32 GB）。</li>
     </ul>
 
     <hr>
@@ -362,7 +389,7 @@
         <li>使用 <strong>click-to-move</strong>（点击棋子 → 点击目标格）代替拖放。</li>
         <li>或者等待 Kletka 迁移到 <strong>JDK 25</strong> + <strong>JavaFX 25</strong>（计划在未来版本中）。</li>
     </ul>
-    <p><strong>状态：</strong> 在 issue #XXX 中跟踪。将在迁移到新堆栈时修复。</p>
+    <p><strong>状态：</strong> 将在迁移到 JDK 25 + JavaFX 25 时修复（计划在未来版本中）。</p>
 
     <hr>
 
@@ -420,12 +447,12 @@
     <h3>macOS</h3>
     <p>从 <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a> 页面下载适用于您处理器的 <code>.dmg</code>：</p>
     <ul>
-        <li><strong>Apple Silicon (M1/M2/M3... MacBook Air/Pro):</strong> <code>Kletka-1.7.0-air.dmg</code></li>
-        <li><strong>Intel (x86_64):</strong> <code>Kletka-1.7.0-intel.dmg</code></li>
+        <li><strong>Apple Silicon (M1/M2/M3... MacBook Air/Pro):</strong> <code>Kletka-1.8.0-air.dmg</code></li>
+        <li><strong>Intel (x86_64):</strong> <code>Kletka-1.8.0-intel.dmg</code></li>
     </ul>
     <p>打开 <code>.dmg</code>，将 <code>Kletka.app</code> 拖入 <code>Applications</code>（应用程序）文件夹。</p>
     <blockquote>
-        ⚠️ <strong>macOS 重要提示：</strong> 安装新版本前，请<strong>从 <code>Applications</code> 中删除旧版「Клетка」</strong>。由于 macOS 处理 app bundles 的方式，覆盖现有副本可能会导致设置或文件关联问题。
+        ⚠️ <strong>macOS 重要提示：</strong> 安装新版本前，请<strong>从 <code>Applications</code> 中删除旧版「Kletka」</strong>。由于 macOS 处理 app bundles 的方式，覆盖现有副本可能会导致设置或文件关联问题。
     </blockquote>
 
     <h3>Linux (Debian/Ubuntu)</h3>

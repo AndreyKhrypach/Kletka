@@ -25,15 +25,32 @@ import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
+/**
+ * Сервис именования вариантов.
+ *
+ * Отвечает за:
+ * - Генерацию одного имени (generateUniqueName).
+ * - Массовое переименование всего дерева (renameAllIterative) — при парсинге PGN.
+ * - Локальное переименование поддерева (renameFromNodeIterative) — при пользовательских действиях.
+ *
+ * Все обходы — итеративные (BFS), без рекурсии. Это гарантирует:
+ * - Отсутствие StackOverflow на глубоких деревьях.
+ * - Предсказуемую сложность O(N) по количеству узлов.
+ * - Отсутствие реверса списков (continuation всегда последний благодаря
+ *   insertBeforeContinuation в VariationManager и VariationParser).
+ */
 public class VariationNamingService {
     private static final Logger log = LoggerFactory.getLogger(VariationNamingService.class);
     private final LanguageManager languageManager = LanguageManager.getInstance();
 
+    // ============================================================
+    // ГЕНЕРАЦИЯ ОДНОГО ИМЕНИ
+    // ============================================================
+
     /**
-     * Генерирует уникальное имя для варианта на основе родителя и индекса среди сиблингов
+     * Генерирует уникальное имя для варианта на основе родителя и индекса среди сиблингов.
      * Правила:
      * 1. Если родитель null или ROOT → заглавная буква + ")" (A), B), C)...)
      * 2. Если родитель - главная линия ("~" или "Главная линия") → строчная буква + ")" (a), b), c)...)
@@ -125,112 +142,211 @@ public class VariationNamingService {
         return latinLetters[(index - 1) % latinLetters.length];
     }
 
-    /**
-     * Обновляет имена всех вариантов в дереве
-     * Сохраняет имена, которые уже есть (из PGN), генерирует только для безымянных
-     */
-    public void updateAllVariationNames(Variation rootVariation) {
-        if (rootVariation == null) return;
-
-        ParentNode firstNode = rootVariation.getFirstNode();
-        if (firstNode == null || !firstNode.isRoot()) {
-            return;
-        }
-
-        RootNode rootNode = (RootNode) firstNode;
-        List<Variation> firstLevelVars = rootNode.getSubVariations();
-
-        int siblingCounter = 1;
-        for (Variation var : firstLevelVars) {
-            if (var == null) continue;
-
-            if (var.isMainLine()) {
-                var.setName("~");
-                // ========== ИСПРАВЛЕНИЕ: parent = var, а не rootVariation ==========
-                updateNamesRecursive(var);
-                continue;
-            }
-
-            String currentName = var.getName();
-            boolean hasCustomName = currentName != null &&
-                    !currentName.isEmpty() &&
-                    !currentName.equals(languageManager.get(LanguageKeys.VARIATION_DEFAULT_NAME)) &&
-                    !currentName.equals(languageManager.get(LanguageKeys.ROOT));
-
-            if (hasCustomName) {
-                log.debug("Preserving existing variation name: {}", currentName);
-                // ========== ИСПРАВЛЕНИЕ: parent = var, а не rootVariation ==========
-                updateNamesRecursive(var);
-                continue;
-            }
-
-            String newName = generateUniqueName(null, siblingCounter);
-            var.setName(newName);
-            siblingCounter++;
-
-            // ========== ИСПРАВЛЕНИЕ: parent = var ==========
-            updateNamesRecursive(var);
-        }
-    }
+    // ============================================================
+    // МАССОВОЕ ПЕРЕИМЕНОВАНИЕ (полное дерево)
+    // ============================================================
 
     /**
-     * Рекурсивно обновляет имена для всех под-вариантов
-     * Сохраняет имена, которые уже есть (из PGN), генерирует только для безымянных
+     * Итеративно (BFS) пересчитывает имена ВСЕХ вариантов в дереве.
+     *
+     * Используется:
+     * - После парсинга PGN (PgnParser.parseMovesWithGuiLogic / parseToGameTree).
+     * - При явном запросе полного пересчёта (например, после загрузки из БД).
+     *
+     * НЕ ИСПОЛЬЗУЕТСЯ при пользовательских действиях (там достаточно
+     * renameFromNodeIterative — дерево маленькое).
+     *
+     * Особенности:
+     * - Без рекурсии (BFS с ArrayDeque).
+     * - Не вызывает getMoves() в цикле (прямой проход по next-цепочке).
+     * - Использует setNameSilent (без JavaFX property update).
+     * - Сложность: O(N), где N — общее количество узлов в дереве.
+     *
+     * @param rootNode      корневой узел дерева
+     * @param rootVariation корневой вариант (parent для главной линии)
      */
-    private void updateNamesRecursive(Variation current) {
-        if (current == null) return;
+    public void renameAllIterative(RootNode rootNode, Variation rootVariation, boolean force) {
+        if (rootNode == null || rootVariation == null) return;
 
-        List<ParentNode> moves = current.getMoves();
-        if (moves == null) return;
+        Deque<NamingContext> queue = new ArrayDeque<>();
+        Set<ParentNode> visited = new HashSet<>();   // ← ЗАЩИТА
+        queue.add(new NamingContext(rootNode, rootVariation));
 
-        for (ParentNode node : moves) {
-            if (node == null || node.isRoot()) continue;
+        int processedNodes = 0;
+        int renamedVariations = 0;
+
+        while (!queue.isEmpty()) {
+            NamingContext ctx = queue.poll();
+            ParentNode node = ctx.node();
+            Variation parentVariation = ctx.parentVariation();
+
+            if (!visited.add(node)) continue;   // ← ПРОПУСКАЕМ ДУБЛИКАТЫ
+            processedNodes++;
 
             List<Variation> subVars = node.getSubVariations();
             if (subVars == null || subVars.isEmpty()) continue;
 
-            // ========== РЕВЕРСИМ, ЕСЛИ ПЕРВЫЙ — ПРОДОЛЖЕНИЕ ==========
-            boolean firstIsContinuation = isFirstIsContinuation(node, subVars);
-
-            if (firstIsContinuation) {
-                Collections.reverse(subVars);
-            }
-
-            // ========== ДАЕМ ИМЕНА ВСЕМ ВАРИАНТАМ ==========
-            int counter = 0;
+            // ========== ШАГ 1: ПЕРЕИМЕНОВЫВАЕМ ПРЯМЫЕ SUBVARIATIONS ==========
+            int index = 1;
             for (Variation subVar : subVars) {
                 if (subVar == null) continue;
 
+                String oldName = subVar.getName();
+                String newName;
+
                 if (subVar.isMainLine()) {
-                    subVar.setName("~");
-                    updateNamesRecursive(subVar);
-                    continue;
+                    // Голова главной линии → "Главная линия"
+                    // Continuation главной линии → "~"
+                    if (parentVariation == rootVariation || parentVariation == null) {
+                        newName = languageManager.get(LanguageKeys.MAIN_LINE);
+                    } else {
+                        newName = "~";
+                    }
+                    subVar.setNameGenerated(true);
+                } else {
+                    boolean hasCustomName = !force
+                            && oldName != null
+                            && !oldName.isEmpty()
+                            && !oldName.equals(languageManager.get(LanguageKeys.VARIATION_DEFAULT_NAME))
+                            && !oldName.equals(languageManager.get(LanguageKeys.ROOT))
+                            && subVar.isNameGenerated();
+
+                    if (hasCustomName) {
+                        index++;
+                        continue;
+                    }
+
+                    newName = generateUniqueName(parentVariation, index);
+                    subVar.setNameGenerated(true);
+                    index++;
                 }
 
-                // ========== ВСЕ ВАРИАНТЫ ПОЛУЧАЮТ ИМЕНА ==========
-                String newName = generateUniqueName(current, counter + 1);
-                subVar.setName(newName);
-                subVar.setNameGenerated(true);
+                if (!newName.equals(oldName)) {
+                    subVar.setName(newName);
+                    renamedVariations++;
+                }
+            }
 
-                updateNamesRecursive(subVar);
-                counter++;
+            // ========== ШАГ 2: ДОБАВЛЯЕМ ВЛОЖЕННЫЕ УЗЛЫ В ОЧЕРЕДЬ ==========
+            for (Variation subVar : subVars) {
+                if (subVar == null) continue;
+
+                // Прямой проход по next-цепочке (без getMoves)
+                ParentNode move = subVar.getFirstNode();
+                while (move != null && !move.isRoot()) {
+                    if (!move.getSubVariations().isEmpty()) {
+                        queue.add(new NamingContext(move, subVar));
+                    }
+                    move = move.getNext();
+                }
             }
         }
+
+        log.debug("renameAllIterative: processed {} nodes, renamed {} variations",
+                processedNodes, renamedVariations);
     }
 
-    private static boolean isFirstIsContinuation(ParentNode node, List<Variation> subVars) {
-        ParentNode nextNode = node.getNext();
-        String nextUci = nextNode != null && !nextNode.isRoot() ? nextNode.getUciMove() : null;
+    // ============================================================
+    // ЛОКАЛЬНОЕ ПЕРЕИМЕНОВАНИЕ (поддерево от узла)
+    // ============================================================
 
-        boolean firstIsContinuation = false;
-        if (!subVars.isEmpty()) {
-            Variation first = subVars.get(0);
-            if (first != null && !first.isMainLine()) {
-                ParentNode firstNode = first.getFirstNode();
-                firstIsContinuation = firstNode != null && !firstNode.isRoot() &&
-                        nextUci != null && firstNode.getUciMove().equals(nextUci);
+    /**
+     * Итеративно (BFS) пересчитывает имена ВСЕХ под-вариантов узла node
+     * и (рекурсивно вглубь) — их дочерних вариантов.
+     *
+     * Используется при пользовательских действиях:
+     * - VariationManager.createNewVariation
+     * - VariationManager.overwriteInSpecificVariation
+     * - VariationManager.deleteCurrentVariation
+     *
+     * Отличается от renameAllIterative тем, что стартует с конкретного
+     * узла (а не с rootNode) и пересчитывает только его поддерево.
+     *
+     * @param startNode       узел, с которого начинается переименование (forkNode)
+     * @param parentVariation вариант, которому принадлежит startNode (контекст для имён)
+     */
+    public void renameFromNodeIterative(ParentNode startNode, Variation parentVariation) {
+        if (startNode == null || parentVariation == null) return;
+
+        Deque<NamingContext> queue = new ArrayDeque<>();
+        Set<ParentNode> visited = new HashSet<>();
+        queue.add(new NamingContext(startNode, parentVariation));
+
+        int processedNodes = 0;
+        int renamedVariations = 0;
+
+        while (!queue.isEmpty()) {
+            NamingContext ctx = queue.poll();
+            ParentNode node = ctx.node();
+            Variation parentVar = ctx.parentVariation();
+            if (!visited.add(node)) continue;
+
+            processedNodes++;
+
+            List<Variation> subVars = node.getSubVariations();
+            if (subVars == null || subVars.isEmpty()) continue;
+
+            // ========== ШАГ 1: ПЕРЕИМЕНОВЫВАЕМ ПРЯМЫЕ SUBVARIATIONS ==========
+            int index = 1;
+            for (Variation subVar : subVars) {
+                if (subVar == null) continue;
+
+                String oldName = subVar.getName();
+                String newName;
+
+                if (subVar.isMainLine()) {
+                    // В локальном переименовании isMainLine = continuation главной линии
+                    // (голова главной линии — только в rootVariation, её здесь не будет)
+                    newName = "~";
+                    subVar.setNameGenerated(true);
+                } else {
+                    boolean hasCustomName = oldName != null
+                            && !oldName.isEmpty()
+                            && !oldName.equals(languageManager.get(LanguageKeys.VARIATION_DEFAULT_NAME))
+                            && !oldName.equals(languageManager.get(LanguageKeys.ROOT))
+                            && subVar.isNameGenerated();
+
+                    if (hasCustomName) {
+                        index++;
+                        continue;
+                    }
+
+                    newName = generateUniqueName(parentVar, index);
+                    subVar.setNameGenerated(true);
+                    index++;
+                }
+
+                if (!newName.equals(oldName)) {
+                    subVar.setName(newName);
+                    renamedVariations++;
+                }
+            }
+
+            // ========== ШАГ 2: ДОБАВЛЯЕМ ВЛОЖЕННЫЕ УЗЛЫ В ОЧЕРЕДЬ ==========
+            for (Variation subVar : subVars) {
+                if (subVar == null) continue;
+
+                ParentNode move = subVar.getFirstNode();
+                while (move != null && !move.isRoot()) {
+                    if (!move.getSubVariations().isEmpty()) {
+                        queue.add(new NamingContext(move, subVar));
+                    }
+                    move = move.getNext();
+                }
             }
         }
-        return firstIsContinuation;
+
+        log.debug("renameFromNodeIterative: processed {} nodes, renamed {} variations",
+                processedNodes, renamedVariations);
+    }
+
+    // ============================================================
+    // ВСПОМОГАТЕЛЬНЫЕ
+    // ============================================================
+
+    /**
+     * Контекст для BFS-обхода: узел + его родительский вариант.
+     */
+    private record NamingContext(ParentNode node, Variation parentVariation) {
     }
 }

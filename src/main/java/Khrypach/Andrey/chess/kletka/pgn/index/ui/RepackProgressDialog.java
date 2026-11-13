@@ -45,7 +45,7 @@ import static Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys.*;
  */
 public class RepackProgressDialog {
     private static final Logger log = LoggerFactory.getLogger(RepackProgressDialog.class);
-    private static final LanguageManager lang = LanguageManager.getInstance();
+    private final LanguageManager lang = LanguageManager.getInstance();
 
     private final Stage stage;
     private final Label titleLabel;

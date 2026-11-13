@@ -91,9 +91,10 @@ public class ProgressDialog {
 
     public void updateProgress(double progress, String status, String detail) {
         Platform.runLater(() -> {
-            progressBar.setProgress(progress);
-            statusLabel.setText(status);
-            detailLabel.setText(detail);
+            // Если progress < 0 — показываем неопределенность (крутилку)
+            progressBar.setProgress(progress < 0 ? ProgressBar.INDETERMINATE_PROGRESS : progress);
+            if (status != null) statusLabel.setText(status);
+            if (detail != null) detailLabel.setText(detail);
         });
     }
 

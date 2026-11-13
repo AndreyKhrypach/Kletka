@@ -164,7 +164,7 @@ public class PgnParser {
             if (this.currentSetUp && !fen.isEmpty()) {
                 try {
                     Board fenBoard = new Board();
-                    fenBoard.loadFromFen(fen);
+                    fenBoard.loadFromFen(normalizeFenForParsing(fen));
                     treeBuilder.setInitialBoard(fenBoard.clone());
                     treeBuilder.setCurrentBoard(fenBoard.clone());
 
@@ -241,7 +241,7 @@ public class PgnParser {
                     gameData.timeControl(),
                     String.valueOf(getTotalPly()),
                     movesStr,
-                    this.currentFen,
+                    normalizeFenForParsing(this.currentFen),
                     this.currentSetUp,
                     this.currentPositionType,
                     gameData.deleted()
@@ -430,7 +430,7 @@ public class PgnParser {
         VariationManager variationManager = treeBuilder.getVariationManager();
         if (variationManager != null) {
             variationManager.setMainLine(treeBuilder.getMainLine());
-            variationManager.updateAllVariationNames();
+            //variationManager.updateAllVariationNames();
         }
 
         RootNode rootNode = (RootNode) treeBuilder.getRootVariation().getFirstNode();
@@ -438,6 +438,7 @@ public class PgnParser {
         VariationTreeTraverser traverser = new VariationTreeTraverser();
 
         String result = traverser.traverseForPgn(rootNode, treeBuilder.getMainLine(), pgnVisitor);
+
         log.debug("PgnExportVisitor result: '{}'", result);
 
         return result;
@@ -1028,6 +1029,26 @@ public class PgnParser {
     }
 
     /**
+     * Нормализует FEN перед загрузкой в Board:
+     * - fullMoveNumber = 1 (всегда, независимо от исходного значения)
+     * - halfMoveClock оставляем как есть (он не влияет на нумерацию)
+     * Причина: PGN-стандарт не требует, чтобы fullMoveNumber был >= 1.
+     * Некоторые генераторы (ChessBase, ручные PGN, экспорт из задачников)
+     * пишут 0, 5, 12 или другое значение. Внутри Kletka нумерация всегда
+     * начинается с 1 — для консистентности с normalizeFenForExport().
+     * Влияет только на absolutePly/нотацию, не на расстановку.
+     */
+    private String normalizeFenForParsing(String fen) {
+        if (fen == null || fen.isEmpty()) return fen;
+
+        String[] parts = fen.trim().split("\\s+");
+        if (parts.length < 6) return fen;
+
+        return parts[0] + " " + parts[1] + " " + parts[2] + " " + parts[3] + " "
+                + parts[4] + " 1";
+    }
+
+    /**
      * Парсит PGN и возвращает GameTree с деревом вариантов
      */
     public GameTree parseToGameTree(String pgn) throws PgnParseException {
@@ -1058,7 +1079,7 @@ public class PgnParser {
             if (isSetUp && !fen.isEmpty()) {
                 try {
                     Board fenBoard = new Board();
-                    fenBoard.loadFromFen(fen);
+                    fenBoard.loadFromFen(normalizeFenForParsing(fen));
                     treeBuilder.setInitialBoard(fenBoard.clone());
                     treeBuilder.setCurrentBoard(fenBoard.clone());
 
@@ -1102,8 +1123,6 @@ public class PgnParser {
 
             parseMovesWithGuiLogic();
 
-            treeBuilder.getNamingService().updateAllVariationNames(treeBuilder.getRootVariation());
-
             GameTree gameTree = new GameTree(
                     (RootNode) treeBuilder.getRootVariation().getFirstNode(),
                     treeBuilder.getMainLine(),
@@ -1112,7 +1131,7 @@ public class PgnParser {
 
             gameTree.setDeleted(headers.containsKey("Deleted") &&
                     "true".equalsIgnoreCase(headers.get("Deleted")));
-            gameTree.setInitialFen(treeBuilder.getInitialBoard().getFen());
+            gameTree.setInitialFen(normalizeFenForParsing(treeBuilder.getInitialBoard().getFen()));
 
             gameTree.setStartWithBlack(false);
             gameTree.setInitialBoard(treeBuilder.getInitialBoard());

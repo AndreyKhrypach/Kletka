@@ -33,7 +33,7 @@ import java.time.format.DateTimeFormatter;
 public class PgnFormatter {
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy.MM.dd");
-    private static final LanguageManager lang = LanguageManager.getInstance();
+    private final LanguageManager lang = LanguageManager.getInstance();
 
     /**
      * Преобразует GameData в PGN строку

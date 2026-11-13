@@ -78,6 +78,11 @@ public final class PgnToBookConverter {
         public static BuildOptions defaults() {
             return new BuildOptions(40, 1);
         }
+
+        /** Настройки для мультизагрузки: длинные партии (до 150 полных ходов). */
+        public static BuildOptions forMultiGame() {
+            return new BuildOptions(300, 1);
+        }
     }
 
     /**
@@ -520,11 +525,15 @@ public final class PgnToBookConverter {
         Piece movingPieceType = Piece.NONE;
         if (!san.isEmpty()) {
             char first = san.charAt(0);
-            Piece p = pieceCharToType(first, board.getSideToMove());
-            if (p != Piece.NONE) {
-                movingPieceType = p;
-                san = san.substring(1);
+            // Фигура только если ЗАГЛАВНАЯ буква
+            if (Character.isUpperCase(first)) {
+                Piece p = pieceCharToType(first, board.getSideToMove());
+                if (p != Piece.NONE) {
+                    movingPieceType = p;
+                    san = san.substring(1);
+                }
             } else if (Character.isLowerCase(first)) {
+                // Строчная буква → пешка (файл)
                 movingPieceType = board.getSideToMove() == Side.WHITE ? Piece.WHITE_PAWN : Piece.BLACK_PAWN;
             }
         }
@@ -614,7 +623,8 @@ public final class PgnToBookConverter {
     }
 
     private static Piece pieceCharToType(char c, Side side) {
-        return switch (Character.toUpperCase(c)) {
+        if (!Character.isUpperCase(c)) return Piece.NONE;   // ← добавить
+        return switch (c) {
             case 'K' -> side == Side.WHITE ? Piece.WHITE_KING : Piece.BLACK_KING;
             case 'Q' -> side == Side.WHITE ? Piece.WHITE_QUEEN : Piece.BLACK_QUEEN;
             case 'R' -> side == Side.WHITE ? Piece.WHITE_ROOK : Piece.BLACK_ROOK;
@@ -644,7 +654,7 @@ public final class PgnToBookConverter {
 
     // ========== MOVE → UCI / POLYGLOT ==========
 
-    private static String moveToUci(Move move) {
+    static String moveToUci(Move move) {
         String uci = move.getFrom().toString().toLowerCase()
                 + move.getTo().toString().toLowerCase();
         Piece promo = move.getPromotion();

@@ -21,6 +21,10 @@
 package Khrypach.Andrey.chess.kletka.engine;
 
 public final class UciConstants {
+
+    public static final int SEARCH_MULTIPV_MIN = 2;      // минимум 2 линии для поиска
+    public static final int ANALYSIS_MOVETIME_MS = 5000;
+
     // Базовые команды UCI
     public static final String UCI = "uci";
     public static final String IS_READY = "isready";

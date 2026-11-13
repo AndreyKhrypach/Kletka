@@ -42,7 +42,7 @@ import static Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys.*;
 public class EditGameHeadersDialog {
 
     private static final Logger log = LoggerFactory.getLogger(EditGameHeadersDialog.class);
-    private static final LanguageManager lang = LanguageManager.getInstance();
+    private final LanguageManager lang = LanguageManager.getInstance();
 
     private final Stage ownerStage;
     private final GameData gameData;

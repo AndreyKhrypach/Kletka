@@ -55,7 +55,7 @@ import static Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys.*;
  */
 public class PgnFileIndexer {
     private static final Logger log = LoggerFactory.getLogger(PgnFileIndexer.class);
-    private static final LanguageManager lang = LanguageManager.getInstance();
+    private final LanguageManager lang = LanguageManager.getInstance();
 
     private static final int BUFFER_SIZE = 64 * 1024;
     private static final int GAME_BUFFER_INITIAL_SIZE = 16 * 1024;

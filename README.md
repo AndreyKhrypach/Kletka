@@ -27,6 +27,10 @@ See [CHANGELOG.md](CHANGELOG.md) for a detailed history of changes.
 - 🧩 Full support for variations and annotations
 - 📚 **Polyglot opening books** — load, browse, and **edit** opening variations
 - 📤 **Export game tree to Polyglot book** — save your personal repertoire
+- 🏗️ **Create Polyglot book from PGN file** — build a statistical book from thousands of games
+- 🚀 **Multi-game loading into a Polyglot book** — select games in the PGN browser, press Enter — the book is created and loaded instantly (up to 10,000 games)
+- 🧹 **Mass comment removal in PGN** — streaming processing of large files (~1 GB in ~2.5 minutes) without loading into memory
+- ⚙️ **Dynamic JVM memory allocation** — the app automatically adapts to available RAM (4/8/16/32 GB)
 - 🔍 Position analysis with **Stockfish** (UCI engine)
 - 🎨 Customizable board themes
 - 📋 **Copy position** as FEN + ASCII diagram (Ctrl+Shift+P)
@@ -108,6 +112,20 @@ Build a **statistical opening book** from a large PGN database (e.g., 900,000 ga
 
 This is different from **Export game tree to Polyglot book** (which creates a personal repertoire from one analysed game). The PGN-to-book function builds a **statistical book** from thousands of real games. The resulting book is compatible with Stockfish, Leela, ChessBase, Scid, and Arena.
 
+### Multi-game loading into a Polyglot book:
+
+A quick way to build a book from selected games without intermediate dialogs:
+
+1. Open the PGN browser (Ctrl+B)
+2. Select the games you need (up to 10,000) — with Shift/Ctrl or Ctrl+A for all
+3. Press **Enter**
+
+Under the hood, a Polyglot book is instantly created in a temporary folder and immediately loaded into **BOOK** mode. You instantly see all moves and opening variations — no "Save As" dialogs, no extra clicks.
+
+When the book is created, **threefold repetition** is checked: the game is truncated at the draw point, and moves after it are not included.
+
+If a book was already loaded and has unsaved changes, a **Save / Don't Save / Cancel** dialog will appear (for a temporary book the prompt is always shown).
+
 ### System Requirements for Books
 
 For opening book functionality, Kletka requires:
@@ -127,6 +145,8 @@ java --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/sun.misc
 ```
 
 These arguments are required for fast Polyglot book operations using memory-mapped files.
+
+**Memory:** Kletka uses dynamic JVM memory allocation (`-XX:MaxRAMPercentage=70.0`) and automatically adapts to available RAM. When creating a Polyglot book from large PGN files, a low-memory warning may appear — estimated from the number of games in the file.
 
 ### Linux: Wayland Focus Fix
 
@@ -164,9 +184,11 @@ Other popular sources:
 
 ## ⚡ Performance
 
-- PGN indexing accelerated 21× — 900,000 games are indexed in ~50 seconds (previously ~17 minutes).
-
-- Batch processing accelerated 2× — deleting/inserting 100,000 games is noticeably faster.
+- **PGN indexing** — 900,000 games in ~50 seconds (21× speedup).
+- **Batch processing** — deleting/inserting 100,000 games is noticeably faster (2×).
+- **Loading complex games** — the variation naming algorithm is 5–6× faster.
+- **Mass comment removal** — streaming processing of a ~1 GB PGN (900,000 games) in ~2.5 minutes without loading into memory.
+- **Dynamic JVM memory** — `-XX:MaxRAMPercentage=70.0` instead of a fixed `-Xmx4g`: the app adapts to available RAM (4/8/16/32 GB).
 
 ---
 
@@ -220,7 +242,7 @@ Kletka currently uses **Java 17** + **JavaFX 17**.
 - Or wait for Kletka to migrate to **JDK 25** + **JavaFX 25** (planned in future releases).
 
 **Status:**
-Tracked in issue #XXX. Will be fixed when we migrate to the new stack.
+Will be fixed when we migrate to JDK 25 + JavaFX 25 (planned in future releases).
 
 ---
 
@@ -269,8 +291,8 @@ Download `Kletka.exe` from the [Releases](https://github.com/AndreyKhrypach/Klet
 ### macOS
 Download `Kletka.dmg` from the [Releases](https://github.com/AndreyKhrypach/Kletka/releases)  page, open it, and drag `Kletka.app` to the `Applications` folder.
 
-- **Apple Silicon (M1/M2/M3... MacBook Air/Pro):** `Kletka-1.7.0-air.dmg`
-- **Intel (x86_64):** `Kletka-1.7.0-intel.dmg`
+- **Apple Silicon (M1/M2/M3... MacBook Air/Pro):** `Kletka-1.8.0-air.dmg`
+- **Intel (x86_64):** `Kletka-1.8.0-intel.dmg`
 
 ⚠️ Important for macOS: Before installing a new version, delete the old "Kletka" from Applications. Due to how macOS handles app bundles, installing over an existing copy may cause issues with settings or file associations.
 

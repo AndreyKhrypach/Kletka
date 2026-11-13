@@ -290,7 +290,7 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.MENU_ENGINE_CONFIGURE, "配置引擎");
         strings.put(LanguageKeys.MENU_ENGINE_ANALYZE, "显示最佳着法");
         strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_TITLE, "非法局面");
-        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_HEADER, "引擎无法分析非法局面");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_HEADER, "引擎无法分析非法或终端局面");
         strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_CONTENT, "位置不合法：一个或两个王缺失，\n" +
                 "或者它们被将军，或者王相邻。");
 
@@ -600,7 +600,7 @@ public class ZhLanguage implements Language {
 
         strings.put(LanguageKeys.SAVE_GAME_SUCCESS, "对局已保存 (稍后添加到数据库)");
 
-        strings.put(LanguageKeys.FEATURE_NOT_IMPLEMENTED, "此功能将在未来实现");
+        strings.put(LanguageKeys.FEATURE_NOT_IMPLEMENTED, "该功能将在 2.0 版本中实现");
         strings.put(LanguageKeys.PGN_LOAD_MESSAGE, "加载PGN");
         strings.put(LanguageKeys.PGN_SAVE_MESSAGE, "保存PGN");
         strings.put(LanguageKeys.DB_OPEN_MESSAGE, "打开数据库");
@@ -1096,6 +1096,7 @@ public class ZhLanguage implements Language {
         // ========== PGN BROWSER - FILTER ==========
         strings.put(LanguageKeys.PGN_BROWSER_FILTER_TOTAL, "总计: %d 局");
         strings.put(LanguageKeys.PGN_BROWSER_FILTER_FOUND, "找到: %d / %d 局");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_MULTI_LIMIT, "已选择 %d 局。批量加载上限 — %d。");
 
         // ========== PGN BROWSER - REPACK ==========
         strings.put(LanguageKeys.PGN_BROWSER_REPACK_TITLE, "🔄 重新打包PGN文件");
@@ -1294,11 +1295,60 @@ public class ZhLanguage implements Language {
         strings.put(LanguageKeys.BOOK_CREATE_NO_GAMES, "文件中没有活动对局");
         strings.put(LanguageKeys.BOOK_CREATE_LOAD_AFTER, "开局库已创建。现在加载吗？");
         strings.put(LanguageKeys.BOOK_CREATE_LOAD_AFTER_TITLE, "加载开局库");
+
+        strings.put(LanguageKeys.MEMORY_WARNING_TITLE, "内存不足");
+        strings.put(LanguageKeys.MEMORY_WARNING_CONTENT, "文件包含 %d 局对局。\n构建棋谱库需要约 %d MB 内存。\n当前可用：%d MB。\n\n构建可能会卡死或失败。\n请关闭其他应用程序或减少对局数量。\n\n是否继续？");
+        strings.put(LanguageKeys.MEMORY_WARNING_PROCEED, "继续");
+        strings.put(LanguageKeys.MEMORY_WARNING_CANCEL, "取消");
+
         strings.put(LanguageKeys.BOOK_CREATE_STATUS_PROCESSING, "正在处理对局...");
         strings.put(LanguageKeys.BOOK_CREATE_STATUS_BUILDING,  "正在构建统计...");
         strings.put(LanguageKeys.BOOK_CREATE_STATUS_WRITING,   "正在写入文件...");
         strings.put(LanguageKeys.BOOK_CREATE_STATUS_COMPLETE,  "开局库已创建！");
         strings.put(LanguageKeys.BOOK_CREATE_STATUS_PROCESSING_COMPLETE,  "已处理所有对局（100%）");
+
+        // ========== ОЧИСТКА КОММЕНТАРИЕВ ==========
+        strings.put(LanguageKeys.MENU_EDIT_CLEAR_COMMENTS,  "清除对局注释");
+        strings.put(LanguageKeys.CLEAR_COMMENTS_TITLE,  "清除注释");
+        strings.put(LanguageKeys.CLEAR_COMMENTS_HEADER,  "删除所有注释和标记？");
+        strings.put(LanguageKeys.CLEAR_COMMENTS_CONFIRM,  "将删除 %d 项。\n继续？");
+        strings.put(LanguageKeys.CLEAR_COMMENTS_DONE,  "已删除 %d 项");
+        strings.put(LanguageKeys.CLEAR_COMMENTS_NOTHING,  "对局中没有注释或标记");
+        strings.put(LanguageKeys.BOOK_MODE_NO_COMMENTS,  "书籍模式没有注释");
+
+        // ========== ОЧИСТКА PGN-ФАЙЛА ==========
+        strings.put(LanguageKeys.MENU_EDIT_CLEAN_PGN_COMMENTS,  "清除PGN文件注释…");
+        strings.put(LanguageKeys.CLEAN_PGN_DIALOG_TITLE,  "选择要清除的PGN文件");
+        strings.put(LanguageKeys.CLEAN_PGN_PROGRESS_TITLE,  "清除PGN注释");
+        strings.put(LanguageKeys.CLEAN_PGN_STATUS_STARTING,  "准备中…");
+        strings.put(LanguageKeys.CLEAN_PGN_STATUS_PROCESSING,  "处理对局…");
+        strings.put(LanguageKeys.CLEAN_PGN_STATUS_COUNT,  "已处理: %d / %d");
+        strings.put(LanguageKeys.CLEAN_PGN_STATUS_COMPLETE,  "完成");
+        strings.put(LanguageKeys.CLEAN_PGN_STATUS_CANCELLED,  "操作已取消");
+        strings.put(LanguageKeys.CLEAN_PGN_SUCCESS_TITLE,  "清除完成");
+        strings.put(LanguageKeys.CLEAN_PGN_SUCCESS_MSG,  "文件: %s\n\n已处理对局: %d\n已删除:\n  • 注释: %d\n  • NAG: %d\n  • ! ? 后缀: %d\n\n用时: %.1f 秒");
+        strings.put(LanguageKeys.CLEAN_PGN_OPEN_TITLE,  "打开结果？");
+        strings.put(LanguageKeys.CLEAN_PGN_OPEN_MSG,  "在浏览器中打开 %s？");
+        strings.put(LanguageKeys.CLEAN_PGN_NO_SPACE_TITLE,  "空间不足");
+        strings.put(LanguageKeys.CLEAN_PGN_NO_SPACE_MSG,  "可用: %s\n需要: ~%s\n\n请释放磁盘空间后重试。");
+        strings.put(LanguageKeys.CLEAN_PGN_ERROR_TITLE,  "清除错误");
+        strings.put(LanguageKeys.CLEAN_PGN_STATUS_CHECKING_SPACE,  "正在检查可用空间…");
+        strings.put(LanguageKeys.CLEAN_PGN_STATUS_LAUNCHING,  "正在启动清理…");
+
+        // =========== мультизагрузка партий: ============
+        strings.put(LanguageKeys.DRAW_BY_REPETITION_TITLE,  "和棋");
+        strings.put(LanguageKeys.DRAW_BY_REPETITION_3FOLD,  "局面三次重复——和棋（国际棋联 9.2）。");
+        strings.put(LanguageKeys.MULTI_GAME_LOAD_TITLE,  "批量加载");
+        strings.put(LanguageKeys.MULTI_GAME_PREPARING,  "正在准备 %d 局...");
+        strings.put(LanguageKeys.MULTI_GAME_IN_PROGRESS,  "批量加载：%d 局...");
+        strings.put(LanguageKeys.MULTI_GAME_PROGRESS,  "%d / %d");
+        strings.put(LanguageKeys.MULTI_GAME_ERROR_TITLE,  "批量加载错误");
+        strings.put(LanguageKeys.MULTI_GAME_ERROR_LOAD,  "无法加载棋谱库");
+        strings.put(LanguageKeys.MULTI_GAME_ERROR_GENERIC,  "错误");
+        strings.put(LanguageKeys.BOOK_BUILD_PROCESSING,  "已处理 %d / %d");
+        strings.put(LanguageKeys.BOOK_BUILD_ASSEMBLING,  "正在汇总棋谱库条目...");
+        strings.put(LanguageKeys.BOOK_BUILD_WRITING,  "正在写入文件...");
+        strings.put(LanguageKeys.BOOK_BUILD_DONE,  "完成");
     }
 
 
@@ -1322,6 +1372,7 @@ public class ZhLanguage implements Language {
         shortcutsContent.append("  Ctrl+Shift+P - 复制局面\n");
         shortcutsContent.append("  Ctrl+Z - 撤销标记\n");
         shortcutsContent.append("  Ctrl+Y - 重做标记\n");
+        shortcutsContent.append("  Ctrl+Alt+E - 清理 PGN 文件中的注释");
         shortcutsContent.append("  Ctrl+Shift+O - 偏好设置\n");
 
         // 👁️ 视图
