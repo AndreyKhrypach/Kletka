@@ -39,7 +39,7 @@ import static Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys.*;
  */
 public class PgnIndexingFacade {
     private static final Logger log = LoggerFactory.getLogger(PgnIndexingFacade.class);
-    private static final LanguageManager lang = LanguageManager.getInstance();
+    private final LanguageManager lang = LanguageManager.getInstance();
 
     private final PgnFilePreparer preparer;
     private final PgnFileIndexer indexer;

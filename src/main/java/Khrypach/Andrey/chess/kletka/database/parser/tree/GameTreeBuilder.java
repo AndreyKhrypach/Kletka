@@ -250,6 +250,15 @@ public class GameTreeBuilder {
 
         int fullMoves = currentBoard.getMoveCounter();
         boolean isWhiteToMove = currentBoard.getSideToMove() == Side.WHITE;
+
+        // ========== НОРМАЛИЗУЕМ fullMoves ==========
+        // Приводим к минимуму 1, потому что PGN-стандарт не требует
+        // fullMoveNumber >= 1 (бывает 0 в FEN из ChessBase, задачах, ручных PGN).
+        // Без этого absolutePly получается отрицательным и ломает нотацию.
+        if (fullMoves < 1) {
+            fullMoves = 1;
+        }
+
         int absolutePly;
         if (isWhiteToMove) {
             absolutePly = (fullMoves - 1) * 2 + 1;

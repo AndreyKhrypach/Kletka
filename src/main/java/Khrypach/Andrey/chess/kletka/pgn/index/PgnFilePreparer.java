@@ -36,7 +36,7 @@ import static Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys.*;
 
 public class PgnFilePreparer {
     private static final Logger log = LoggerFactory.getLogger(PgnFilePreparer.class);
-    private static final LanguageManager lang = LanguageManager.getInstance();
+    private final LanguageManager lang = LanguageManager.getInstance();
 
     /**
      * Размер буфера для BufferedReader / BufferedWriter.

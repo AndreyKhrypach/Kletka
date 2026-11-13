@@ -24,7 +24,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kletka — Free Cross-Platform Chess Analyzer</title>
-    <meta name="description" content="Kletka is a free, open-source cross-platform chess analyzer with PGN support, variations, annotations, Polyglot opening books, and Stockfish engine integration. Available for Windows, Linux, and macOS.">
+    <meta name="description" content="Kletka is a free, open-source cross-platform chess analyzer with PGN support, variations, annotations, Polyglot opening books, multi-game book building, mass PGN comment removal, dynamic JVM memory, and Stockfish engine integration. Available for Windows, Linux, and macOS.">
     <link rel="canonical" href="https://andreykhrypach.github.io/Kletka/">
     <link rel="alternate" hreflang="en" href="https://andreykhrypach.github.io/Kletka/">
     <link rel="alternate" hreflang="ru" href="https://andreykhrypach.github.io/Kletka/README.ru.html">
@@ -32,14 +32,14 @@
     <link rel="alternate" hreflang="x-default" href="https://andreykhrypach.github.io/Kletka/">
 
     <meta property="og:title" content="Kletka — Free Cross-Platform Chess Analyzer">
-    <meta property="og:description" content="Free, open-source chess analyzer with PGN, Polyglot opening books, and Stockfish engine.">
+    <meta property="og:description" content="Free, open-source chess analyzer with PGN, Polyglot opening books, multi-game book building, mass comment removal, and Stockfish engine.">
     <meta property="og:image" content="https://andreykhrypach.github.io/Kletka/screenshots/en/Main_en.png">
     <meta property="og:url" content="https://andreykhrypach.github.io/Kletka/">
     <meta property="og:type" content="website">
     <meta property="og:locale" content="en_US">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Kletka — Free Cross-Platform Chess Analyzer">
-    <meta name="twitter:description" content="Free, open-source chess analyzer with PGN, Polyglot opening books, and Stockfish engine.">
+    <meta name="twitter:description" content="Free, open-source chess analyzer with PGN, Polyglot opening books, multi-game book building, mass comment removal, and Stockfish engine.">
     <meta name="twitter:image" content="https://andreykhrypach.github.io/Kletka/screenshots/en/Main_en.png">
 
     <style>
@@ -129,6 +129,15 @@
             display: block;
             margin: 0 auto;
         }
+
+        /* Mobile-friendly tweaks */
+        @media (max-width: 600px) {
+            .container { padding: 24px 14px; }
+            h1 { font-size: 1.6em; }
+            h2 { font-size: 1.25em; }
+            table td { padding: 4px; }
+            .btn { display: block; margin: 8px 0; text-align: center; }
+        }
     </style>
 </head>
 <body>
@@ -175,6 +184,9 @@
         <li>📚 <strong>Polyglot opening books</strong> — load, browse, and <strong>edit</strong> opening variations</li>
         <li>📤 <strong>Export game tree to Polyglot book</strong> — save your personal repertoire</li>
         <li>🏗️ <strong>Create Polyglot book from PGN file</strong> — build a statistical book from thousands of games</li>
+        <li>🚀 <strong>Multi-game loading into a Polyglot book</strong> — select games in the PGN browser, press Enter — the book is created and loaded instantly (up to 10,000 games)</li>
+        <li>🧹 <strong>Mass comment removal in PGN</strong> — streaming processing of large files (~1 GB in ~2.5 minutes) without loading into memory</li>
+        <li>⚙️ <strong>Dynamic JVM memory allocation</strong> — the app automatically adapts to available RAM (4/8/16/32 GB)</li>
         <li>🔍 Position analysis with <strong>Stockfish</strong> (UCI engine)</li>
         <li>🎨 Customizable board themes</li>
         <li>📋 <strong>Copy position</strong> as FEN + ASCII diagram (Ctrl+Shift+P)</li>
@@ -238,7 +250,7 @@
         <li>Play a move on the board — it's automatically added to the book</li>
         <li>Press <strong>Alt+Z</strong> — undo the last added move</li>
         <li>Use <strong>Books → Save Book</strong> (Ctrl+Shift+S) — apply changes to the <code>.bin</code> file</li>
-        <li>Use <strong>Books → Clear Book</strong> (Ctrl+Shift+C) — unload the book</li>
+        <li>Use <strong>Books → Unload Book</strong> (Ctrl+Shift+C) — unload the book</li>
     </ul>
 
     <h3>Export game tree to Polyglot book:</h3>
@@ -260,6 +272,17 @@
     </ol>
     <p>This is different from <strong>Export game tree to Polyglot book</strong> (which creates a personal repertoire from one analysed game). The PGN-to-book function builds a <strong>statistical book</strong> from thousands of real games. The resulting book is compatible with Stockfish, Leela, ChessBase, Scid, and Arena.</p>
 
+    <h3>Multi-game loading into a Polyglot book:</h3>
+    <p>A quick way to build a book from selected games without intermediate dialogs:</p>
+    <ol>
+        <li>Open the PGN browser (Ctrl+B)</li>
+        <li>Select the games you need (up to 10,000) — with Shift/Ctrl or Ctrl+A for all</li>
+        <li>Press <strong>Enter</strong></li>
+    </ol>
+    <p>Under the hood, a Polyglot book is instantly created in a temporary folder and immediately loaded into <strong>BOOK</strong> mode. You instantly see all moves and opening variations — no "Save As" dialogs, no extra clicks.</p>
+    <p>When the book is created, <strong>threefold repetition</strong> is checked: the game is truncated at the draw point, and moves after it are not included.</p>
+    <p>If a book was already loaded and has unsaved changes, a <strong>Save / Don't Save / Cancel</strong> dialog will appear (for a temporary book the prompt is always shown).</p>
+
     <h3>System Requirements for Books</h3>
     <p>For opening book functionality, Kletka requires:</p>
     <ul>
@@ -273,6 +296,7 @@
 --add-opens java.base/sun.misc=ALL-UNNAMED \
 -jar Kletka.jar</code></pre>
     <p>These arguments are required for fast Polyglot book operations using memory-mapped files.</p>
+    <p><strong>Memory:</strong> Kletka uses dynamic JVM memory allocation (<code>-XX:MaxRAMPercentage=70.0</code>) and automatically adapts to available RAM. When creating a Polyglot book from large PGN files, a low-memory warning may appear — estimated from the number of games in the file.</p>
 
     <h3>🔧 Technical Details: Memory-Mapped Files</h3>
     <p>Kletka uses <strong>memory-mapped files</strong> (<code>MappedByteBuffer</code>) for lightning-fast Polyglot book operations, even on HDD.</p>
@@ -314,8 +338,11 @@
 
     <h2>⚡ Performance</h2>
     <ul>
-        <li><strong>PGN indexing accelerated 21×</strong> — 900,000 games are indexed in <strong>~50 seconds</strong> (previously ~17 minutes).</li>
-        <li><strong>Batch processing accelerated 2×</strong> — deleting/inserting 100,000 games is noticeably faster.</li>
+        <li><strong>PGN indexing</strong> — 900,000 games in <strong>~50 seconds</strong> (21× speedup).</li>
+        <li><strong>Batch processing</strong> — deleting/inserting 100,000 games is noticeably faster (2×).</li>
+        <li><strong>Loading complex games</strong> — the variation naming algorithm is <strong>5–6×</strong> faster.</li>
+        <li><strong>Mass comment removal</strong> — streaming processing of a ~1 GB PGN (900,000 games) in <strong>~2.5 minutes</strong> without loading into memory.</li>
+        <li><strong>Dynamic JVM memory</strong> — <code>-XX:MaxRAMPercentage=70.0</code> instead of a fixed <code>-Xmx4g</code>: the app adapts to available RAM (4/8/16/32 GB).</li>
     </ul>
 
     <hr>
@@ -362,7 +389,7 @@
         <li>Use <strong>click-to-move</strong> (click on a piece → click on a square) instead of drag-and-drop.</li>
         <li>Or wait for Kletka to migrate to <strong>JDK 25</strong> + <strong>JavaFX 25</strong> (planned in future releases).</li>
     </ul>
-    <p><strong>Status:</strong> Tracked in issue #XXX. Will be fixed when we migrate to the new stack.</p>
+    <p><strong>Status:</strong> Will be fixed when we migrate to JDK 25 + JavaFX 25 (planned in future releases).</p>
 
     <hr>
 
@@ -420,8 +447,8 @@
     <h3>macOS</h3>
     <p>Download the <code>.dmg</code> for your Mac architecture from the <a href="https://github.com/AndreyKhrypach/Kletka/releases">Releases</a> page:</p>
     <ul>
-        <li><strong>Apple Silicon (M1/M2/M3... MacBook Air/Pro):</strong> <code>Kletka-1.7.0-air.dmg</code></li>
-        <li><strong>Intel (x86_64):</strong> <code>Kletka-1.7.0-intel.dmg</code></li>
+        <li><strong>Apple Silicon (M1/M2/M3... MacBook Air/Pro):</strong> <code>Kletka-1.8.0-air.dmg</code></li>
+        <li><strong>Intel (x86_64):</strong> <code>Kletka-1.8.0-intel.dmg</code></li>
     </ul>
     <p>Open the <code>.dmg</code> and drag <code>Kletka.app</code> to the <code>Applications</code> folder.</p>
     <blockquote>

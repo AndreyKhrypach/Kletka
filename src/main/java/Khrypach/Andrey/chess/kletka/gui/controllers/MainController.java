@@ -41,10 +41,12 @@ import Khrypach.Andrey.chess.kletka.gui.dialogs.SaveGameDialog;
 import Khrypach.Andrey.chess.kletka.gui.model.NavigationMode;
 import Khrypach.Andrey.chess.kletka.gui.model.ParentNode;
 import Khrypach.Andrey.chess.kletka.gui.model.RootNode;
+import Khrypach.Andrey.chess.kletka.gui.model.Variation;
 import Khrypach.Andrey.chess.kletka.gui.settings.AppPreferences;
 import Khrypach.Andrey.chess.kletka.pgn.index.PgnFileEditor;
 import Khrypach.Andrey.chess.kletka.pgn.index.PgnIndexManager;
 import Khrypach.Andrey.chess.kletka.pgn.index.PgnIndexingFacade;
+import Khrypach.Andrey.chess.kletka.pgn.index.clean.PgnCleanOperation;
 import Khrypach.Andrey.chess.kletka.pgn.index.manager.PgnBrowserManager;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.GameIndexEntry;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.IndexStatus;
@@ -52,10 +54,12 @@ import Khrypach.Andrey.chess.kletka.pgn.index.model.IndexingProgress;
 import Khrypach.Andrey.chess.kletka.pgn.index.model.PgnIndex;
 import Khrypach.Andrey.chess.kletka.pgn.index.ui.IndexingProgressDialog;
 import Khrypach.Andrey.chess.kletka.pgn.index.ui.PgnFileBrowser;
+import Khrypach.Andrey.chess.kletka.pgn.index.ui.ProgressDialog;
 import Khrypach.Andrey.chess.kletka.pgn.index.util.HashUtils;
 import com.github.bhlangonijr.chesslib.Board;
 import com.github.bhlangonijr.chesslib.Side;
 import com.github.bhlangonijr.chesslib.move.Move;
+import javafx.animation.Animation;
 import javafx.application.HostServices;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -77,6 +81,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import javafx.util.Duration;
 import lombok.Getter;
 import lombok.Setter;
 import org.slf4j.Logger;
@@ -92,10 +97,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
-import java.util.Collection;
-import java.util.HashMap;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys.*;
 
@@ -128,6 +132,25 @@ public class MainController {
     @Getter
     private int startBodyHash = 0;
     private int loadedFullHash = 0;
+    /**
+     * Флаг: пользователь расставил позицию через setupPosition(),
+     * но ещё ни разу её не сохранял.
+     * Сбрасывается после сохранения (в PGN или в БД) или после resetGame().
+     * Используется, чтобы при уходе (новая партия, загрузка файла, закрытие)
+     * предложить сохранить РАССТАНОВКУ, даже если ходов нет
+     * (hasBodyChanges() в этом случае вернёт false).
+     */
+    private boolean isSetupPositionUnsaved = false;
+
+    /**
+     * Флаг: пользователь очистил комментарии, но ещё не сохранял.
+     * Сбрасывается после сохранения (в PGN или БД) или после resetGame().
+     * Нужен, т.к. calculateBodyHash может не увидеть изменений
+     * (комментарии в {} и $N убираются при подсчёте хеша тела).
+     */
+    private boolean isCommentsClearedUnsaved = false;
+
+    private javafx.animation.PauseTransition treeChangeDebounce;
 
     public MainController(ChessBoardView boardView, Stage primaryStage) {
         log.info("Initializing MainController");
@@ -145,22 +168,35 @@ public class MainController {
             initEngine();
         }
 
-        primaryStage.addEventFilter(WindowEvent.WINDOW_CLOSE_REQUEST, event -> {
-            BookManager bookManager = BookManager.getInstance();
-                if (hasBodyChanges()) {
-                    event.consume();
-                    showSaveDialogBeforeNewGameWithCallback(() -> {
-                        closePgnBrowser();
-                        if (engineManager != null) {
-                            engineManager.stopEngine();
-                        }
-                        Platform.exit();
-                    });
-                    return;
-                }
+        boardView.getNavController().setOnTreeChanged(() -> {
+            if (treeChangeDebounce != null) treeChangeDebounce.stop();
+            treeChangeDebounce = new javafx.animation.PauseTransition(Duration.millis(300));
+            treeChangeDebounce.setOnFinished(e -> updateCurrentGameData());
+            treeChangeDebounce.play();
+        });
 
-            // Проверяем изменения в книге
-            if (bookManager.isBookLoaded() && bookManager.hasUnsavedChanges()) {
+        primaryStage.addEventFilter(WindowEvent.WINDOW_CLOSE_REQUEST, event -> {
+
+            if (treeChangeDebounce != null && treeChangeDebounce.getStatus() == Animation.Status.RUNNING) {
+                treeChangeDebounce.stop();
+                updateCurrentGameData();
+            }
+
+            BookManager bookManager = BookManager.getInstance();
+            if (hasAnyUnsavedChanges()) {
+                event.consume();
+                showSaveDialogBeforeNewGameWithCallback(() -> {
+                    closePgnBrowser();
+                    if (engineManager != null) {
+                        engineManager.stopEngine();
+                    }
+                    Platform.exit();
+                });
+                return;
+            }
+
+            if (bookManager.isTemporaryMultiBook() ||
+                    (bookManager.isBookLoaded() && bookManager.hasUnsavedChanges()))  {
                 event.consume();
                 showSaveBookDialogBeforeExit(() -> {
                     closePgnBrowser();
@@ -223,110 +259,39 @@ public class MainController {
      * Показывает диалог сохранения книги перед выходом
      */
     private void showSaveBookDialogBeforeExit(Runnable onComplete) {
-        BookManager bookManager = BookManager.getInstance();
-
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle(lang.get(LanguageKeys.BOOK_SAVE_TITLE));
-        alert.setHeaderText(lang.get(LanguageKeys.BOOK_SAVE_HEADER));
-        alert.setContentText(lang.get(LanguageKeys.BOOK_SAVE_CONTENT));
-
-        ButtonType saveButton = new ButtonType(lang.get(SAVE_GAME_SAVE));
-        ButtonType noSaveButton = new ButtonType(lang.get(SAVE_GAME_DONT_SAVE));
-        ButtonType cancelButton = new ButtonType(lang.get(SAVE_GAME_CANCEL), ButtonBar.ButtonData.CANCEL_CLOSE);
-
-        alert.getButtonTypes().setAll(saveButton, noSaveButton, cancelButton);
-
-        alert.showAndWait().ifPresent(response -> {
-            if (response == saveButton) {
-                // Сохраняем книгу
-                try {
-                    bookManager.saveBook();
-                    boardView.updateBookUnsavedIndicator(false);
-                    if (menuFactory != null) {
-                        menuFactory.updateBooksMenu();
-                    }
-                    showNotification(String.format(
-                            lang.get(LanguageKeys.BOOK_SAVED),
-                            bookManager.getCurrentBookPath().getFileName().toString()
-                    ));
-                } catch (IOException e) {
-                    log.error("Failed to save book on exit", e);
-                    showError(lang.get(LanguageKeys.BOOK_SAVE_ERROR), e.getMessage());
-                }
-            } else if (response == noSaveButton) {
-                // Очищаем изменения без сохранения
-                bookManager.clearUnsavedChanges();
-                boardView.updateBookUnsavedIndicator(false);
-            } else {
-                // Cancel - ничего не делаем
-                return;
-            }
-
-            if (onComplete != null) {
-                onComplete.run();
-            }
-        });
+        if (handleLoadedBookBeforeAction()) {
+            if (onComplete != null) onComplete.run();
+        }
     }
 
     public void resetGame() {
         log.debug("Resetting game via MainController");
 
+        forceStopAndClearEngine();
+
+        if (treeChangeDebounce != null && treeChangeDebounce.getStatus() == Animation.Status.RUNNING) {
+            treeChangeDebounce.stop();
+            updateCurrentGameData();
+        }
+
         // ========== ЕСЛИ ЗАГРУЖЕНА КНИГА — ВЫГРУЖАЕМ ==========
         BookManager bookManager = BookManager.getInstance();
         if (bookManager.isBookLoaded()) {
-            // Проверяем, есть ли несохраненные изменения
-            if (bookManager.hasUnsavedChanges()) {
-                // Показываем диалог сохранения
-                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-                alert.setTitle(lang.get(LanguageKeys.BOOK_SAVE_TITLE));
-                alert.setHeaderText(lang.get(LanguageKeys.BOOK_SAVE_HEADER));
-                alert.setContentText(lang.get(LanguageKeys.BOOK_SAVE_CONTENT));
-
-                ButtonType saveButton = new ButtonType(lang.get(SAVE_GAME_SAVE));
-                ButtonType noSaveButton = new ButtonType(lang.get(SAVE_GAME_DONT_SAVE));
-                ButtonType cancelButton = new ButtonType(lang.get(SAVE_GAME_CANCEL), ButtonBar.ButtonData.CANCEL_CLOSE);
-
-                alert.getButtonTypes().setAll(saveButton, noSaveButton, cancelButton);
-
-                ButtonType result = alert.showAndWait().orElse(cancelButton);
-
-                if (result == cancelButton) {
-                    return; // Отмена — ничего не делаем
-                }
-
-                if (result == saveButton) {
-                    try {
-                        bookManager.saveBook();
-                        boardView.updateBookUnsavedIndicator(false);
-                        showNotification(String.format(
-                                lang.get(LanguageKeys.BOOK_SAVED),
-                                bookManager.getCurrentBookPath().getFileName().toString()
-                        ));
-                    } catch (IOException e) {
-                        log.error("Failed to save book", e);
-                        showError(lang.get(LanguageKeys.BOOK_SAVE_ERROR), e.getMessage());
-                        return;
-                    }
-                }
-                // Если noSaveButton — просто продолжаем без сохранения
-            }
-
-            // ========== ВЫГРУЖАЕМ КНИГУ ==========
+            if (!handleLoadedBookBeforeAction()) return;
             clearBookInternal();
         }
 
-        // ========== СУЩЕСТВУЮЩАЯ ЛОГИКА СБРОСА ==========
-        // Останавливаем анализ перед сбросом
-        if (boardView.getAnalysisPanel() != null && boardView.getAnalysisPanel().isAnalyzingActive()) {
-            boardView.getAnalysisPanel().stopAnalysis();
+        // ========== СНАЧАЛА ПРОВЕРЯЕМ НЕСОХРАНЁННЫЕ ИЗМЕНЕНИЯ ==========
+        // Это должно быть ДО проверок isPositionIlLegal()/isTerminalPosition(),
+        // иначе пользователь теряет возможность сохранить свою работу.
+        if (hasAnyUnsavedChanges()) {
+            showSaveDialogBeforeNewGame();
+            return;
         }
 
-        // Очищаем панель анализа
-        if (boardView.getAnalysisPanel() != null) {
-            boardView.getAnalysisPanel().clearAnalysis();
-        }
+        // ========== ДАЛЬШЕ — СЦЕНАРИИ БЕЗ СОХРАНЕНИЯ ==========
+        // Если позиция нелегальная или терминальная — просто сбрасываем
 
-        // Если позиция нелегальная - просто сбрасываем без вопросов
         if (boardView.isPositionIlLegal()) {
             log.debug("Illegal position detected, resetting to initial position");
             if (boardView.getNavController() != null) {
@@ -338,6 +303,8 @@ public class MainController {
             }
             startBodyHash = 0;
             loadedFullHash = 0;
+            isSetupPositionUnsaved = false;
+            isCommentsClearedUnsaved = false;
             return;
         }
 
@@ -361,23 +328,24 @@ public class MainController {
                 }
                 startBodyHash = 0;
                 loadedFullHash = 0;
+                isSetupPositionUnsaved = false;
+                isCommentsClearedUnsaved = false;
             }
             return;
         }
 
-        if (hasBodyChanges()) {
-            showSaveDialogBeforeNewGame();
-        } else {
-            if (boardView.getNavController() != null) {
-                boardView.getNavController().resetInitialPosition();
-            }
-            boardView.resetGame();
-            if (notationView != null) {
-                notationView.clearGameData();
-            }
-            startBodyHash = 0;
-            loadedFullHash = 0;
+        // ========== ОБЫЧНЫЙ СБРОС БЕЗ ИЗМЕНЕНИЙ ==========
+        if (boardView.getNavController() != null) {
+            boardView.getNavController().resetInitialPosition();
         }
+        boardView.resetGame();
+        if (notationView != null) {
+            notationView.clearGameData();
+        }
+        startBodyHash = 0;
+        loadedFullHash = 0;
+        isSetupPositionUnsaved = false;
+        isCommentsClearedUnsaved = false;
     }
 
     /**
@@ -574,6 +542,10 @@ public class MainController {
 
         final int total = totalGamesForProgress;
 
+        if (!checkMemoryForBookBuild(total)) {
+            return;
+        }
+
         new Thread(() -> {
             try {
                 // ========== ЭТАП 1: ОБРАБОТКА ПАРТИЙ И СБОРКА СТАТИСТИКИ ==========
@@ -747,6 +719,10 @@ public class MainController {
 
         // 4. Сбрасываем доску в начальную позицию
         boardView.resetGame();
+        // ========== СБРАСЫВАЕМ ФЛАГ РАССТАНОВКИ ==========
+        isSetupPositionUnsaved = false;
+        startBodyHash = 0;
+        loadedFullHash = 0;
 
         // 5. Очищаем нотацию
         if (notationView != null) {
@@ -909,10 +885,11 @@ public class MainController {
             return;
         }
 
-        boardView.getNavController().setNavigationMode(NavigationMode.PGN);
+        forceStopAndClearEngine();
 
-        // Очищаем книгу, если она была загружена
-        BookManager.getInstance().clearBook();
+        if (!handleLoadedBookBeforeAction()) return;
+
+        clearBookInternal();
 
         try {
             String pgn = gameData.pgn();
@@ -941,6 +918,8 @@ public class MainController {
             }
 
             updateGameHashes(gameData);
+            isSetupPositionUnsaved = false;
+            isCommentsClearedUnsaved = false;
 
             if (notationView != null) {
                 notationView.updateGameData(gameData);
@@ -999,28 +978,16 @@ public class MainController {
         }
     }
 
+    /**
+     * Экспорт партии из базы данных в PGN-файл.
+     * <p>
+     * БУДЕТ РЕАЛИЗОВАНО В ВЕРСИИ 2.0 — когда появится SQLite-база.
+     * Суть: пользователь загружает партию из БД и экспортирует её в .pgn файл.
+     * <p>
+     * Сейчас метод показывает заглушку.
+     */
     public void exportCurrentGameToPgn() {
-        if (pgnService == null) {
-            showNotification(lang.get(DB_NOT_INITIALIZED));
-            return;
-        }
-
-        SaveGameDialog dialog = new SaveGameDialog(primaryStage, boardView, notationView);
-        GameData gameData = dialog.showAndWait();
-
-        if (gameData != null) {
-            try {
-                pgnService.saveGame(gameData);
-
-                if (notationView != null) {
-                    notationView.updateGameData(gameData);
-                }
-
-                showNotification(lang.get(LanguageKeys.MAIN_GAME_SAVED_TO_DB));
-            } catch (PgnException e) {
-                showError(lang.get(PGN_SAVE_ERROR), e.getMessage());
-            }
-        }
+        showFutureImplementationMessage();
     }
 
     public void showOpeningStatistics() {
@@ -1176,18 +1143,13 @@ public class MainController {
     }
 
     /**
-     * Форматирует размер файла в читаемый вид
+     * Форматирует размер файла (КБ/МБ/ГБ).
      */
     private String formatFileSize(long size) {
-        if (size < 1024) {
-            return size + " B";
-        } else if (size < 1024 * 1024) {
-            return String.format("%.1f KB", size / 1024.0);
-        } else if (size < 1024 * 1024 * 1024) {
-            return String.format("%.1f MB", size / (1024.0 * 1024.0));
-        } else {
-            return String.format("%.2f GB", size / (1024.0 * 1024.0 * 1024.0));
-        }
+        if (size < 1024) return size + " B";
+        if (size < 1024 * 1024) return String.format("%.1f KB", size / 1024.0);
+        if (size < 1024L * 1024 * 1024) return String.format("%.1f MB", size / (1024.0 * 1024.0));
+        return String.format("%.2f GB", size / (1024.0 * 1024.0 * 1024.0));
     }
 
     public void showBestMove() {
@@ -1196,8 +1158,16 @@ public class MainController {
 
     public void loadPgnFile(File file) {
         if (file == null) return;
+
+        forceStopAndClearEngine();
+
+        if (treeChangeDebounce != null && treeChangeDebounce.getStatus() == Animation.Status.RUNNING) {
+            treeChangeDebounce.stop();
+            updateCurrentGameData();
+        }
+
         // ========== ПРОВЕРКА НЕСОХРАНЁННЫХ ИЗМЕНЕНИЙ ДО ОТКРЫТИЯ ==========
-        if (hasBodyChanges()) {
+        if (hasAnyUnsavedChanges()) {
             boolean shouldContinue = showSaveDialogBeforeLoading();
             if (!shouldContinue) {
                 log.debug("User cancelled opening PGN file due to unsaved changes");
@@ -1212,11 +1182,9 @@ public class MainController {
 
         log.debug("Opening PGN file: {}", file.getAbsolutePath());
 
-        // Переключаем режим навигации на PGN
-        boardView.getNavController().setNavigationMode(NavigationMode.PGN);
+        if (!handleLoadedBookBeforeAction()) return;
 
-        // Очищаем книгу
-        BookManager.getInstance().clearBook();
+        clearBookInternal();
 
         try {
             Path pgnPath = file.toPath();
@@ -1238,6 +1206,99 @@ public class MainController {
         }
     }
 
+    /**
+     * Загружает временную мультикнигу, собранную из выбранных партий PGN.
+     * Помечает книгу как temporary — при сохранении станет постоянной,
+     * при отказе — будет удалена.
+     */
+    public void loadMultiGameBook(File tempBookFile, Path sourcePgn, int gameCount) {
+        if (tempBookFile == null || !tempBookFile.exists()) {
+            showNotification(lang.get(LanguageKeys.BOOK_LOAD_ERROR));
+            return;
+        }
+
+        forceStopAndClearEngine();
+
+        if (treeChangeDebounce != null && treeChangeDebounce.getStatus() == Animation.Status.RUNNING) {
+            treeChangeDebounce.stop();
+            updateCurrentGameData();
+        }
+
+        // ========== ЕСЛИ УЖЕ ОТКРЫТА ВРЕМЕННАЯ МУЛЬТИКНИГА — СПРОСИТЬ ==========
+        BookManager bookManager = BookManager.getInstance();
+        if (!handleLoadedBookBeforeAction()) return;
+
+        // ========== ПРОВЕРКА НЕСОХРАНЁННЫХ ИЗМЕНЕНИЙ PGN ==========
+        if (hasAnyUnsavedChanges()) {
+            boolean shouldContinue = showSaveDialogBeforeLoading();
+            if (!shouldContinue) {
+                try {
+                    Files.deleteIfExists(tempBookFile.toPath());
+                } catch (IOException ignored) {
+                }
+                return;
+            }
+        }
+
+        // ========== ЗАГРУЗКА ==========
+        try {
+            boolean loaded = bookManager.loadBook(tempBookFile.toPath());
+            if (!loaded) {
+                showNotification(lang.get(LanguageKeys.BOOK_LOAD_ERROR));
+                return;
+            }
+
+            bookManager.markAsTemporaryMultiBook(sourcePgn, gameCount);
+
+            GameTree bookTree = bookManager.getCurrentBookTree();
+            PolyglotBookParser parser = bookManager.getCurrentParser();
+            if (bookTree == null || parser == null) {
+                showNotification(lang.get(LanguageKeys.BOOK_LOAD_ERROR));
+                return;
+            }
+
+            boardView.getNavController().setBookParser(parser);
+            boardView.getNavController().loadGameTree(
+                    bookTree.getRootNode(),
+                    bookTree.getMainLine(),
+                    bookTree.getRootVariation(),
+                    bookTree.getInitialBoard()
+            );
+            boardView.getNavController().setNavigationMode(NavigationMode.BOOK);
+            boardView.getNavController().loadRootLevel();
+
+            boardView.requestFocusOnScene();
+            boardView.refreshBoard();
+            if (notationView != null) {
+                notationView.refreshFromMainLine();
+                notationView.updateNotationDisplayWithVisitor();
+                notationView.getPlayersInfoLabel().setText("📖 " + tempBookFile.getName());
+            }
+
+            primaryStage.setTitle(lang.get(APP_TITLE) + " - " +
+                    sourcePgn.getFileName() + " (" + gameCount + " games) " +
+                    lang.get(LanguageKeys.BOOK_MODE));
+
+            showNotification(String.format(lang.get(LanguageKeys.BOOK_LOADED),
+                    tempBookFile.getName(), parser.getTotalEntries()));
+
+            boardView.updateNavigationModeIndicator(NavigationMode.BOOK);
+            boardView.updateBookUnsavedIndicator(false);
+
+            if (boardView.getAnalysisPanel() != null &&
+                    boardView.getAnalysisPanel().isAnalyzingActive()) {
+                boardView.getAnalysisPanel().stopAnalysis();
+            }
+        } catch (Exception e) {
+            log.error("Failed to load multi-game book", e);
+            showError(lang.get(LanguageKeys.BOOK_LOAD_ERROR), e.getMessage());
+            try {
+                Files.deleteIfExists(tempBookFile.toPath());
+            } catch (IOException ignored) {
+            }
+        }
+    }
+
     private void openPgnWithBrowser(Path pgnPath) {
         try {
             PgnBrowserManager manager = PgnBrowserManager.getInstance();
@@ -1248,7 +1309,10 @@ public class MainController {
                 return;
             }
 
-            manager.openBrowser(pgnPath, this::onGameSelectedFromBrowser);
+            PgnFileBrowser browser = manager.openBrowser(pgnPath, this::onGameSelectedFromBrowser);
+            if (browser != null) {
+                browser.setBoardView(boardView);
+            }
 
         } catch (IllegalStateException e) {
             showError(lang.get(LanguageKeys.MAIN_BROWSER_LIMIT_MSG), e.getMessage());
@@ -1370,28 +1434,32 @@ public class MainController {
                     return "UTF-8";
                 }
             }
-        } catch (Exception e) { }
+        } catch (Exception e) {
+        }
 
         try {
             String win1251 = new String(sample, Charset.forName("Windows-1251"));
             if (containsCyrillic(win1251) && hasPgnHeaders(win1251)) {
                 return "Windows-1251";
             }
-        } catch (Exception e) { }
+        } catch (Exception e) {
+        }
 
         try {
             String koi8r = new String(sample, Charset.forName("KOI8-R"));
             if (containsCyrillic(koi8r) && hasPgnHeaders(koi8r)) {
                 return "KOI8-R";
             }
-        } catch (Exception e) { }
+        } catch (Exception e) {
+        }
 
         try {
             String iso8859_5 = new String(sample, Charset.forName("ISO-8859-5"));
             if (containsCyrillic(iso8859_5) && hasPgnHeaders(iso8859_5)) {
                 return "ISO-8859-5";
             }
-        } catch (Exception e) { }
+        } catch (Exception e) {
+        }
 
         log.warn("Could not detect encoding, using UTF-8 as fallback");
         return "UTF-8";
@@ -1413,10 +1481,17 @@ public class MainController {
             return;
         }
 
+        forceStopAndClearEngine();
+
+        if (treeChangeDebounce != null && treeChangeDebounce.getStatus() == Animation.Status.RUNNING) {
+            treeChangeDebounce.stop();
+            updateCurrentGameData();
+        }
+
         log.debug("[LOAD] onGameSelectedFromBrowser: PGN length = {}",
                 gameData.pgn() != null ? gameData.pgn().length() : 0);
 
-        if (hasBodyChanges()) {
+        if (hasAnyUnsavedChanges()) {
             boolean shouldContinue = showSaveDialogBeforeLoading();
             if (!shouldContinue) {
                 return;
@@ -1424,14 +1499,13 @@ public class MainController {
         }
 
         try {
-            // ===== ПЕРЕКЛЮЧАЕМ РЕЖИМ НА PGN =====
-            MoveNavigationController navController = boardView.getNavController();
-            if (navController != null) {
-                navController.setNavigationMode(NavigationMode.PGN);
-            }
+            if (!handleLoadedBookBeforeAction()) return;
 
             // Очищаем книгу
-            BookManager.getInstance().clearBook();
+            clearBookInternal();
+
+            // ===== ПЕРЕКЛЮЧАЕМ РЕЖИМ НА PGN =====
+            MoveNavigationController navController = boardView.getNavController();
 
             if (gameData.isPosition()) {
                 String fen = gameData.fen();
@@ -1474,6 +1548,8 @@ public class MainController {
 
                     boardView.refreshBoard();
                     updateGameHashes(gameData);
+                    isSetupPositionUnsaved = false;
+                    isCommentsClearedUnsaved = false;
                     updateLoadedGameHash(gameData);
 
                     showNotification(String.format("%s %s %s", lang.get(LanguageKeys.MAIN_LOADED_POSITION),
@@ -1551,30 +1627,27 @@ public class MainController {
         ButtonType result = alert.showAndWait().orElse(cancelButton);
 
         if (result == cancelButton) {
-            return false; // Отмена загрузки
+            return false;
         }
 
         if (result == saveButton) {
-            // Сохраняем текущую партию
-            SaveGameDialog dialog = new SaveGameDialog(primaryStage, boardView, notationView);
-            GameData gameData = dialog.showAndWait();
-            if (gameData != null && pgnService != null) {
-                try {
-                    saveGameDataWithChoice(gameData);
-                    if (notationView != null) {
-                        notationView.updateGameData(gameData);
-                    }
-                    updateGameHashes(gameData);
-                    showNotification(lang.get(LanguageKeys.PGN_SAVE_SUCCESS));
-                } catch (Exception  e) {
-                    showError(lang.get(PGN_SAVE_ERROR), e.getMessage());
-                    return false; // Ошибка сохранения - отменяем загрузку
-                }
-            } else {
-                return false; // Пользователь отменил сохранение
+            // СНАЧАЛА «КУДА», ПОТОМ ДАННЫЕ
+            boolean saved = saveGameWithChoice();
+            if (!saved) {
+                // Отмена сохранения (на любом этапе) — отменяем и загрузку
+                return false;
             }
-        }else if (result == noSaveButton) {
-            // ========== СИНХРОНИЗИРУЕМ ХЕШИ С ТЕКУЩИМ СОСТОЯНИЕМ ==========
+            // Успешно сохранили. Хеши обновлены внутри saveToPgnFileWithCorrectOrder()
+            // через updateStateAfterSave(). Для БД — обновим вручную.
+            if (notationView != null) {
+                GameData currentData = notationView.getCurrentGameData();
+                if (currentData != null) {
+                    startBodyHash = HashUtils.calculateBodyHash(currentData);
+                    loadedFullHash = HashUtils.calculateContentHash(currentData);
+                }
+            }
+        } else if (result == noSaveButton) {
+            // Синхронизируем хеши с текущим состоянием
             if (notationView != null) {
                 GameData currentData = notationView.getCurrentGameData();
                 if (currentData != null) {
@@ -1582,7 +1655,6 @@ public class MainController {
                     loadedFullHash = HashUtils.calculateContentHash(currentData);
                     log.debug("User chose not to save — hashes synced: startBodyHash={}", startBodyHash);
                 } else {
-                    // Если данных нет — просто обнуляем
                     startBodyHash = 0;
                     loadedFullHash = 0;
                 }
@@ -1760,8 +1832,15 @@ public class MainController {
      * Используется из горячей клавиши Ctrl+O и из меню File → Open PGN.
      */
     public void openPgnFileWithCheck() {
+        if (treeChangeDebounce != null && treeChangeDebounce.getStatus() == Animation.Status.RUNNING) {
+            treeChangeDebounce.stop();
+            updateCurrentGameData();
+        }
+
+        forceStopAndClearEngine();
+
         // ========== ПРОВЕРКА НЕСОХРАНЁННЫХ ИЗМЕНЕНИЙ ДО ВЫБОРА ФАЙЛА ==========
-        if (hasBodyChanges()) {
+        if (hasAnyUnsavedChanges()) {
             boolean shouldContinue = showSaveDialogBeforeLoading();
             if (!shouldContinue) {
                 log.debug("openPgnFileWithCheck - User cancelled opening PGN file due to unsaved changes");
@@ -1831,7 +1910,6 @@ public class MainController {
         }
 
         // ========== 3. БЕРЁМ FEN ==========
-        // Приоритет: savedFenAfter текущего узла → текущая доска
         String fen = currentNode.getSavedFenAfter();
         if (fen == null || fen.isEmpty()) {
             Board currentBoard = boardView.getCurrentBoard();
@@ -1842,18 +1920,12 @@ public class MainController {
             fen = currentBoard.getFen();
         }
 
+        // ========== НОРМАЛИЗУЕМ FEN (сброс счётчиков) ==========
+        fen = normalizeFenForExport(fen);
+
         log.debug("Exporting position, FEN: {}", fen);
 
-        // ========== 4. ДИАЛОГ С ПРЕДЗАПОЛНЕНИЕМ ==========
-        SaveGameDialog dialog = new SaveGameDialog(primaryStage, boardView, notationView);
-        dialog.prefillAsPosition(fen);
-
-        GameData gameData = dialog.showAndWait();
-        if (gameData == null) {
-            return;  // пользователь отменил
-        }
-
-        // ========== 5. ВЫБОР ФАЙЛА ==========
+        // ========== 4. СНАЧАЛА ВЫБОР ФАЙЛА ==========
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(lang.get(POSITION_EXPORT_FILE_DIALOG_TITLE));
         fileChooser.getExtensionFilters().add(
@@ -1882,11 +1954,20 @@ public class MainController {
 
         File file = fileChooser.showSaveDialog(primaryStage);
         if (file == null) {
-            return;
+            return;  // пользователь отменил выбор файла — диалог данных даже не показываем
         }
 
         if (file.getParent() != null) {
             AppPreferences.saveLastSaveDirectory(file.getParent());
+        }
+
+        // ========== 5. ТЕПЕРЬ ДИАЛОГ С ПРЕДЗАПОЛНЕНИЕМ ==========
+        SaveGameDialog dialog = new SaveGameDialog(primaryStage, boardView, notationView);
+        dialog.prefillAsPosition(fen);
+
+        GameData gameData = dialog.showAndWait();
+        if (gameData == null) {
+            return;  // пользователь отменил ввод данных — файл не создаём
         }
 
         // ========== 6. СОБИРАЕМ PGN ДЛЯ ПОЗИЦИИ ==========
@@ -1902,6 +1983,36 @@ public class MainController {
         showNotification(String.format(lang.get(POSITION_EXPORT_SUCCESS), file.getName()));
 
         log.info("Position exported to: {} (FEN: {})", file.getName(), fen);
+    }
+
+    /**
+     * Нормализует FEN для экспорта позиции:
+     * - halfMoveClock = 0
+     * - fullMoveNumber = 1
+     * <p>
+     * Это гарантирует, что при последующей загрузке PGN
+     * нумерация ходов начнётся с 1, а не с номера хода
+     * исходной партии.
+     * <p>
+     * ВАЖНО: право хода (w/b), рокировки и en passant сохраняются.
+     */
+    private String normalizeFenForExport(String fen) {
+        if (fen == null || fen.isEmpty()) return fen;
+
+        String[] parts = fen.trim().split("\\s+");
+        if (parts.length < 6) {
+            // Некорректный FEN — возвращаем как есть (лучше не ломать)
+            log.warn("Cannot normalize malformed FEN: {}", fen);
+            return fen;
+        }
+
+        // parts[0] = позиция
+        // parts[1] = сторона хода (w/b)
+        // parts[2] = рокировки
+        // parts[3] = en passant
+        // parts[4] = halfMoveClock
+        // parts[5] = fullMoveNumber
+        return parts[0] + " " + parts[1] + " " + parts[2] + " " + parts[3] + " 0 1";
     }
 
     /**
@@ -2199,7 +2310,7 @@ public class MainController {
     }
 
     private void showSaveDialogBeforeNewGameWithCallback(Runnable onComplete) {
-        if (!hasBodyChanges()) {
+        if (!hasAnyUnsavedChanges()) {
             if (onComplete != null) {
                 onComplete.run();
             }
@@ -2226,22 +2337,14 @@ public class MainController {
         Button saveButton = new Button(lang.get(SAVE_GAME_SAVE));
         saveButton.setStyle("-fx-background-color: #2e8b57; -fx-text-fill: white;");
         saveButton.setOnAction(e -> {
-            // ========== ЗАКРЫВАЕМ ПЕРВЫЙ ДИАЛОГ ==========
             dialogStage.close();
 
-            // ========== ПОКАЗЫВАЕМ ВТОРОЙ ДИАЛОГ ==========
             Platform.runLater(() -> {
-                SaveGameDialog dialog = new SaveGameDialog(primaryStage, boardView, notationView);
-                GameData gameData = dialog.showAndWait();
-                if (gameData != null) {
-                    saveGameDataWithChoice(gameData);
-                    startBodyHash = 0;
-                    loadedFullHash = 0;
-                    if (onComplete != null) {
-                        onComplete.run();
-                    }
+                boolean saved = saveGameWithChoice();
+                if (saved) {
+                    if (onComplete != null) onComplete.run();
                 }
-                // Если пользователь отменил сохранение — onComplete не вызывается
+                // Если отменил сохранение — окно не закрываем, onComplete не вызываем
             });
         });
 
@@ -2262,6 +2365,8 @@ public class MainController {
                 startBodyHash = 0;
                 loadedFullHash = 0;
             }
+            isSetupPositionUnsaved = false;
+            isCommentsClearedUnsaved = false;
             dialogStage.close();
             if (onComplete != null) onComplete.run();
         });
@@ -2288,7 +2393,7 @@ public class MainController {
     }
 
     private void showSaveDialogBeforeNewGame() {
-        if (!hasBodyChanges()) {
+        if (!hasAnyUnsavedChanges()) {
             boardView.resetGame();
             if (notationView != null) {
                 notationView.clearGameData();
@@ -2309,34 +2414,54 @@ public class MainController {
 
         alert.getButtonTypes().setAll(saveButton, noSaveButton, cancelButton);
 
-        alert.showAndWait().ifPresent(response -> {
-            if (response == saveButton) {
-                // ========== ИСПОЛЬЗУЕМ saveGameDataWithChoice() ==========
-                SaveGameDialog dialog = new SaveGameDialog(primaryStage, boardView, notationView);
-                GameData gameData = dialog.showAndWait();
-                if (gameData != null) {
-                    saveGameDataWithChoice(gameData);
-                }
-                // После сохранения - сбрасываем игру
-                boardView.resetGame();
-                if (notationView != null) {
-                    notationView.clearGameData();
-                }
-                startBodyHash = 0;
-                loadedFullHash = 0;
-            } else if (response == noSaveButton) {
-                boardView.resetGame();
-                if (notationView != null) {
-                    notationView.clearGameData();
-                }
-                startBodyHash = 0;
-                loadedFullHash = 0;
+        ButtonType response = alert.showAndWait().orElse(cancelButton);
+
+        if (response == cancelButton) {
+            return;  // отмена — ничего не делаем
+        }
+
+        if (response == noSaveButton) {
+            // Не сохранять — сбрасываем и всё
+            boardView.resetGame();
+            if (notationView != null) {
+                notationView.clearGameData();
             }
-            // Если cancel - ничего не делаем
-        });
+            startBodyHash = 0;
+            loadedFullHash = 0;
+            isSetupPositionUnsaved = false;
+            isCommentsClearedUnsaved = false;
+            return;
+        }
+
+        // ========== SAVE: СНАЧАЛА СПРАШИВАЕМ «КУДА» ==========
+        boolean saved = saveGameWithChoice();  // ← новый метод, порядок правильный
+
+        if (!saved) {
+            // Пользователь отменил сохранение (на любом этапе) — НЕ сбрасываем игру
+            return;
+        }
+
+        // Сохранение прошло успешно — сбрасываем игру
+        boardView.resetGame();
+        if (notationView != null) {
+            notationView.clearGameData();
+        }
+        startBodyHash = 0;
+        loadedFullHash = 0;
+        isSetupPositionUnsaved = false;
+        isCommentsClearedUnsaved = false;
     }
 
-    private void saveGameDataWithChoice(GameData gameData) {
+    /**
+     * Спрашивает, куда сохранять (PGN-файл или база),
+     * и выполняет сохранение с правильным порядком диалогов:
+     * PGN: FileChooser → SaveGameDialog → сохранение
+     * База: SaveGameDialog → сохранение
+     *
+     * @return true если сохранение прошло успешно, false если пользователь отменил
+     * на любом этапе
+     */
+    private boolean saveGameWithChoice() {
         Alert choiceDialog = new Alert(Alert.AlertType.CONFIRMATION);
         choiceDialog.setTitle(lang.get(LanguageKeys.MAIN_SAVE_GAME_CHOICE_TITLE));
         choiceDialog.setHeaderText(lang.get(LanguageKeys.MAIN_SAVE_GAME_CHOICE_HEADER));
@@ -2344,28 +2469,43 @@ public class MainController {
 
         ButtonType pgnButton = new ButtonType(lang.get(LanguageKeys.MAIN_SAVE_TO_PGN_FILE));
         ButtonType dbButton = new ButtonType(lang.get(LanguageKeys.MAIN_SAVE_TO_DATABASE));
-        ButtonType cancelButton = new ButtonType(lang.get(LanguageKeys.MAIN_SAVE_CANCEL), ButtonBar.ButtonData.CANCEL_CLOSE);
+        ButtonType cancelButton = new ButtonType(lang.get(LanguageKeys.MAIN_SAVE_CANCEL),
+                ButtonBar.ButtonData.CANCEL_CLOSE);
 
         choiceDialog.getButtonTypes().setAll(pgnButton, dbButton, cancelButton);
 
-        choiceDialog.showAndWait().ifPresent(choice -> {
-            if (choice == pgnButton) {
-                saveToPgnFile(gameData);
-            } else if (choice == dbButton) {
-                saveToDatabase(gameData);
-            }
-        });
+        ButtonType choice = choiceDialog.showAndWait().orElse(cancelButton);
+
+        if (choice == cancelButton) {
+            return false;
+        }
+
+        if (choice == pgnButton) {
+            return saveToPgnFileWithCorrectOrder();
+        }
+
+        if (choice == dbButton) {
+            return saveToDatabaseWithDialog();
+        }
+
+        return false;
     }
 
-    private void saveToPgnFile(GameData gameData) {
-        // ========== БЛОКИРУЕМ СОХРАНЕНИЕ В РЕЖИМЕ КНИГИ ==========
+    /**
+     * Сохраняет партию в PGN-файл с правильным порядком:
+     * FileChooser → SaveGameDialog → запись.
+     *
+     * @return true если сохранено, false если отменено на любом этапе
+     */
+    private boolean saveToPgnFileWithCorrectOrder() {
+        // ========== ПРОВЕРКА РЕЖИМА ==========
         MoveNavigationController navController = boardView.getNavController();
         if (navController != null && navController.getNavigationMode() == NavigationMode.BOOK) {
             showNotification(lang.get(BOOK_MODE_NO_SAVE));
-            return;
+            return false;
         }
 
-        log.debug(">>> saveToPgnFile called");
+        // ========== 1. FILECHOOSER ==========
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(lang.get(LanguageKeys.MAIN_SAVE_PGN_FILE_TITLE));
         fileChooser.getExtensionFilters().add(
@@ -2406,21 +2546,24 @@ public class MainController {
 
         File selectedFile = fileChooser.showSaveDialog(primaryStage);
         if (selectedFile == null) {
-            return;
+            return false;  // отмена — данные даже не спрашивали
         }
 
         AppPreferences.saveLastSaveDirectory(selectedFile.getParent());
         AppPreferences.saveSaveDirectory(selectedFile.getParent());
 
+        // ========== 2. ДИАЛОГ ДАННЫХ ==========
+        SaveGameDialog dialog = new SaveGameDialog(primaryStage, boardView, notationView);
+        GameData gameData = dialog.showAndWait();
+        if (gameData == null) {
+            return false;  // отмена — файл не создаём
+        }
+
+        // ========== 3. СОХРАНЕНИЕ (тело старого saveToPgnFile) ==========
         try {
             Path pgnPath = selectedFile.toPath();
 
-            // ========== ПОЛУЧАЕМ PGN И КОНВЕРТИРУЕМ ==========
-            // Проверяем, есть ли уже конвертированный PGN в GameData
             String pgnContent = gameData.pgn();
-
-            // Если pgn в GameData уже конвертирован - используем его
-            // Иначе берем из NotationView
             if (pgnContent == null || pgnContent.isEmpty() || containsUnicode(pgnContent)) {
                 NotationView nv = getNotationView();
                 if (nv != null) {
@@ -2431,23 +2574,49 @@ public class MainController {
                 }
             }
 
-            // Конвертируем Unicode → ASCII
             String plainPgn = convertUnicodeToPlain(pgnContent);
-
-            // Обновляем GameData с конвертированным PGN
             GameData updatedGameData = updateGameDataWithPgn(gameData, plainPgn);
 
-            // ========== ЕДИНЫЙ МЕТОД ОБНОВЛЕНИЯ ИНДЕКСА ==========
             updateIndexAfterSave(pgnPath, updatedGameData, plainPgn);
-
-            // ОБНОВЛЯЕМ ХЕШИ ПОСЛЕ СОХРАНЕНИЯ!
             updateStateAfterSave(updatedGameData);
 
-            showNotification(String.format(lang.get(LanguageKeys.MAIN_GAME_SAVED_FILE), selectedFile.getName()));
+            showNotification(String.format(lang.get(LanguageKeys.MAIN_GAME_SAVED_FILE),
+                    selectedFile.getName()));
+            return true;
 
         } catch (Exception e) {
             log.error("Failed to save to PGN file", e);
             showError(lang.get(LanguageKeys.PGN_SAVE_ERROR), e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Сохраняет партию в базу данных с диалогом данных.
+     *
+     * @return true если сохранено, false если отменено или ошибка
+     */
+    private boolean saveToDatabaseWithDialog() {
+        if (pgnService == null) {
+            showNotification(lang.get(LanguageKeys.MAIN_DB_NOT_INITIALIZED_MSG));
+            return false;
+        }
+
+        SaveGameDialog dialog = new SaveGameDialog(primaryStage, boardView, notationView);
+        GameData gameData = dialog.showAndWait();
+        if (gameData == null) {
+            return false;
+        }
+
+        try {
+            pgnService.saveGame(gameData);
+            updateStateAfterSave(gameData);
+            showNotification(lang.get(LanguageKeys.MAIN_GAME_SAVED_TO_DB));
+            return true;
+        } catch (PgnException e) {
+            log.error("Failed to save to database", e);
+            showError(lang.get(LanguageKeys.PGN_SAVE_ERROR), e.getMessage());
+            return false;
         }
     }
 
@@ -2462,13 +2631,15 @@ public class MainController {
         loadedFullHash = HashUtils.calculateContentHash(gameData);
         loadedGameHash = HashUtils.calculateContentHash(gameData);
 
+        // ========== РАССТАНОВКА СОХРАНЕНА ==========
+        isSetupPositionUnsaved = false;
+        log.debug("updateStateAfterSave: setup position saved");
+
+        isCommentsClearedUnsaved = false;
         // Обновляем нотацию
         if (notationView != null) {
             notationView.updateGameData(gameData);
         }
-
-        log.debug("State updated after save: startBodyHash={}, loadedFullHash={}",
-                startBodyHash, loadedFullHash);
     }
 
     /**
@@ -2532,6 +2703,26 @@ public class MainController {
 
         log.trace("updateGameHashes: startBodyHash={}, loadedFullHash={}",
                 startBodyHash, loadedFullHash);
+    }
+
+    /**
+     * Возвращает true, если есть ЛЮБЫЕ несохранённые изменения:
+     * - ходы в текущей партии (hasBodyChanges)
+     * - расстановка, которую пользователь сделал сам и не сохранял
+     */
+    private boolean hasAnyUnsavedChanges() {
+        if (boardView.getNavController() != null
+                && boardView.getNavController().getNavigationMode() == NavigationMode.BOOK) {
+            return false;
+        }
+
+        boolean body = hasBodyChanges();
+        boolean setup = isSetupPositionUnsaved;
+        boolean comments = isCommentsClearedUnsaved;   // ← добавить
+
+        log.debug("hasAnyUnsavedChanges: body={}, setupUnsaved={}, commentsCleared={}",
+                body, setup, comments);
+        return body || setup || comments;
     }
 
     private boolean hasBodyChanges() {
@@ -2612,16 +2803,15 @@ public class MainController {
     public void setupPosition() {
 
         // ========== ОСТАНАВЛИВАЕМ АНАЛИЗ ПЕРЕД РАССТАНОВКОЙ ==========
-        if (boardView.getAnalysisPanel() != null) {
-            if (boardView.getAnalysisPanel().isAnalyzingActive()) {
-                boardView.getAnalysisPanel().stopAnalysis();
-            }
-            // Очищаем оценку
-            boardView.getAnalysisPanel().clearAnalysis();
+        forceStopAndClearEngine();
+
+        if (treeChangeDebounce != null && treeChangeDebounce.getStatus() == Animation.Status.RUNNING) {
+            treeChangeDebounce.stop();
+            updateCurrentGameData();
         }
 
         // ========== ПРОВЕРКА НЕСОХРАНЁННЫХ ИЗМЕНЕНИЙ ==========
-        if (hasBodyChanges()) {
+        if (hasAnyUnsavedChanges()) {
             boolean shouldContinue = showSaveDialogBeforeLoading();
             if (!shouldContinue) {
                 log.debug("User cancelled setup position due to unsaved changes");
@@ -2673,6 +2863,9 @@ public class MainController {
                 startBodyHash = 0;
                 loadedFullHash = 0;
                 loadedGameHash = 0;
+                isSetupPositionUnsaved = true;
+                isCommentsClearedUnsaved = false;
+                log.debug("setupPosition: marked as unsaved");
             }
 
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
@@ -2951,9 +3144,18 @@ public class MainController {
             return;
         }
 
+        forceStopAndClearEngine();
+
+        if (!handleLoadedBookBeforeAction()) return;
+
+        if (treeChangeDebounce != null && treeChangeDebounce.getStatus() == Animation.Status.RUNNING) {
+            treeChangeDebounce.stop();
+            updateCurrentGameData();
+        }
+
         try {
             // Проверяем изменения в текущей партии
-            if (hasBodyChanges()) {
+            if (hasAnyUnsavedChanges()) {
                 boolean shouldContinue = showSaveDialogBeforeLoading();
                 if (!shouldContinue) {
                     return;
@@ -3035,57 +3237,11 @@ public class MainController {
      */
     public void clearBook() {
         log.debug("[MAIN] clearBook called");
-        BookManager bookManager = BookManager.getInstance();
+        if (!handleLoadedBookBeforeAction()) return;
 
-        // ========== ПРОВЕРКА НЕСОХРАНЁННЫХ ИЗМЕНЕНИЙ КНИГИ ==========
-        if (bookManager.isBookLoaded() && bookManager.hasUnsavedChanges()) {
-            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-            alert.setTitle(lang.get(LanguageKeys.BOOK_SAVE_TITLE));
-            alert.setHeaderText(lang.get(LanguageKeys.BOOK_SAVE_HEADER));
-            alert.setContentText(lang.get(LanguageKeys.BOOK_SAVE_CONTENT));
-
-            ButtonType saveButton = new ButtonType(lang.get(SAVE_GAME_SAVE));
-            ButtonType noSaveButton = new ButtonType(lang.get(SAVE_GAME_DONT_SAVE));
-            ButtonType cancelButton = new ButtonType(lang.get(SAVE_GAME_CANCEL), ButtonBar.ButtonData.CANCEL_CLOSE);
-
-            alert.getButtonTypes().setAll(saveButton, noSaveButton, cancelButton);
-
-            ButtonType result = alert.showAndWait().orElse(cancelButton);
-
-            if (result == cancelButton) {
-                log.debug("[MAIN] Book clear cancelled by user");
-                return;
-            }
-
-            if (result == saveButton) {
-                try {
-                    boardView.getNavController().setBookParser(null);
-                    bookManager.saveBook();
-                    boardView.updateBookUnsavedIndicator(false);
-                    if (menuFactory != null) {
-                        menuFactory.updateBooksMenu();
-                    }
-                    showNotification(String.format(
-                            lang.get(LanguageKeys.BOOK_SAVED),
-                            bookManager.getCurrentBookPath().getFileName().toString()
-                    ));
-                } catch (IOException e) {
-                    log.error("Failed to save book on clear", e);
-                    showError(lang.get(LanguageKeys.BOOK_SAVE_ERROR), e.getMessage());
-                    return;   // ← Ошибка — не выгружаем
-                }
-            }
-            // Если noSaveButton — просто продолжаем без сохранения
-        }
-
-        // ========== ВЫГРУЖАЕМ КНИГУ ==========
         clearBookInternal();
-
-        // Обнуляем хеши
         startBodyHash = 0;
         loadedFullHash = 0;
-
-        // Уведомление
         showNotification(lang.get(LanguageKeys.BOOK_CLEARED));
     }
 
@@ -3099,6 +3255,75 @@ public class MainController {
             showNotification(lang.get(LanguageKeys.BOOK_NOT_LOADED));
             return;
         }
+
+        // ========== ВРЕМЕННАЯ МУЛЬТИКНИГА ==========
+        if (bookManager.isTemporaryMultiBook()) {
+            // Сначала применяем dirtyEntries к файлу
+            try {
+                if (bookManager.hasUnsavedChanges()) {
+                    boardView.getNavController().setBookParser(null);
+                    bookManager.saveBook();
+                }
+            } catch (IOException e) {
+                log.error("Failed to save temp multi-book", e);
+                showError(lang.get(LanguageKeys.BOOK_SAVE_ERROR), e.getMessage());
+                return;
+            }
+
+            // Спрашиваем, куда сохранить
+            FileChooser chooser = new FileChooser();
+            chooser.setTitle(lang.get(MENU_BOOKS_SAVE));
+            chooser.getExtensionFilters().add(
+                    new FileChooser.ExtensionFilter("Polyglot Book", "*.bin"));
+
+            Path source = bookManager.getTemporaryMultiBookSourcePgn();
+            if (source != null && source.getParent() != null) {
+                chooser.setInitialDirectory(source.getParent().toFile());
+                String base = source.getFileName().toString();
+                int dot = base.lastIndexOf('.');
+                if (dot > 0) base = base.substring(0, dot);
+                chooser.setInitialFileName(base + "_MultiGames.bin");
+            } else {
+                String bookDir = AppPreferences.getBookDirectory();
+                if (bookDir != null && !bookDir.isEmpty()) {
+                    File dir = new File(bookDir);
+                    if (dir.exists() && dir.isDirectory()) chooser.setInitialDirectory(dir);
+                }
+            }
+
+            File target = chooser.showSaveDialog(primaryStage);
+            if (target == null) return;  // отмена — временный файл остаётся
+
+            try {
+                Path saved = bookManager.promoteTemporaryToPermanent(target.toPath(), true);
+                boardView.updateBookUnsavedIndicator(false);
+                if (menuFactory != null) menuFactory.updateBooksMenu();
+                showNotification(String.format(lang.get(LanguageKeys.BOOK_SAVED),
+                        saved.getFileName().toString()));
+
+                // Перезагружаем UI
+                PolyglotBookParser freshParser = bookManager.getCurrentParser();
+                GameTree freshTree = bookManager.getCurrentBookTree();
+                if (freshParser != null && freshTree != null) {
+                    boardView.getNavController().setBookParser(freshParser);
+                    boardView.getNavController().loadGameTree(
+                            freshTree.getRootNode(), freshTree.getMainLine(),
+                            freshTree.getRootVariation(), freshTree.getInitialBoard());
+                    boardView.getNavController().setNavigationMode(NavigationMode.BOOK);
+                    boardView.getNavController().loadRootLevel();
+                    boardView.refreshBoard();
+                    if (notationView != null) {
+                        notationView.refreshFromMainLine();
+                        notationView.updateNotationDisplayWithVisitor();
+                    }
+                }
+            } catch (IOException e) {
+                log.error("Failed to promote temp book", e);
+                showError(lang.get(LanguageKeys.BOOK_SAVE_ERROR), e.getMessage());
+            }
+            return;
+        }
+
         if (!bookManager.hasUnsavedChanges()) {
             showNotification(lang.get(LanguageKeys.BOOK_NO_CHANGES));
             return;
@@ -3161,6 +3386,296 @@ public class MainController {
             log.error("Failed to save book", e);
             showError(lang.get(LanguageKeys.BOOK_SAVE_ERROR), e.getMessage());
         }
+    }
+
+    /**
+     * Очищает все аннотации, NAG-символы и комментарии из текущей партии.
+     * Помечает партию как изменённую, чтобы при сохранении она ушла в конец файла.
+     */
+    public void clearGameComments() {
+        // ========== 1. БЛОКИРУЕМ В РЕЖИМЕ КНИГИ ==========
+        MoveNavigationController navController = boardView.getNavController();
+        if (navController != null && navController.getNavigationMode() == NavigationMode.BOOK) {
+            showNotification(lang.get(BOOK_MODE_NO_COMMENTS));
+            return;
+        }
+
+        // ========== 2. ПРОВЕРКА: ЕСТЬ ЛИ ЧТО ЧИСТИТЬ ==========
+        if (navController == null || navController.getRootNode() == null) {
+            showNotification(lang.get(CLEAR_COMMENTS_NOTHING));
+            return;
+        }
+
+        int totalToRemove = countAllAnnotationsAndComments(navController.getRootNode());
+        if (totalToRemove == 0) {
+            showNotification(lang.get(CLEAR_COMMENTS_NOTHING));
+            return;
+        }
+
+        // ========== 3. ПОДТВЕРЖДЕНИЕ ==========
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle(lang.get(CLEAR_COMMENTS_TITLE));
+        confirm.setHeaderText(lang.get(CLEAR_COMMENTS_HEADER));
+        confirm.setContentText(String.format(lang.get(CLEAR_COMMENTS_CONFIRM), totalToRemove));
+
+        ButtonType yesButton = new ButtonType(lang.get(CONFIRM_YES), ButtonBar.ButtonData.YES);
+        ButtonType noButton = new ButtonType(lang.get(CONFIRM_NO), ButtonBar.ButtonData.CANCEL_CLOSE);
+        confirm.getButtonTypes().setAll(yesButton, noButton);
+
+        if (confirm.showAndWait().orElse(noButton) != yesButton) {
+            return;
+        }
+
+        // ========== 4. ОЧИСТКА ==========
+        int removed = navController.clearAllAnnotationsAndComments();
+
+        // ========== 5. ОБНОВЛЯЕМ GameData И ФЛАГ ==========
+        updateCurrentGameData();
+        isCommentsClearedUnsaved = true;
+
+        log.info("Cleared {} annotations/comments from current game", removed);
+
+        // ========== 6. УВЕДОМЛЕНИЕ ==========
+        showNotification(String.format(lang.get(CLEAR_COMMENTS_DONE), removed));
+    }
+
+    /**
+     * Меню → Правка → «Очистить PGN от комментариев…»
+     * 1. FileChooser (исходник)
+     * 2. Проверка места
+     * 3. Автоиндексация (если нужно) — с прогрессом, как при открытии в браузере
+     * 4. Очистка в новый файл <base>_NoComments.pgn (+ (n))
+     * 5. Уведомление с путём + статистикой
+     * 6. Предложить открыть результат в браузере
+     */
+    public void clearPgnFileComments() {
+        // ========== 1. ВЫБОР ФАЙЛА ==========
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle(lang.get(CLEAN_PGN_DIALOG_TITLE));
+        chooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter(lang.get(FILE_FILTER_PGN), "*.pgn"));
+
+        String lastDir = AppPreferences.getLastOpenDirectory();
+        if (lastDir != null && !lastDir.isEmpty()) {
+            File dir = new File(lastDir);
+            if (dir.exists() && dir.isDirectory()) {
+                chooser.setInitialDirectory(dir);
+            }
+        } else {
+            Path bases = AppPreferences.getBasesDirectory();
+            if (bases != null && Files.exists(bases)) {
+                chooser.setInitialDirectory(bases.toFile());
+            }
+        }
+
+        File sourceFile = chooser.showOpenDialog(primaryStage);
+        if (sourceFile == null) return;
+
+        AppPreferences.saveLastOpenDirectory(sourceFile.getParent());
+        Path sourcePgn = sourceFile.toPath();
+
+        // ========== 2. ПРОВЕРКА МЕСТА ==========
+        try {
+            long sourceSize = Files.size(sourcePgn);
+            long freeSpace = sourcePgn.getParent().toFile().getFreeSpace();
+            long requiredSpace = (long) (sourceSize * 1.2); // +20% запас
+
+            if (freeSpace < requiredSpace) {
+                showError(lang.get(CLEAN_PGN_NO_SPACE_TITLE),
+                        String.format(lang.get(CLEAN_PGN_NO_SPACE_MSG),
+                                formatFileSize(requiredSpace),
+                                formatFileSize(freeSpace)));
+                return;
+            }
+        } catch (IOException e) {
+            showError(lang.get(CLEAN_PGN_ERROR_TITLE), e.getMessage());
+            return;
+        }
+
+        // ========== 3. АВТОИНДЕКСАЦИЯ (если нужно) ==========
+        PgnIndexingFacade facade = new PgnIndexingFacade();
+        IndexStatus status = facade.checkIndex(sourcePgn);
+
+        if (status == IndexStatus.FILE_MISSING) {
+            showError(lang.get(CLEAN_PGN_ERROR_TITLE), lang.get(DB_LOAD_PGN_FIRST));
+            return;
+        }
+
+        if (status == IndexStatus.NO_INDEX
+                || status == IndexStatus.FILE_CHANGED
+                || status == IndexStatus.INDEX_CORRUPTED) {
+
+            // Индексируем как при открытии в браузере — с прогрессом, без вопросов
+            indexPgnFileWithProgress(sourcePgn, () -> startCleanOperation(sourcePgn));
+            return;
+        }
+
+        // OK — сразу чистим
+        startCleanOperation(sourcePgn);
+    }
+
+    /**
+     * Запускает очистку в отдельном потоке с прогресс-диалогом.
+     */
+    private void startCleanOperation(Path sourcePgn) {
+        Path targetPgn = buildCleanTargetPath(sourcePgn);
+
+        // ========== 1. СОЗДАЁМ ДИАЛОГ В UI-ПОТОКЕ ==========
+        ProgressDialog progressDialog = new ProgressDialog(
+                lang.get(CLEAN_PGN_PROGRESS_TITLE),
+                lang.get(CLEAN_PGN_STATUS_STARTING));
+        progressDialog.show();
+
+        AtomicBoolean cancelled = new AtomicBoolean(false);
+        progressDialog.setOnCancel(() -> cancelled.set(true));
+
+        // ========== 2. ЧЕРЕЗ 800 МС (UI-ПОТОК) — МЕНЯЕМ СТАТУС И СТАРТУЕМ ФОН ==========
+        javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(
+                javafx.util.Duration.millis(800));
+        pause.setOnFinished(e -> {
+            // Этот код выполняется В UI-ПОТОКЕ — окно уже отрисовано
+            progressDialog.updateProgress(-1, lang.get(CLEAN_PGN_STATUS_CHECKING_SPACE), "");
+
+            // Второй PauseTransition — чтобы «Проверка места» тоже успела отрисоваться
+            javafx.animation.PauseTransition pause2 = new javafx.animation.PauseTransition(
+                    javafx.util.Duration.millis(500));
+            pause2.setOnFinished(e2 -> {
+                // Теперь стартуем фон
+                startCleanWorker(sourcePgn, targetPgn, progressDialog, cancelled);
+            });
+            pause2.play();
+        });
+        pause.play();
+    }
+
+    private void startCleanWorker(Path sourcePgn, Path targetPgn,
+                                  ProgressDialog progressDialog, AtomicBoolean cancelled) {
+        new Thread(() -> {
+            try {
+                // Проверка места
+                long sourceSize = Files.size(sourcePgn);
+                long freeSpace = sourcePgn.getParent().toFile().getFreeSpace();
+                long requiredSpace = (long) (sourceSize * 1.2);
+
+                if (freeSpace < requiredSpace) {
+                    throw new IOException(String.format(
+                            lang.get(CLEAN_PGN_NO_SPACE_MSG),
+                            formatFileSize(requiredSpace),
+                            formatFileSize(freeSpace)));
+                }
+
+                if (cancelled.get()) throw new IOException(lang.get(CLEAN_PGN_STATUS_CANCELLED));
+
+                // Статус «Запуск»
+                Platform.runLater(() -> progressDialog.updateProgress(
+                        -1, lang.get(CLEAN_PGN_STATUS_LAUNCHING), ""));
+
+                // Небольшая пауза, чтобы «Запуск» отрисовался
+                Thread.sleep(300);
+
+                // ========== ОЧИСТКА ==========
+                PgnCleanOperation op = new PgnCleanOperation();
+                PgnCleanOperation.CleanStats stats = op.execute(
+                        sourcePgn,
+                        targetPgn,
+                        progress -> Platform.runLater(() -> {
+                            double pct = progress.getTotalGames() > 0
+                                    ? (double) progress.getProcessedGames() / progress.getTotalGames()
+                                    : -1;
+                            progressDialog.updateProgress(
+                                    pct,
+                                    progress.getStatus(),
+                                    progress.getTotalGames() > 0
+                                            ? String.format(lang.get(CLEAN_PGN_STATUS_COUNT),
+                                            progress.getProcessedGames(),
+                                            progress.getTotalGames())
+                                            : "");
+                        }),
+                        cancelled
+                );
+
+                progressDialog.close();
+
+                Platform.runLater(() -> {
+                    // ========== УВЕДОМЛЕНИЕ ==========
+                    String msg = String.format(
+                            lang.get(CLEAN_PGN_SUCCESS_MSG),
+                            targetPgn.toAbsolutePath().toString(),
+                            stats.processedGames(),
+                            stats.removedComments(),
+                            stats.removedNags(),
+                            stats.removedSuffixes(),
+                            stats.elapsedMs() / 1000.0
+                    );
+                    showInfo(lang.get(CLEAN_PGN_SUCCESS_TITLE), msg);
+
+                    // ========== ПРЕДЛОЖЕНИЕ ОТКРЫТЬ ==========
+                    Alert ask = new Alert(Alert.AlertType.CONFIRMATION);
+                    ask.setTitle(lang.get(CLEAN_PGN_OPEN_TITLE));
+                    ask.setHeaderText(null);
+                    ask.setContentText(String.format(lang.get(CLEAN_PGN_OPEN_MSG),
+                            targetPgn.getFileName().toString()));
+
+                    ButtonType yes = new ButtonType(lang.get(CONFIRM_YES), ButtonBar.ButtonData.YES);
+                    ButtonType no = new ButtonType(lang.get(CONFIRM_NO), ButtonBar.ButtonData.NO);
+                    ask.getButtonTypes().setAll(yes, no);
+
+                    ask.showAndWait().ifPresent(r -> {
+                        if (r == yes) {
+                            loadPgnFile(targetPgn.toFile());
+                        }
+                    });
+                });
+
+            } catch (Exception e) {
+                log.error("Failed to clean PGN comments", e);
+                progressDialog.close();
+                Platform.runLater(() -> showError(lang.get(CLEAN_PGN_ERROR_TITLE), e.getMessage()));
+            }
+        }).start();
+    }
+
+    /**
+     * Строит целевой путь: <base>_NoComments.pgn, с суффиксом (n) при конфликте.
+     */
+    private Path buildCleanTargetPath(Path sourcePgn) {
+        String fileName = sourcePgn.getFileName().toString();
+        int dot = fileName.lastIndexOf('.');
+        String base = dot > 0 ? fileName.substring(0, dot) : fileName;
+
+        Path dir = sourcePgn.getParent();
+        Path candidate = dir.resolve(base + "_NoComments.pgn");
+
+        int n = 1;
+        while (Files.exists(candidate) && n < 10000) {
+            candidate = dir.resolve(base + "_NoComments(" + n + ").pgn");
+            n++;
+        }
+        return candidate;
+    }
+
+    /**
+     * Считает общее количество аннотаций/комментариев в дереве (для превью в диалоге).
+     */
+    private int countAllAnnotationsAndComments(ParentNode root) {
+        if (root == null) return 0;
+        Set<ParentNode> visited = new HashSet<>();
+        return countRecursive(root, visited);
+    }
+
+    private int countRecursive(ParentNode node, Set<ParentNode> visited) {
+        if (node == null || !visited.add(node)) return 0;
+        int count = node.countAnnotationsAndComments();
+        count += countRecursive(node.getNext(), visited);
+        if (node.getSubVariations() != null) {
+            for (Variation var : node.getSubVariations()) {
+                if (var == null) continue;
+                for (ParentNode moveNode : var.getMoves()) {
+                    count += countRecursive(moveNode, visited);
+                }
+            }
+        }
+        return count;
     }
 
     /**
@@ -3241,6 +3756,157 @@ public class MainController {
         if (browser != null && browser.isShowing()) {
             browser.refresh(false);
         }
+    }
+
+    /**
+     * Мягко останавливает анализ и очищает панель, НО НЕ УБИВАЕТ сам процесс движка.
+     * Вызывается перед загрузкой новой позиции, чтобы не висели старые оценки.
+     */
+    private void forceStopAndClearEngine() {
+        // 1. Останавливаем именно АНАЛИЗ (посылаем stop), а не убиваем движок (quit)
+        if (engineManager != null) {
+            if (engineManager.isEngineRunning()) {
+                engineManager.stopAnalysis(); // <--- ВОТ КЛЮЧЕВОЕ ИЗМЕНЕНИЕ
+            }
+
+            // 2. Очищаем накопленные данные (чтобы старые линии не приклеились к новой позиции)
+            engineManager.clearAnalysisInfo();
+        }
+
+        // 3. Очищаем UI панели анализа
+        if (boardView != null && boardView.getAnalysisPanel() != null) {
+            boardView.getAnalysisPanel().clearAnalysis();
+        }
+    }
+
+    /**
+     * Спрашивает, что делать с загруженной книгой (temporary или обычной).
+     * - Temporary: всегда спрашивает (save → promote, discard → delete)
+     * - Обычная: спрашивает только если есть изменения (save, discard)
+     *
+     * @return true если можно продолжать (сохранено / не сохранять / книги нет),
+     *         false если пользователь нажал «Отмена»
+     */
+    private boolean handleLoadedBookBeforeAction() {
+        BookManager bookManager = BookManager.getInstance();
+
+        // ========== TEMPORARY ==========
+        if (bookManager.isTemporaryMultiBook()) {
+            Alert alert = createBookSaveAlert();
+            ButtonType result = alert.showAndWait().orElse(ButtonType.CANCEL);
+
+            if (result.getButtonData() == ButtonBar.ButtonData.CANCEL_CLOSE) {
+                return false;
+            }
+
+            if (result.getButtonData() == ButtonBar.ButtonData.YES) {
+                // Сохранить
+                try {
+                    if (bookManager.hasUnsavedChanges()) {
+                        boardView.getNavController().setBookParser(null);
+                        bookManager.saveBook();
+                    }
+                    Path saved = bookManager.promoteTemporaryToPermanent(null);
+                    boardView.updateBookUnsavedIndicator(false);
+                    if (menuFactory != null) menuFactory.updateBooksMenu();
+                    showNotification(String.format(lang.get(LanguageKeys.BOOK_SAVED),
+                            saved != null ? saved.toAbsolutePath().toString() : "?"));
+                } catch (IOException e) {
+                    log.error("Failed to save temp book", e);
+                    showError(lang.get(LanguageKeys.BOOK_SAVE_ERROR), e.getMessage());
+                    return false;
+                }
+            } else {
+                // Не сохранять
+                bookManager.discardTemporaryMultiBook();
+            }
+            return true;
+        }
+
+        // ========== ОБЫЧНАЯ ==========
+        if (bookManager.isBookLoaded() && bookManager.hasUnsavedChanges()) {
+            Alert alert = createBookSaveAlert();
+            ButtonType result = alert.showAndWait().orElse(ButtonType.CANCEL);
+
+            if (result.getButtonData() == ButtonBar.ButtonData.CANCEL_CLOSE) {
+                return false;
+            }
+
+            if (result.getButtonData() == ButtonBar.ButtonData.YES) {
+                try {
+                    bookManager.saveBook();
+                    boardView.updateBookUnsavedIndicator(false);
+                    if (menuFactory != null) menuFactory.updateBooksMenu();
+                    showNotification(String.format(lang.get(LanguageKeys.BOOK_SAVED),
+                            bookManager.getCurrentBookPath().toAbsolutePath().toString()));
+                } catch (IOException e) {
+                    log.error("Failed to save book", e);
+                    showError(lang.get(LanguageKeys.BOOK_SAVE_ERROR), e.getMessage());
+                    return false;
+                }
+            } else {
+                bookManager.clearUnsavedChanges();
+            }
+        }
+
+        return true;   // книги нет или изменений нет — можно продолжать
+    }
+
+    private Alert createBookSaveAlert() {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle(lang.get(LanguageKeys.BOOK_SAVE_TITLE));
+        alert.setHeaderText(lang.get(LanguageKeys.BOOK_SAVE_HEADER));
+        alert.setContentText(lang.get(LanguageKeys.BOOK_SAVE_CONTENT));
+
+        ButtonType saveButton = new ButtonType(lang.get(SAVE_GAME_SAVE), ButtonBar.ButtonData.YES);
+        ButtonType noSaveButton = new ButtonType(lang.get(SAVE_GAME_DONT_SAVE), ButtonBar.ButtonData.NO);
+        ButtonType cancelButton = new ButtonType(lang.get(SAVE_GAME_CANCEL), ButtonBar.ButtonData.CANCEL_CLOSE);
+
+        alert.getButtonTypes().setAll(saveButton, noSaveButton, cancelButton);
+        return alert;
+    }
+
+    /**
+     * Проверяет, хватает ли памяти для построения книги из указанного количества партий.
+     * Показывает предупреждение, если памяти мало.
+     *
+     * @param totalGames количество партий
+     * @return true — можно продолжать, false — пользователь отменил
+     */
+    private boolean checkMemoryForBookBuild(int totalGames) {
+        if (totalGames <= 0) return true;
+
+        // Оценка: ~80 полуходов × ~100 байт на запись × ~70% уникальных
+        long estimatedHeapBytes = (long) totalGames * 80L * 100L;
+        long maxHeapBytes = Runtime.getRuntime().maxMemory();
+
+        // 20% запас на buildEntries, GC, фрагментацию
+        long requiredHeapBytes = (long) (estimatedHeapBytes * 1.2);
+
+        if (maxHeapBytes >= requiredHeapBytes) {
+            return true;
+        }
+
+        long estimatedMb = estimatedHeapBytes / (1024 * 1024);
+        long maxMb = maxHeapBytes / (1024 * 1024);
+
+        Alert warn = new Alert(Alert.AlertType.WARNING);
+        warn.setTitle(lang.get(MEMORY_WARNING_TITLE));
+        warn.setHeaderText(null);
+        warn.setContentText(String.format(
+                lang.get(MEMORY_WARNING_CONTENT),
+                totalGames,
+                estimatedMb,
+                maxMb
+        ));
+
+        ButtonType proceedButton = new ButtonType(
+                lang.get(MEMORY_WARNING_PROCEED), ButtonBar.ButtonData.YES);
+        ButtonType cancelButton = new ButtonType(
+                lang.get(MEMORY_WARNING_CANCEL), ButtonBar.ButtonData.CANCEL_CLOSE);
+        warn.getButtonTypes().setAll(proceedButton, cancelButton);
+
+        return warn.showAndWait().orElse(cancelButton) == proceedButton;
     }
 
 }

@@ -48,6 +48,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static Khrypach.Andrey.chess.kletka.engine.UciConstants.ANALYSIS_MOVETIME_MS;
+import static Khrypach.Andrey.chess.kletka.engine.UciConstants.SEARCH_MULTIPV_MIN;
 import static Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys.*;
 
 public class EngineAnalysisPanel extends VBox {
@@ -185,6 +187,14 @@ public class EngineAnalysisPanel extends VBox {
         setupAnalysisTimer();
     }
 
+    /**
+     * Возвращает MultiPV, который нужно передать движку для поиска
+     * (минимум 2 — «хитрость ChessBase»).
+     */
+    public int getCurrentMultiPvForSearch() {
+        return Math.max(2, currentLinesCount);
+    }
+
     private void addInitialAnalysisLine() {
         AnalysisLine firstLine = new AnalysisLine(1);
         analysisLines.add(firstLine);
@@ -231,18 +241,18 @@ public class EngineAnalysisPanel extends VBox {
                         engineManager.stopAnalysis();
                     }
                 });
-
                 Thread.sleep(100);
 
-                engineManager.setMultiPV(currentLinesCount);
+                // ========== ТА ЖЕ ХИТРОСТЬ ==========
+                int searchMultiPv = Math.max(SEARCH_MULTIPV_MIN, currentLinesCount);
+                engineManager.setMultiPV(searchMultiPv);
+                engineManager.clearAnalysisInfo();
 
                 Thread.sleep(50);
 
                 Board currentBoard = boardView.getCurrentBoard();
                 engineManager.sendPosition(currentBoard);
-
-                // ========== ИСПОЛЬЗУЕМ ГЛУБИНУ 14 ПОЛУХОДОВ (7 ХОДОВ) ==========
-                engineManager.startAnalysisWithDepth(14);
+                engineManager.startAnalysisWithTime(ANALYSIS_MOVETIME_MS);
 
                 Platform.runLater(() -> {
                     for (AnalysisLine line : analysisLines) {
@@ -294,13 +304,17 @@ public class EngineAnalysisPanel extends VBox {
         startStopButton.setStyle("-fx-background-color: #dc143c; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-min-width: 60px; -fx-min-height: 30px;");
         thinkingIndicator.setVisible(true);
 
-        engineManager.setMultiPV(currentLinesCount);
+        int searchMultiPv = Math.max(SEARCH_MULTIPV_MIN, currentLinesCount);
+        engineManager.setMultiPV(searchMultiPv);
+
+        // 2. Очищаем старые данные, чтобы не «залипали» линии с прошлой позиции.
+        engineManager.clearAnalysisInfo();
 
         assert boardView != null;
         Board currentBoard = boardView.getCurrentBoard();
         engineManager.sendPosition(currentBoard);
 
-        engineManager.startAnalysisWithDepth(14);
+        engineManager.startAnalysisWithDepth(ANALYSIS_MOVETIME_MS);
     }
 
     public void stopAnalysis() {

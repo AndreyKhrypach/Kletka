@@ -177,20 +177,6 @@ class VariationTest {
             assertThat(variation.isEmpty()).isTrue();
             assertThat(variation.getMoveCount()).isEqualTo(0);
         }
-
-        @Test
-        @DisplayName("Должен обновлять displayName после добавления ходов")
-        void shouldUpdateDisplayNameAfterAddingMoves() {
-            // when
-            variation.addMove(move1);
-            variation.addMove(move2);
-
-            // then
-            assertThat(variation.getDisplayName().get())
-                    .contains(lang.get(LanguageKeys.VARIATION_DEFAULT_NAME))
-                    .contains("e4")
-                    .contains("e5");
-        }
     }
 
     // ============================================================
@@ -374,23 +360,6 @@ class VariationTest {
             assertThat(variation.getMoveCount()).isEqualTo(0);
             assertThat(variation.getFirstNode()).isNull();
         }
-
-        @Test
-        @DisplayName("Должен обновлять displayName после очистки")
-        void shouldUpdateDisplayNameAfterClear() {
-            // given
-            variation.addMove(move1);
-            variation.addMove(move2);
-            String before = variation.getDisplayName().get();
-
-            // when
-            variation.clearMoves();
-
-            // then
-            assertThat(variation.getDisplayName().get())
-                    .isNotEqualTo(before)
-                    .isEqualTo(lang.get(LanguageKeys.VARIATION_DEFAULT_NAME));
-        }
     }
 
     // ============================================================
@@ -412,22 +381,6 @@ class VariationTest {
 
             // then
             assertThat(variation.getName()).isEqualTo(newName);
-        }
-
-        @Test
-        @DisplayName("Должен обновлять displayName после смены имени")
-        void shouldUpdateDisplayNameAfterNameChange() {
-            // given
-            variation.addMove(move1);
-            String oldDisplayName = variation.getDisplayName().get();
-
-            // when
-            variation.setName("Новое имя");
-
-            // then
-            assertThat(variation.getDisplayName().get())
-                    .isNotEqualTo(oldDisplayName)
-                    .startsWith("Новое имя");
         }
     }
 
@@ -689,47 +642,6 @@ class VariationTest {
 
             // then
             assertThat(variation.getParentPly()).isEqualTo(5);
-        }
-
-        @Test
-        @DisplayName("Должен получать displayName")
-        void shouldGetDisplayName() {
-            // then
-            assertThat(variation.getDisplayName()).isNotNull();
-            assertThat(variation.getDisplayName().get()).isEqualTo(lang.get(LanguageKeys.VARIATION_DEFAULT_NAME));
-        }
-
-        @Test
-        @DisplayName("displayName должен обновляться при добавлении ходов")
-        void displayNameShouldUpdateWhenAddingMoves() {
-            // when
-            variation.addMove(move1);
-            variation.addMove(move2);
-            variation.addMove(move3);
-
-            // then
-            String displayName = variation.getDisplayName().get();
-            assertThat(displayName).contains("e4", "e5", "Nf3");
-            assertThat(displayName).doesNotContain("..."); // 3 хода, без троеточия
-        }
-
-        @Test
-        @DisplayName("displayName должен показывать троеточие при 4+ ходах")
-        void displayNameShouldShowEllipsisForManyMoves() {
-            // given
-            Move m4 = new Move(Square.D2, Square.D4, Piece.WHITE_PAWN);
-            MoveNode move4 = new MoveNode(m4, Piece.WHITE_PAWN, false, null);
-            move4.setSavedFenBefore("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-
-            // when
-            variation.addMove(move1);
-            variation.addMove(move2);
-            variation.addMove(move3);
-            variation.addMove(move4);
-
-            // then
-            String displayName = variation.getDisplayName().get();
-            assertThat(displayName).contains("...");
         }
     }
 }

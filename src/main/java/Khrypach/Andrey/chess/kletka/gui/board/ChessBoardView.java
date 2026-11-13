@@ -83,6 +83,9 @@ public class ChessBoardView extends Application {
     private static final boolean IS_LINUX =
             System.getProperty("os.name").toLowerCase().contains("nux");
 
+    private static final long ENGINE_MOVE_DEBOUNCE_MS = 300;
+    private long lastEngineMoveTime = 0;
+
     private final LanguageManager lang = LanguageManager.getInstance();
 
     private Board chessBoard;
@@ -335,7 +338,9 @@ public class ChessBoardView extends Application {
                 }
 
                 if (analysisPanel != null && analysisPanel.isAnalyzingActive()) {
-                    makeEngineMove();
+                    if (canMakeEngineMove()) {
+                        makeEngineMove();
+                    }
                 } else {
                     showTemporaryMessage(lang.get(ENGINE_ANALYSIS_NOT_ACTIVE));
                 }
@@ -645,6 +650,15 @@ public class ChessBoardView extends Application {
         scene.getAccelerators().put(ctrlE, () -> {
             if (mainController != null) {
                 Platform.runLater(mainController::exportCurrentGameToPgn);
+            }
+        });
+
+        // ========== Ctrl+Alt+E — Очистить комментарии в PGN-файле ==========
+        KeyCombination ctrlAltE = new KeyCodeCombination(KeyCode.E,
+                KeyCombination.CONTROL_DOWN, KeyCombination.ALT_DOWN);
+        scene.getAccelerators().put(ctrlAltE, () -> {
+            if (mainController != null) {
+                Platform.runLater(mainController::clearPgnFileComments);
             }
         });
 
@@ -1697,6 +1711,25 @@ public class ChessBoardView extends Application {
                     return true;
                 }
             }
+
+            Board testBoard = chessBoard.clone();
+
+            // 1. Проверяем, не стоит ли мат той стороне, чей сейчас ход
+            if (testBoard.isMated()) {
+                log.warn("Illegal position: side to move is checkmated");
+                return true; // Нелегально
+            }
+
+            // 2. Проверяем, не стоит ли мат противоположной стороне
+            // (если ход белых, а мат уже стоит чёрным — это невозможно, игра должна была закончиться)
+            Side originalSide = testBoard.getSideToMove();
+            testBoard.setSideToMove(originalSide.flip());
+
+            if (testBoard.isMated()) {
+                log.warn("Illegal position: opponent is already checkmated (game should be over)");
+                return true; // Нелегально
+            }
+
         } catch (Exception e) {
             log.debug("Error checking king attack: {}", e.getMessage());
         }
@@ -1737,12 +1770,6 @@ public class ChessBoardView extends Application {
         if (navController != null) {
             navController.resetWithNewBoard(newBoard, startWithBlack);
             navController.setInitialPosition(newBoard);
-
-            // Проверяем, что дерево корректно инициализировано
-            if (navController.getRootVariation() != null &&
-                    navController.getRootVariation().getFirstNode() != null) {
-                navController.updateAllVariationNames();
-            }
 
             // Обновляем доску
             chessBoard = newBoard.clone();
@@ -2203,6 +2230,15 @@ public class ChessBoardView extends Application {
         if (currentVar == null || mainLine == null) return true;
 
         return currentVar.isMainLine();
+    }
+
+    private boolean canMakeEngineMove() {
+        long now = System.currentTimeMillis();
+        if (now - lastEngineMoveTime < ENGINE_MOVE_DEBOUNCE_MS) {
+            return false;
+        }
+        lastEngineMoveTime = now;
+        return true;
     }
 
 }

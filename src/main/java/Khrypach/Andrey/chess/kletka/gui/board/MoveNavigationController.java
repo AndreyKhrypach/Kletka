@@ -37,6 +37,7 @@ import com.github.bhlangonijr.chesslib.move.Move;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.ImageView;
@@ -64,6 +65,8 @@ public class MoveNavigationController {
     private final LanguageManager languageManager = LanguageManager.getInstance();
 
     private static final long ENGINE_UPDATE_DELAY_MS = 200;
+    private static final long NAV_DEBOUNCE_MS = 300;
+    private long lastNavTime = 0;
 
     // Корневой узел (начальная позиция)
     @Getter
@@ -100,7 +103,6 @@ public class MoveNavigationController {
     @Getter
     private final ChessBoardView boardView;
     private final NotationView notationView;
-    private boolean isUpdatingNames = false;
 
     // Движок
     @Getter
@@ -149,6 +151,8 @@ public class MoveNavigationController {
     @Getter
     @Setter
     private Runnable onTreeChanged;
+
+
 
     public MoveNavigationController(ChessBoardView boardView, NotationView notationView) {
         this.boardView = boardView;
@@ -241,6 +245,10 @@ public class MoveNavigationController {
      */
     public void resetInitialPosition() {
         this.initialPosition = null;
+    }
+
+    private void notifyTreeChanged() {
+        if (onTreeChanged != null) onTreeChanged.run();
     }
 
     /**
@@ -755,6 +763,12 @@ public class MoveNavigationController {
 
         log.trace("Navigating to: {} in variation: {}", targetNode.getSan(), targetVariation.getName());
 
+        // ========== ПРОВЕРКА 3-КРАТНОГО ПОВТОРЕНИЯ ==========
+        if (isThreefoldRepetition(targetNode)) {
+            Platform.runLater(this::showDrawByRepetitionAlert);
+            return;
+        }
+
         // Находим путь через родителей
         List<ParentNode> path = pathBuilder.buildPathFromParents(targetNode);
 
@@ -867,6 +881,7 @@ public class MoveNavigationController {
         notifyPositionChanged();
         sendCurrentPositionToEngine();
         updateOpeningAfterNewMove();
+        notifyTreeChanged();
 
         return snapshot.operationResult();
     }
@@ -944,6 +959,7 @@ public class MoveNavigationController {
 
         resetOpening();
         updateOpeningAfterNewMove();
+        notifyTreeChanged();
 
         if (notationView != null) {
             Platform.runLater(() -> {
@@ -1049,6 +1065,7 @@ public class MoveNavigationController {
         updatePathBuilder();
         resetOpening();
         updateOpeningAfterNewMove();
+        notifyTreeChanged();
 
         if (notationView != null) {
             notationView.refreshFromMainLine();
@@ -1111,8 +1128,9 @@ public class MoveNavigationController {
         currentNode = parentNode;
 
         restoreBoardFromCurrentNode();
-        updateAllVariationNames();
+        updateNotationView();
         sendCurrentPositionToEngine();
+        notifyTreeChanged();
 
         if (boardView != null) {
             boardView.notifyPositionChanged();
@@ -1230,37 +1248,16 @@ public class MoveNavigationController {
         Board currentBoard = boardView.getCurrentBoard();
 
         engineManager.stopAnalysis();
+        engineManager.clearAnalysisInfo();
+
+        int searchMultiPv = Math.max(2,
+                boardView.getAnalysisPanel() != null
+                        ? boardView.getAnalysisPanel().getCurrentMultiPvForSearch()
+                        : 2);
+        engineManager.setMultiPV(searchMultiPv);
+
         engineManager.sendPosition(currentBoard);
-
-        engineManager.startAnalysisWithDepth(14);
-    }
-
-    /**
-     * Обновляет имена всех вариантов
-     */
-    public void updateAllVariationNames() {
-        if (isUpdatingNames) {
-            log.trace("Skipping duplicate update");
-            return;
-        }
-
-        isUpdatingNames = true;
-        try {
-            if (mainLine == null) {
-                log.debug("mainLine is null (empty game)");
-                return;
-            }
-
-            ParentNode firstNode = mainLine.getFirstNode();
-            if (firstNode == null) {
-                log.debug("mainLine has no firstNode yet (empty game)");
-                return;
-            }
-
-            variationManager.updateAllVariationNames();
-        } finally {
-            isUpdatingNames = false;
-        }
+        engineManager.startAnalysisWithTime(5000);
     }
 
     /**
@@ -1326,6 +1323,7 @@ public class MoveNavigationController {
 
         // ========== ПРОВЕРКА РЕЖИМА ПРИ НАЖАТИИ ==========
         firstBtn.setOnAction(e -> Platform.runLater(() -> {
+            if (!canNavigate()) return;
             if (navigationMode == NavigationMode.BOOK) {
                 moveSelectionUp();
             } else {
@@ -1334,6 +1332,7 @@ public class MoveNavigationController {
         }));
 
         prevBtn.setOnAction(e -> Platform.runLater(() -> {
+            if (!canNavigate()) return;
             if (navigationMode == NavigationMode.BOOK) {
                 goToParentLevel();
             } else {
@@ -1342,6 +1341,7 @@ public class MoveNavigationController {
         }));
 
         nextBtn.setOnAction(e -> Platform.runLater(() -> {
+            if (!canNavigate()) return;
             if (navigationMode == NavigationMode.BOOK) {
                 selectCurrentVariation();
             } else {
@@ -1350,6 +1350,7 @@ public class MoveNavigationController {
         }));
 
         lastBtn.setOnAction(e -> Platform.runLater(() -> {
+            if (!canNavigate()) return;
             if (navigationMode == NavigationMode.BOOK) {
                 moveSelectionDown();
             } else {
@@ -1429,35 +1430,52 @@ public class MoveNavigationController {
     private void handlePgnKeyPress(KeyEvent event) {
         switch (event.getCode()) {
             case LEFT -> {
+                if (!canNavigate()) return;
                 log.trace("LEFT pressed (PGN mode)");
                 goToPreviousMove();
             }
             case RIGHT -> {
+                if (!canNavigate()) return;
                 log.trace("RIGHT pressed (PGN mode)");
                 goToNextMove();
             }
             case UP -> {
+                if (!canNavigate()) return;
                 log.trace("UP pressed (PGN mode)");
                 goToFirstMove();
             }
             case DOWN -> {
+                if (!canNavigate()) return;
                 log.trace("DOWN pressed (PGN mode)");
                 goToLastMove();
             }
             case HOME -> {
+                if (!canNavigate()) return;
                 log.trace("HOME pressed (PGN mode)");
                 goToFirstMove();
             }
             case END -> {
+                if (!canNavigate()) return;
                 log.trace("END pressed (PGN mode)");
                 goToLastMove();
             }
-            // В PGN режиме Enter не используется
             case ENTER -> log.trace("ENTER pressed (PGN mode) - ignored");
-            default -> {
-                // Игнорируем
-            }
+            default -> {}
         }
+    }
+
+    /**
+     * Debounce: не чаще одного раза в NAV_DEBOUNCE_MS.
+     * Защита от auto-repeat при зажатой клавише.
+     */
+    private boolean canNavigate() {
+        long now = System.currentTimeMillis();
+        if (now - lastNavTime < NAV_DEBOUNCE_MS) {
+            log.trace("Navigation debounced ({} ms)", now - lastNavTime);
+            return false;
+        }
+        lastNavTime = now;
+        return true;
     }
 
     /**
@@ -1465,34 +1483,28 @@ public class MoveNavigationController {
      * Новая логика для навигации по уровням
      */
     private void handleBookKeyPress(KeyEvent event) {
-        log.trace("handleBookKeyPress: code={}", event.getCode());
-
         switch (event.getCode()) {
             case UP -> {
-                log.trace("UP pressed (BOOK mode)");
+                if (!canNavigate()) return;
                 moveSelectionUp();
             }
             case DOWN -> {
-                log.trace("DOWN pressed (BOOK mode)");
+                if (!canNavigate()) return;
                 moveSelectionDown();
             }
             case LEFT -> {
-                log.trace("LEFT pressed (BOOK mode)");
-                // ← ВОЗВРАТ НА ПРЕДЫДУЩИЙ УРОВЕНЬ
+                if (!canNavigate()) return;
                 goToParentLevel();
             }
             case RIGHT, ENTER -> {
-                log.trace("RIGHT/ENTER pressed (BOOK mode)");
-                // → ВЫБОР ВАРИАНТА И ПЕРЕХОД НА СЛЕДУЮЩИЙ УРОВЕНЬ
+                if (!canNavigate()) return;
                 selectCurrentVariation();
             }
             case HOME -> {
-                log.trace("HOME pressed (BOOK mode)");
+                if (!canNavigate()) return;
                 goToRootLevel();
             }
-            default -> {
-                // Игнорируем
-            }
+            default -> {}
         }
     }
 
@@ -1530,6 +1542,13 @@ public class MoveNavigationController {
 
         ParentNode firstNode = selected.getFirstNode();
         if (firstNode != null && !firstNode.isRoot()) {
+
+            // ========== ПРОВЕРКА 5-КРАТНОГО ПОВТОРЕНИЯ ==========
+            if (isThreefoldRepetition(firstNode)) {
+                Platform.runLater(this::showDrawByRepetitionAlert);
+                return;
+            }
+
             currentNode = firstNode;
             currentVariation = selected;
 
@@ -1542,6 +1561,14 @@ public class MoveNavigationController {
             updateOpeningForCurrentPosition();
             sendCurrentPositionToEngine();
         }
+    }
+
+    private void showDrawByRepetitionAlert() {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(languageManager.get(LanguageKeys.DRAW_BY_REPETITION_TITLE));
+        alert.setHeaderText(null);
+        alert.setContentText(languageManager.get(LanguageKeys.DRAW_BY_REPETITION_3FOLD));
+        alert.showAndWait();
     }
 
     /**
@@ -1845,9 +1872,6 @@ public class MoveNavigationController {
 
         // Проверяем только по узлу
         if (!node.getSubVariations().isEmpty()) {
-            log.trace("[NAV] node={} already has {} subVariations, skip",
-                    node.isRoot() ? "ROOT" : node.getSan(),
-                    node.getSubVariations().size());
             return;
         }
 
@@ -1865,5 +1889,87 @@ public class MoveNavigationController {
         updateCurrentVariations();
         selectedVariationIndex = 0;
         updateOpeningForCurrentPosition();   // <-- ОБНОВЛЯЕМ ДЕБЮТ
+    }
+
+    /**
+     * Рекурсивно обходит дерево и очищает все аннотации/комментарии.
+     * @return количество удалённых элементов
+     */
+    public int clearAllAnnotationsAndComments() {
+        if (rootNode == null) {
+            return 0;
+        }
+        Set<ParentNode> visited = new HashSet<>();
+        int removed = clearRecursive(rootNode, visited);
+
+        // Обновляем нотацию
+        if (notationView != null) {
+            Platform.runLater(() -> {
+                notationView.refreshFromMainLine();
+                notationView.updateNotationDisplayWithVisitor();
+            });
+        }
+
+        log.debug("Cleared {} annotations/comments from tree", removed);
+        return removed;
+    }
+
+    private int clearRecursive(ParentNode node, Set<ParentNode> visited) {
+        if (node == null || !visited.add(node)) {
+            return 0;
+        }
+        int removed = node.clearAnnotationsAndComments();
+
+        // next
+        removed += clearRecursive(node.getNext(), visited);
+
+        // subVariations
+        if (node.getSubVariations() != null) {
+            for (Variation var : node.getSubVariations()) {
+                if (var == null) continue;
+                for (ParentNode moveNode : var.getMoves()) {
+                    removed += clearRecursive(moveNode, visited);
+                }
+            }
+        }
+        return removed;
+    }
+
+    /**
+     * Проверяет, приведёт ли переход к узлу targetNode к 3-кратному повторению позиции.
+     * Возвращает true, если это 3-е вхождение (нужно остановить навигацию).
+     */
+    private boolean isThreefoldRepetition(ParentNode targetNode) {
+        if (targetNode == null) return false;
+        String newFen = normalizeFenForRepetition(targetNode.getSavedFenAfter());
+        if (newFen == null) return false;
+        return countFenInPath(currentNode, newFen) >= 2;
+    }
+
+    /**
+     * Считает, сколько раз позиция (нормализованный FEN без halfMoveClock/fullMoveNumber)
+     * уже встречалась в пути от currentNode к корню (включительно).
+     *
+     * @param startNode узел, от которого идём вверх
+     * @param fen       нормализованный FEN искомой позиции
+     * @return количество вхождений
+     */
+    private int countFenInPath(ParentNode startNode, String fen) {
+        if (fen == null) return 0;
+        int count = 0;
+        ParentNode p = startNode;
+        while (p != null) {
+            String pFen = normalizeFenForRepetition(p.getSavedFenAfter());
+            if (fen.equals(pFen)) count++;
+            p = p.getParent();
+        }
+        return count;
+    }
+
+    private String normalizeFenForRepetition(String fen) {
+        if (fen == null || fen.isEmpty()) return null;
+        String[] parts = fen.trim().split("\\s+");
+        if (parts.length < 4) return fen;
+        return parts[0] + " " + parts[1] + " " + parts[2] + " " + parts[3];
     }
 }

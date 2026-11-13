@@ -271,7 +271,7 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.MENU_ENGINE_CONFIGURE, "Configure Engine");
         strings.put(LanguageKeys.MENU_ENGINE_ANALYZE, "Show Best Move");
         strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_TITLE, "Illegal Position");
-        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_HEADER, "Engine cannot analyze illegal position");
+        strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_HEADER, "The engine cannot analyze an illegal or terminal position");
         strings.put(LanguageKeys.ENGINE_ILLEGAL_POSITION_CONTENT, "Position is illegal: one or both kings are missing, \n" +
                 "or they are in check, or kings are adjacent.");
 
@@ -608,7 +608,7 @@ public class EnLanguage implements Language {
 
         strings.put(LanguageKeys.SAVE_GAME_SUCCESS, "Game saved (will be added to DB later)");
 
-        strings.put(LanguageKeys.FEATURE_NOT_IMPLEMENTED, "This feature will be implemented in the future");
+        strings.put(LanguageKeys.FEATURE_NOT_IMPLEMENTED, "This feature will be implemented in version 2.0");
         strings.put(LanguageKeys.PGN_LOAD_MESSAGE, "Loading PGN");
         strings.put(LanguageKeys.PGN_SAVE_MESSAGE, "Saving PGN");
         strings.put(LanguageKeys.DB_OPEN_MESSAGE, "Opening DB");
@@ -1112,6 +1112,7 @@ public class EnLanguage implements Language {
         // ========== PGN BROWSER - FILTER ==========
         strings.put(LanguageKeys.PGN_BROWSER_FILTER_TOTAL, "Total: %d games");
         strings.put(LanguageKeys.PGN_BROWSER_FILTER_FOUND, "Found: %d of %d games");
+        strings.put(LanguageKeys.PGN_BROWSER_MSG_MULTI_LIMIT, "Selected %d games. Max for multi-load — %d.");
 
         // ========== PGN BROWSER - REPACK ==========
         strings.put(LanguageKeys.PGN_BROWSER_REPACK_TITLE, "🔄 Repack PGN file");
@@ -1309,11 +1310,61 @@ public class EnLanguage implements Language {
         strings.put(LanguageKeys.BOOK_CREATE_NO_GAMES, "No active games in file");
         strings.put(LanguageKeys.BOOK_CREATE_LOAD_AFTER, "Book created. Load it now?");
         strings.put(LanguageKeys.BOOK_CREATE_LOAD_AFTER_TITLE, "Load book");
+
+        strings.put(LanguageKeys.MEMORY_WARNING_TITLE, "Low memory");
+        strings.put(LanguageKeys.MEMORY_WARNING_CONTENT, "The file contains %d games.\nBuilding the book requires ~%d MB of memory.\nAvailable: %d MB.\n\nBuilding may freeze or fail.\nClose other applications or reduce the number of games.\n\nContinue?");
+        strings.put(LanguageKeys.MEMORY_WARNING_PROCEED, "Continue");
+        strings.put(LanguageKeys.MEMORY_WARNING_CANCEL, "Cancel");
+
         strings.put(LanguageKeys.BOOK_CREATE_STATUS_PROCESSING, "Processing games...");
         strings.put(LanguageKeys.BOOK_CREATE_STATUS_BUILDING,  "Building statistics...");
         strings.put(LanguageKeys.BOOK_CREATE_STATUS_WRITING,   "Writing file...");
         strings.put(LanguageKeys.BOOK_CREATE_STATUS_COMPLETE,  "Book created!");
         strings.put(LanguageKeys.BOOK_CREATE_STATUS_PROCESSING_COMPLETE,  "All games processed (100%)");
+
+        // ========== ОЧИСТКА КОММЕНТАРИЕВ ==========
+        strings.put(LanguageKeys.MENU_EDIT_CLEAR_COMMENTS,  "Clear game comments");
+        strings.put(LanguageKeys.CLEAR_COMMENTS_TITLE,  "Clear comments");
+        strings.put(LanguageKeys.CLEAR_COMMENTS_HEADER,  "Remove all comments and annotations?");
+        strings.put(LanguageKeys.CLEAR_COMMENTS_CONFIRM,  "Items to remove: %d.\nContinue?");
+        strings.put(LanguageKeys.CLEAR_COMMENTS_DONE,  "Items removed: %d");
+        strings.put(LanguageKeys.CLEAR_COMMENTS_NOTHING,  "No comments or annotations in the game");
+        strings.put(LanguageKeys.BOOK_MODE_NO_COMMENTS,  "No comments in Book mode");
+
+        // ========== ОЧИСТКА PGN-ФАЙЛА ==========
+        strings.put(LanguageKeys.MENU_EDIT_CLEAN_PGN_COMMENTS,  "Clean PGN file comments…");
+        strings.put(LanguageKeys.CLEAN_PGN_DIALOG_TITLE,  "Select PGN file to clean");
+        strings.put(LanguageKeys.CLEAN_PGN_PROGRESS_TITLE,  "Cleaning PGN comments");
+        strings.put(LanguageKeys.CLEAN_PGN_STATUS_STARTING,  "Preparing…");
+        strings.put(LanguageKeys.CLEAN_PGN_STATUS_PROCESSING,  "Processing games…");
+        strings.put(LanguageKeys.CLEAN_PGN_STATUS_COUNT,  "Processed: %d / %d");
+        strings.put(LanguageKeys.CLEAN_PGN_STATUS_COMPLETE,  "Done");
+        strings.put(LanguageKeys.CLEAN_PGN_STATUS_CANCELLED,  "Operation cancelled");
+        strings.put(LanguageKeys.CLEAN_PGN_SUCCESS_TITLE,  "Cleaning complete");
+        strings.put(LanguageKeys.CLEAN_PGN_SUCCESS_MSG,  "File: %s\n\nGames processed: %d\nRemoved:\n  • comments: %d\n  • NAG: %d\n  • ! ? suffixes: %d\n\nTime: %.1f s");
+        strings.put(LanguageKeys.CLEAN_PGN_OPEN_TITLE,  "Open result?");
+        strings.put(LanguageKeys.CLEAN_PGN_OPEN_MSG,  "Open %s in browser?");
+        strings.put(LanguageKeys.CLEAN_PGN_NO_SPACE_TITLE,  "Not enough space");
+        strings.put(LanguageKeys.CLEAN_PGN_NO_SPACE_MSG,  "Free: %s\nRequired: ~%s\n\nFree up disk space and try again.");
+        strings.put(LanguageKeys.CLEAN_PGN_ERROR_TITLE,  "Clean error");
+        strings.put(LanguageKeys.CLEAN_PGN_STATUS_CHECKING_SPACE,  "Checking free space…");
+        strings.put(LanguageKeys.CLEAN_PGN_STATUS_LAUNCHING,  "Launching cleaning…");
+
+        // =========== мультизагрузка партий: ============
+
+        strings.put(LanguageKeys.DRAW_BY_REPETITION_TITLE,  "Draw");
+        strings.put(LanguageKeys.DRAW_BY_REPETITION_3FOLD,  "Threefold repetition of position — draw (FIDE 9.2).");
+        strings.put(LanguageKeys.MULTI_GAME_LOAD_TITLE,  "Multi-load");
+        strings.put(LanguageKeys.MULTI_GAME_PREPARING,  "Preparing %d games...");
+        strings.put(LanguageKeys.MULTI_GAME_IN_PROGRESS,  "Multi-load: %d games...");
+        strings.put(LanguageKeys.MULTI_GAME_PROGRESS,  "%d / %d");
+        strings.put(LanguageKeys.MULTI_GAME_ERROR_TITLE,  "Multi-load error");
+        strings.put(LanguageKeys.MULTI_GAME_ERROR_LOAD,  "Failed to load the book");
+        strings.put(LanguageKeys.MULTI_GAME_ERROR_GENERIC,  "Error");
+        strings.put(LanguageKeys.BOOK_BUILD_PROCESSING,  "Processed %d of %d");
+        strings.put(LanguageKeys.BOOK_BUILD_ASSEMBLING,  "Assembling book entries...");
+        strings.put(LanguageKeys.BOOK_BUILD_WRITING,  "Writing file...");
+        strings.put(LanguageKeys.BOOK_BUILD_DONE,  "Done");
     }
 
     private static StringBuilder createShortcutsContent() {
@@ -1336,6 +1387,7 @@ public class EnLanguage implements Language {
         shortcutsContent.append("  Ctrl+Shift+P - Копировать позицию\n");
         shortcutsContent.append("  Ctrl+Z - Undo marker\n");
         shortcutsContent.append("  Ctrl+Y - Redo marker\n");
+        shortcutsContent.append("  Ctrl+Alt+E - Remove comments in PGN file");
         shortcutsContent.append("  Ctrl+Shift+O - Preferences\n");
 
         // 👁️ View

@@ -1128,6 +1128,7 @@ public class LanguageKeys {
     // PGN Browser - Filter
     public static final String PGN_BROWSER_FILTER_TOTAL = "pgn.browser.filter.total";
     public static final String PGN_BROWSER_FILTER_FOUND = "pgn.browser.filter.found";
+    public static final String PGN_BROWSER_MSG_MULTI_LIMIT = "pgn.browser.msg.multi.limit";
 
     // PGN Browser - Repack
     public static final String PGN_BROWSER_REPACK_TITLE = "pgn.browser.repack.title";
@@ -1251,10 +1252,59 @@ public class LanguageKeys {
     public static final String BOOK_CREATE_LOAD_AFTER = "book.create.load.after";
     public static final String BOOK_CREATE_LOAD_AFTER_TITLE = "book.create.load.after.title";
 
+    public static final String MEMORY_WARNING_TITLE = "memory.warning.title";
+    public static final String MEMORY_WARNING_CONTENT = "memory.warning.content";
+    public static final String MEMORY_WARNING_PROCEED = "memory.warning.proceed";
+    public static final String MEMORY_WARNING_CANCEL = "memory.warning.cancel";
+
     // ========== BOOK CREATE - STATUS ==========
-    public static final String BOOK_CREATE_STATUS_PROCESSING = "BOOK_CREATE_STATUS_PROCESSING";
-    public static final String BOOK_CREATE_STATUS_BUILDING  = "BOOK_CREATE_STATUS_BUILDING";
-    public static final String BOOK_CREATE_STATUS_WRITING   = "BOOK_CREATE_STATUS_WRITING";
-    public static final String BOOK_CREATE_STATUS_COMPLETE  = "BOOK_CREATE_STATUS_COMPLETE";
-    public static final String BOOK_CREATE_STATUS_PROCESSING_COMPLETE = "BOOK_CREATE_STATUS_PROCESSING_COMPLETE";
+    public static final String BOOK_CREATE_STATUS_PROCESSING = "book.create.status.processing";
+    public static final String BOOK_CREATE_STATUS_BUILDING  = "book.create.status.building";
+    public static final String BOOK_CREATE_STATUS_WRITING   = "book.create.status.writing";
+    public static final String BOOK_CREATE_STATUS_COMPLETE  = "book.create.status.complete";
+    public static final String BOOK_CREATE_STATUS_PROCESSING_COMPLETE = "book.create.status.processing.complete";
+
+
+    // ========== ОЧИСТКА КОММЕНТАРИЕВ ==========
+    public static final String MENU_EDIT_CLEAR_COMMENTS = "menu.edit.clearComments";
+    public static final String CLEAR_COMMENTS_TITLE = "clearComments.title";
+    public static final String CLEAR_COMMENTS_HEADER = "clearComments.header";
+    public static final String CLEAR_COMMENTS_CONFIRM = "clearComments.confirm";
+    public static final String CLEAR_COMMENTS_DONE = "clearComments.done";
+    public static final String CLEAR_COMMENTS_NOTHING = "clearComments.nothing";
+    public static final String BOOK_MODE_NO_COMMENTS = "bookMode.noComments";
+
+    // ========== ОЧИСТКА PGN-ФАЙЛА ==========
+    public static final String MENU_EDIT_CLEAN_PGN_COMMENTS = "menu.edit.cleanPgnComments";
+    public static final String CLEAN_PGN_DIALOG_TITLE = "cleanPgn.dialogTitle";
+    public static final String CLEAN_PGN_PROGRESS_TITLE = "cleanPgn.progressTitle";
+    public static final String CLEAN_PGN_STATUS_STARTING = "cleanPgn.statusStarting";
+    public static final String CLEAN_PGN_STATUS_PROCESSING = "cleanPgn.statusProcessing";
+    public static final String CLEAN_PGN_STATUS_COUNT = "cleanPgn.statusCount";
+    public static final String CLEAN_PGN_STATUS_COMPLETE = "cleanPgn.statusComplete";
+    public static final String CLEAN_PGN_STATUS_CANCELLED = "cleanPgn.statusCancelled";
+    public static final String CLEAN_PGN_SUCCESS_TITLE = "cleanPgn.successTitle";
+    public static final String CLEAN_PGN_SUCCESS_MSG = "cleanPgn.successMsg";
+    public static final String CLEAN_PGN_OPEN_TITLE = "cleanPgn.openTitle";
+    public static final String CLEAN_PGN_OPEN_MSG = "cleanPgn.openMsg";
+    public static final String CLEAN_PGN_NO_SPACE_TITLE = "cleanPgn.noSpaceTitle";
+    public static final String CLEAN_PGN_NO_SPACE_MSG = "cleanPgn.noSpaceMsg";
+    public static final String CLEAN_PGN_ERROR_TITLE = "cleanPgn.errorTitle";
+    public static final String CLEAN_PGN_STATUS_CHECKING_SPACE = "cleanPgn.statusCheckingSpace";
+    public static final String CLEAN_PGN_STATUS_LAUNCHING = "cleanPgn.statusLaunching";
+
+    // =========== мультизагрузка партий: ============
+    public static final String DRAW_BY_REPETITION_TITLE = "draw.by.repetition.title";
+    public static final String DRAW_BY_REPETITION_3FOLD = "draw.by.repetition.3fold";
+    public static final String MULTI_GAME_LOAD_TITLE = "multigame.load.title";
+    public static final String MULTI_GAME_PREPARING = "multigame.preparing";
+    public static final String MULTI_GAME_IN_PROGRESS = "multigame.in.progress";
+    public static final String MULTI_GAME_PROGRESS = "multigame.progress";
+    public static final String MULTI_GAME_ERROR_TITLE = "multigame.error.title";
+    public static final String MULTI_GAME_ERROR_LOAD = "multigame.error.load";
+    public static final String MULTI_GAME_ERROR_GENERIC = "multigame.error.generic";
+    public static final String BOOK_BUILD_PROCESSING = "multigame.book.build.processing";
+    public static final String BOOK_BUILD_ASSEMBLING = "multigame.book.build.assembling";
+    public static final String BOOK_BUILD_WRITING = "multigame.book.build.writing";
+    public static final String BOOK_BUILD_DONE = "multigame.book.build.done";
 }

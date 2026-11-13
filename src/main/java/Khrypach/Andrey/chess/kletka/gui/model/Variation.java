@@ -22,8 +22,6 @@ package Khrypach.Andrey.chess.kletka.gui.model;
 
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageManager;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -40,7 +38,6 @@ public class Variation {
     private static int nextId = 0;
     private final int id;
     private String name;
-    private final StringProperty displayName = new SimpleStringProperty();
     private String uuid;
 
     // Ссылка на первый узел варианта (может быть RootNode или MoveNode)
@@ -69,7 +66,6 @@ public class Variation {
         this.name = name;
         this.uuid = UUID.randomUUID().toString();
         this.isMainLine = false;
-        updateDisplayName();
     }
 
     public Variation() {
@@ -108,7 +104,6 @@ public class Variation {
                 moveNode.setParent(last);
             }
         }
-        updateDisplayName();
     }
 
     /**
@@ -116,7 +111,6 @@ public class Variation {
      */
     public void clearMoves() {
         firstNode = null;
-        updateDisplayName();
     }
 
     /**
@@ -150,26 +144,6 @@ public class Variation {
      */
     public boolean isEmpty() {
         return firstNode == null || firstNode.isRoot();
-    }
-
-    private void updateDisplayName() {
-        StringBuilder sb = new StringBuilder(name);
-        List<ParentNode> moves = getMoves();
-        if (!moves.isEmpty()) {
-            sb.append(" (");
-            for (int i = 0; i < Math.min(3, moves.size()); i++) {
-                if (i > 0) sb.append(" ");
-                sb.append(moves.get(i).getSan());
-            }
-            if (moves.size() > 3) sb.append("...");
-            sb.append(")");
-        }
-        displayName.set(sb.toString());
-    }
-
-    public void setName(String name) {
-        this.name = name;
-        updateDisplayName();
     }
 
     public ParentNode getFirstNode() {

@@ -29,9 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -70,6 +68,12 @@ public class BookManager {
     @Getter
     private final BookEditor bookEditor = new BookEditor();
 
+    @Getter
+    private boolean temporaryMultiBook = false;
+    @Getter
+    private Path temporaryMultiBookSourcePgn = null;
+    @Getter
+    private int temporaryMultiBookGameCount = 0;
 
     // Стек для undo
     private final Deque<BookAction> undoStack = new ArrayDeque<>();
@@ -95,6 +99,11 @@ public class BookManager {
         if (bookPath == null || !Files.exists(bookPath)) {
             log.warn("Book file not found: {}", bookPath);
             return false;
+        }
+
+        if (currentParser != null) {
+            currentParser.close();
+            currentParser = null;
         }
 
         try {
@@ -144,6 +153,13 @@ public class BookManager {
         this.totalEntries = 0;
 
         clearUndoStack();
+
+        // Если это временная мультикнига — удаляем файл при выгрузке
+        if (temporaryMultiBook) {
+            discardTemporaryMultiBook();
+            log.info("[BOOK] Temporary multi-book discarded on clearBook");
+            return;  // дальше обычная очистка не нужна — discard всё сделал
+        }
 
         AppPreferences.saveRecentBook(null);
         log.debug("Book cleared");
@@ -202,6 +218,7 @@ public class BookManager {
         if (!bookLoaded || currentParser == null || node == null || board == null) {
             return;
         }
+
 
         if (!node.getSubVariations().isEmpty()) {
             return;
@@ -330,6 +347,157 @@ public class BookManager {
 
     public void clearUndoStack() {
         undoStack.clear();
+    }
+
+    //===Мультизагрузка партий - временная полиглот книга===
+
+    /**
+     * Помечает загруженную книгу как временную мультикнигу.
+     */
+    public void markAsTemporaryMultiBook(Path sourcePgn, int gameCount) {
+        this.temporaryMultiBook = true;
+        this.temporaryMultiBookSourcePgn = sourcePgn;
+        this.temporaryMultiBookGameCount = gameCount;
+        log.info("[MULTI-BOOK] Marked as temporary: source={}, games={}",
+                sourcePgn, gameCount);
+    }
+
+    /**
+     * Превращает временную мультикнигу в постоянную.
+     *
+     * @param targetPath     куда переименовать; если null — <base>_MultiGames.bin рядом с PGN
+     * @param allowOverwrite если true — перезаписать существующий файл;
+     *                       если false — при конфликте добавить (1), (2), ...
+     * @return фактический путь
+     */
+    public Path promoteTemporaryToPermanent(Path targetPath, boolean allowOverwrite) throws IOException {
+        if (!temporaryMultiBook || currentBookPath == null) {
+            throw new IllegalStateException("Not a temporary multi-book");
+        }
+
+        // Применяем dirtyEntries
+        if (bookEditor.hasUnsavedChanges()) {
+            saveBook();
+        }
+
+        // Закрываем mmap перед move (Windows)
+        if (currentParser != null) {
+            currentParser.close();
+            currentParser = null;
+        }
+
+        Path target = targetPath != null ? targetPath : buildDefaultTargetPath();
+
+        // Автопереименование — только для автоматического сохранения
+        if (!allowOverwrite) {
+            target = findAvailableTarget(target);
+        }
+
+        if (target.getParent() != null && !Files.exists(target.getParent())) {
+            Files.createDirectories(target.getParent());
+        }
+
+        Path oldPath = currentBookPath;
+        try {
+            if (allowOverwrite) {
+                Files.move(oldPath, target,
+                        StandardCopyOption.REPLACE_EXISTING,
+                        StandardCopyOption.ATOMIC_MOVE);
+            } else {
+                Files.move(oldPath, target, StandardCopyOption.ATOMIC_MOVE);
+            }
+        } catch (AtomicMoveNotSupportedException e) {
+            if (allowOverwrite) {
+                Files.move(oldPath, target, StandardCopyOption.REPLACE_EXISTING);
+            } else {
+                Files.move(oldPath, target);
+            }
+        }
+
+        log.info("[MULTI-BOOK] Promoted: {} → {} (overwrite={})", oldPath, target, allowOverwrite);
+
+        // Сбрасываем флаг
+        temporaryMultiBook = false;
+        temporaryMultiBookSourcePgn = null;
+        temporaryMultiBookGameCount = 0;
+        currentBookTree = null;
+        bookLoaded = false;
+        totalEntries = 0;
+        clearUndoStack();
+
+        loadBook(target);
+        return target;
+    }
+
+    /** Backward-compatible: авто-сохранение с авто-переименованием. */
+    public Path promoteTemporaryToPermanent(Path targetPath) throws IOException {
+        return promoteTemporaryToPermanent(targetPath, false);
+    }
+
+    private Path buildDefaultTargetPath() {
+        String base = temporaryMultiBookSourcePgn != null
+                ? temporaryMultiBookSourcePgn.getFileName().toString()
+                : currentBookPath.getFileName().toString();
+        int dot = base.lastIndexOf('.');
+        if (dot > 0) base = base.substring(0, dot);
+
+        Path dir = temporaryMultiBookSourcePgn != null && temporaryMultiBookSourcePgn.getParent() != null
+                ? temporaryMultiBookSourcePgn.getParent()
+                : currentBookPath.getParent();
+
+        return dir.resolve(base + "_MultiGames.bin");
+    }
+
+    private Path findAvailableTarget(Path target) {
+        if (!Files.exists(target)) return target;
+
+        String fileName = target.getFileName().toString();
+        int dot = fileName.lastIndexOf('.');
+        String base = dot > 0 ? fileName.substring(0, dot) : fileName;
+        String ext = dot > 0 ? fileName.substring(dot) : "";
+
+        Path dir = target.getParent();
+        if (dir == null) return target;
+
+        int n = 1;
+        while (n < 10000) {
+            Path candidate = dir.resolve(base + "(" + n + ")" + ext);
+            if (!Files.exists(candidate)) return candidate;
+            n++;
+        }
+        return target;   // fallback
+    }
+
+    /**
+     * Удаляет временную мультикнигу (пользователь отказался сохранять).
+     */
+    public void discardTemporaryMultiBook() {
+        if (!temporaryMultiBook) return;
+
+        Path tempPath = currentBookPath;
+
+        if (currentParser != null) {
+            currentParser.close();
+            currentParser = null;
+        }
+        currentBookPath = null;
+        currentBookTree = null;
+        bookLoaded = false;
+        totalEntries = 0;
+        clearUndoStack();
+
+        temporaryMultiBook = false;
+        temporaryMultiBookSourcePgn = null;
+        temporaryMultiBookGameCount = 0;
+
+        if (tempPath != null) {
+            try {
+                Files.deleteIfExists(tempPath);
+                log.info("[MULTI-BOOK] Discarded temp file: {}", tempPath);
+            } catch (IOException e) {
+                log.warn("[MULTI-BOOK] Failed to delete temp file {}: {}", tempPath, e.getMessage());
+            }
+        }
     }
 
     // ========== ИНФОРМАЦИЯ ==========

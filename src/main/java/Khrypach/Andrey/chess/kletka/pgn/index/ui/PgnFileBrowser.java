@@ -24,6 +24,9 @@ import Khrypach.Andrey.chess.kletka.database.model.GameData;
 import Khrypach.Andrey.chess.kletka.database.parser.PgnParser;
 import Khrypach.Andrey.chess.kletka.gui.board.ChessBoardView;
 import Khrypach.Andrey.chess.kletka.gui.board.ChessSymbols;
+import Khrypach.Andrey.chess.kletka.gui.book.MultiGameBookBuilder;
+import Khrypach.Andrey.chess.kletka.gui.book.PgnToBookConverter;
+import Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys;
 import Khrypach.Andrey.chess.kletka.gui.languages.LanguageManager;
 import Khrypach.Andrey.chess.kletka.pgn.index.PgnFileEditor;
 import Khrypach.Andrey.chess.kletka.pgn.index.PgnIndexManager;
@@ -71,7 +74,7 @@ import static Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys.*;
 public class PgnFileBrowser {
 
     private static final Logger log = LoggerFactory.getLogger(PgnFileBrowser.class);
-    private static final LanguageManager lang = LanguageManager.getInstance();
+    private final LanguageManager lang = LanguageManager.getInstance();
 
     private static final double WINDOW_WIDTH_RATIO = 0.95;
     private static final double WINDOW_HEIGHT_RATIO = 0.90;
@@ -957,6 +960,9 @@ public class PgnFileBrowser {
                                 loadGame(selected);
                                 event.consume();
                             }
+                        } else if (selectedCount >= 2) {
+                            startMultiGameLoad();
+                            event.consume();
                         }
                     }
                 }
@@ -1015,6 +1021,126 @@ public class PgnFileBrowser {
                 });
             } finally {
                 isLoading.set(false);
+            }
+        }).start();
+    }
+
+    /**
+     * Мультизагрузка выбранных партий: собирает временную Polyglot-книгу
+     * и загружает её через MainController.loadMultiGameBook().
+     */
+    private void startMultiGameLoad() {
+        List<GameTableRow> selected = new ArrayList<>(tableView.getSelectionModel().getSelectedItems());
+
+        if (selected.size() < 2) return;
+        if (selected.size() > PgnBrowserManager.MAX_MULTI_GAME_LOAD) {
+            showNotification(String.format(lang.get(PGN_BROWSER_MSG_MULTI_LIMIT),
+                    selected.size(), PgnBrowserManager.MAX_MULTI_GAME_LOAD));
+            return;
+        }
+
+        // Собираем id активных партий
+        List<Integer> ids = new ArrayList<>();
+        for (GameTableRow row : selected) {
+            LightGameEntry light = row.getLightEntry();
+            if (light == null || light.deleted()) continue;
+            ids.add(light.id());
+        }
+
+        if (ids.isEmpty()) {
+            showNotification(lang.get(PGN_BROWSER_MSG_COPY_SKIPPED_DELETED));
+            return;
+        }
+
+        // Проверка места во временной папке
+        Path tempBook = MultiGameBookBuilder.buildTempPath(pgnPath);
+        Path tempDir = tempBook.getParent();
+        if (tempDir != null) {
+            long estimated = (long) ids.size() * 300;
+            long required = estimated * 3;
+            long free = tempDir.toFile().getFreeSpace();
+            if (free > 0 && free < required) {
+                showError(lang.get(PGN_BROWSER_DISK_SPACE_ERROR),
+                        String.format("Нужно ~%d MB, доступно %d MB",
+                                required / (1024 * 1024), free / (1024 * 1024)));
+                return;
+            }
+        }
+
+        // Удаляем старый временный файл
+        try { Files.deleteIfExists(tempBook); }
+        catch (IOException e) { log.warn("Failed to delete old temp book: {}", e.getMessage()); }
+
+        // Прогресс-диалог
+        ProgressDialog progressDialog = new ProgressDialog(
+                lang.get(LanguageKeys.MULTI_GAME_LOAD_TITLE),
+                String.format(lang.get(LanguageKeys.MULTI_GAME_PREPARING), ids.size()));
+        progressDialog.show();
+        progressDialog.setOnCancel(() -> {});
+
+        setOperationsEnabled(false);
+        progressIndicator.setVisible(true);
+        statusLabel.setText(String.format(lang.get(LanguageKeys.MULTI_GAME_IN_PROGRESS), ids.size()));
+
+        Path pgnPathFinal = pgnPath;
+        int gameCount = ids.size();
+
+        new Thread(() -> {
+            try {
+                MultiGameBookBuilder.BuildResult result = MultiGameBookBuilder.build(
+                        pgnPathFinal,
+                        ids,
+                        tempBook,
+                        PgnToBookConverter.BuildOptions.forMultiGame(),
+                        (progress, status) -> Platform.runLater(() ->
+                                progressDialog.updateProgress(progress, status,
+                                        String.format(lang.get(LanguageKeys.MULTI_GAME_PROGRESS ),
+                                                (int) (progress * gameCount), gameCount)))
+                );
+
+                progressDialog.close();
+
+                if (result.isEmpty()) {
+                    Platform.runLater(() -> {
+                        setOperationsEnabled(true);
+                        progressIndicator.setVisible(false);
+                        statusLabel.setText(lang.get(PGN_BROWSER_STATUS_READY));
+                        showNotification(lang.get(LanguageKeys.BOOK_EXPORT_EMPTY_RESULT));
+                        try { Files.deleteIfExists(tempBook); } catch (IOException ignored) {}
+                    });
+                    return;
+                }
+
+                Platform.runLater(() -> {
+                    setOperationsEnabled(true);
+                    progressIndicator.setVisible(false);
+                    statusLabel.setText(lang.get(PGN_BROWSER_STATUS_READY));
+
+                    // ========== СВОРАЧИВАЕМ БРАУЗЕР ==========
+                    if (stage != null) {
+                        stage.setIconified(true);
+                    }
+
+                    if (boardView != null && boardView.getMainController() != null) {
+                        boardView.getMainController().loadMultiGameBook(
+                                tempBook.toFile(), pgnPathFinal, result.gamesProcessed());
+                    } else {
+                        log.error("boardView or mainController is null");
+                        showError(lang.get(LanguageKeys.MULTI_GAME_ERROR_GENERIC), lang.get(LanguageKeys.MULTI_GAME_ERROR_LOAD));
+                        try { Files.deleteIfExists(tempBook); } catch (IOException ignored) {}
+                    }
+                });
+
+            } catch (Exception e) {
+                log.error("Multi-game load failed", e);
+                Platform.runLater(() -> {
+                    progressDialog.close();
+                    setOperationsEnabled(true);
+                    progressIndicator.setVisible(false);
+                    statusLabel.setText(lang.get(PGN_BROWSER_STATUS_READY));
+                    showError(lang.get(LanguageKeys.MULTI_GAME_ERROR_TITLE), e.getMessage());
+                    try { Files.deleteIfExists(tempBook); } catch (IOException ignored) {}
+                });
             }
         }).start();
     }

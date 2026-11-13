@@ -52,7 +52,7 @@ import static Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys.*;
 public class PgnBrowserManager {
 
     private static final Logger log = LoggerFactory.getLogger(PgnBrowserManager.class);
-    private static final LanguageManager lang = LanguageManager.getInstance();
+    private final LanguageManager lang = LanguageManager.getInstance();
 
     // === Singleton ===
     private static final PgnBrowserManager INSTANCE = new PgnBrowserManager();
@@ -64,6 +64,7 @@ public class PgnBrowserManager {
     // === Лимиты ===
     public static final int MAX_BROWSERS = 10;
     public static final int MAX_COPY_GAMES = 100000;  // 100k
+    public static final int MAX_MULTI_GAME_LOAD = 10_000;
 
     // === Хранилище браузеров ===
     private final Map<Path, PgnFileBrowser> browsers = new LinkedHashMap<>();

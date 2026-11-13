@@ -79,6 +79,7 @@ public class VariationParser {
      * Парсит вариант с поддержкой вложенных вариантов любой глубины
      */
     public void parseVariationWithGuiLogic() throws PgnParseException {
+
         variationCounter++;
         int currentVariationId = variationCounter;
         log.debug("parseVariationWithGuiLogic #{} START (depth: {})",
@@ -680,10 +681,25 @@ public class VariationParser {
             variation.setParentVariation(currentVariation);
         }
 
-        forkNode.getSubVariations().add(variation);
-        log.trace("Added new variation to subVariations: {}", variation.getName());
+        // ========== ВСТАВКА ПЕРЕД CONTINUATION ==========
+        // Аналог insertBeforeContinuation из VariationManager.
+        // Находим continuation (firstNode == forkNode.next) и вставляем перед ним.
+        Variation continuation = findContinuationInList(forkNode);
+        if (continuation != null) {
+            int idx = forkNode.getSubVariations().indexOf(continuation);
+            if (idx >= 0) {
+                forkNode.getSubVariations().add(idx, variation);
+                log.trace("Inserted variation BEFORE continuation at index {}: {}",
+                        idx, variation.getName());
+            } else {
+                forkNode.getSubVariations().add(variation);
+            }
+        } else {
+            forkNode.getSubVariations().add(variation);
+        }
 
         setupVariationNodes(variation, forkNode);
+        assignNameToVariation(variation, forkNode, null);
 
         log.trace("Variation added successfully: {}", variation.getName());
     }
@@ -711,6 +727,30 @@ public class VariationParser {
         moves.get(moves.size() - 1).setNext(null);
 
         log.trace("Set up {} nodes for variation", moves.size());
+    }
+
+    private void assignNameToVariation(Variation variation, ParentNode forkNode, ParentNode nodeToInsertBefore) {
+        Variation parentVariation = variation.getParentVariation();
+        if (parentVariation == null) {
+            parentVariation = currentVariation;
+        }
+
+        List<Variation> subVars = forkNode.getSubVariations();
+        int index = 0;
+        for (int i = 0; i < subVars.size(); i++) {
+            if (subVars.get(i) == variation) {
+                index = i + 1;
+                break;
+            }
+        }
+
+        String name;
+        if (variation.isMainLine()) {
+            name = "~";
+        } else {
+            name = treeBuilder.getNamingService().generateUniqueName(parentVariation, index);
+        }
+        variation.setName(name);
     }
 
     /**
@@ -815,6 +855,23 @@ public class VariationParser {
             }
         }
 
+        return null;
+    }
+
+    /**
+     * Находит continuation в subVariations узла:
+     * тот вариант, чей firstNode совпадает с node.next.
+     * Возвращает null, если continuation нет.
+     */
+    private Variation findContinuationInList(ParentNode node) {
+        ParentNode next = node.getNext();
+        if (next == null || next.isRoot()) return null;
+
+        for (Variation var : node.getSubVariations()) {
+            if (var == null || var.isEmpty()) continue;
+            ParentNode first = var.getFirstNode();
+            if (first == next) return var;
+        }
         return null;
     }
 

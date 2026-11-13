@@ -35,6 +35,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -404,6 +405,118 @@ class BinaryIndexReaderTest {
         // Проверяем, что только одна запись в кэше
         assertEquals(1, lazyIndex.getFullEntryCache().size());
         assertFalse(lazyIndex.isAllFullEntriesLoaded());
+    }
+
+    // ============================================================
+    // 5. ТЕСТЫ ДЛЯ streamEntries() - ПОТОКОВОЕ ЧТЕНИЕ
+    // ============================================================
+
+    @Test
+    void streamEntries_shouldReadAllEntriesInOrder() throws IOException {
+        testIndexFile = createTestBinaryIndex(10);
+
+        List<GameIndexEntry> collected = new ArrayList<>();
+        reader.streamEntries(testIndexFile, collected::add);
+
+        assertEquals(10, collected.size());
+        for (int i = 0; i < 10; i++) {
+            assertEquals(i + 1, collected.get(i).getId());
+        }
+    }
+
+    @Test
+    void streamEntries_shouldHandleEmptyIndex() throws IOException {
+        testIndexFile = createTestBinaryIndex(0);
+
+        List<GameIndexEntry> collected = new ArrayList<>();
+        reader.streamEntries(testIndexFile, collected::add);
+
+        assertTrue(collected.isEmpty());
+    }
+
+    @Test
+    void streamEntries_shouldProduceSameDataAsRead() throws IOException {
+        testIndexFile = createTestBinaryIndex(50);
+
+        PgnIndex full = reader.read(testIndexFile);
+        List<GameIndexEntry> streamed = new ArrayList<>();
+        reader.streamEntries(testIndexFile, streamed::add);
+
+        assertEquals(full.getEntries().size(), streamed.size());
+        for (int i = 0; i < full.getEntries().size(); i++) {
+            GameIndexEntry a = full.getEntries().get(i);
+            GameIndexEntry b = streamed.get(i);
+            assertEquals(a.getId(), b.getId());
+            assertEquals(a.getWhite(), b.getWhite());
+            assertEquals(a.getBlack(), b.getBlack());
+            assertEquals(a.getResult(), b.getResult());
+            assertEquals(a.isDeleted(), b.isDeleted());   // boolean → isDeleted() в вашем классе
+            assertEquals(a.getOffset(), b.getOffset());
+            assertEquals(a.getLength(), b.getLength());
+            assertEquals(a.getHash(), b.getHash());
+        }
+    }
+
+    @Test
+    void streamEntries_shouldHandleEntryOnBlockBoundary() throws IOException {
+        // Создаём много записей, чтобы блоки точно переполнялись
+        // Записи не выровнены по 1 МБ, поэтому попадём на границу
+        testIndexFile = createTestBinaryIndex(20_000);
+
+        List<Integer> ids = new ArrayList<>();
+        reader.streamEntries(testIndexFile, e -> ids.add(e.getId()));
+
+        assertEquals(20_000, ids.size());
+        for (int i = 0; i < 20_000; i++) {
+            assertEquals(i + 1, ids.get(i));
+        }
+    }
+
+    @Test
+    void streamEntries_shouldThrowForInvalidMagic() throws IOException {
+        testIndexFile = tempDir.resolve("invalid-stream.bin");
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (
+             DataOutputStream dos = new DataOutputStream(baos)) {
+            dos.writeInt(0x12345678);
+            dos.writeByte(BinaryIndexConstants.VERSION);
+        }
+        IOUtils.writeFully(testIndexFile, baos.toByteArray());
+
+        assertThrows(IOException.class, () ->
+                reader.streamEntries(testIndexFile, e -> {}));
+    }
+
+        // ============================================================
+        // 6. ТЕСТЫ ДЛЯ readEntryCount() - БЫСТРОЕ ЧТЕНИЕ ЗАГОЛОВКА
+        // ============================================================
+
+    @Test
+    void readEntryCount_shouldReturnCorrectCount() throws IOException {
+        for (int n : new int[]{0, 1, 10, 100}) {
+            testIndexFile = createTestBinaryIndex(n);
+            assertEquals(n, reader.readEntryCount(testIndexFile));
+        }
+    }
+
+    @Test
+    void readEntryCount_shouldThrowForInvalidMagic() throws IOException {
+        testIndexFile = tempDir.resolve("invalid-count.bin");
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (
+             DataOutputStream dos = new DataOutputStream(baos)) {
+            dos.writeInt(0x12345678);
+            dos.writeByte(BinaryIndexConstants.VERSION);
+        }
+        IOUtils.writeFully(testIndexFile, baos.toByteArray());
+
+        assertThrows(IOException.class, () -> reader.readEntryCount(testIndexFile));
+    }
+
+    @Test
+    void readEntryCount_shouldThrowForMissingFile() {
+        assertThrows(IOException.class, () ->
+                reader.readEntryCount(tempDir.resolve("missing.bin")));
     }
 
     // ============================================================

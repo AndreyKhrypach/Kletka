@@ -37,6 +37,13 @@ import java.util.List;
 /**
  * Менеджер для управления вариантами в дереве партии.
  * Отвечает за создание, перезапись, удаление вариантов и управление главной линией.
+ *
+ * Именование вариантов делегируется в VariationNamingService:
+ * - renameFromNodeIterative — локальное переименование (после пользовательских действий).
+ * - renameAllIterative — полное переименование (после парсинга PGN или makeCurrentVariationMainLine).
+ *
+ * Инвариант: в subVariations любого узла continuation ВСЕГДА последний
+ * (гарантируется insertBeforeContinuation).
  */
 public class VariationManager {
     private static final Logger log = LoggerFactory.getLogger(VariationManager.class);
@@ -73,6 +80,10 @@ public class VariationManager {
         this.rootVariation = rootVariation;
         this.mainLine = mainLine;
     }
+
+    // ============================================================
+    // ДОБАВЛЕНИЕ ХОДА (основной вход из MoveNavigationController)
+    // ============================================================
 
     public VariationStateSnapshot addMove(Move move, Piece piece, boolean isCapture, Piece promotionPiece,
                                           Variation currentVariation, ParentNode currentNode) {
@@ -148,12 +159,10 @@ public class VariationManager {
             }
 
             if (existsInBook) {
-                // Ход есть в книге — переключаемся на него
                 log.trace("BOOK mode: move exists in book, switching");
                 return new VariationStateSnapshot(rootNode, rootVariation, mainLine,
                         targetVariation, targetNode, false);
             } else {
-                // Хода нет в книге — показываем диалог
                 return new VariationStateSnapshot(rootNode, rootVariation, mainLine,
                         currentVariation, currentNode, null);
             }
@@ -272,6 +281,10 @@ public class VariationManager {
         return newVariation;
     }
 
+    // ============================================================
+    // СОЗДАНИЕ НОВОГО ВАРИАНТА (развилка)
+    // ============================================================
+
     public Variation createNewVariation(Move move, Piece piece, boolean isCapture, Piece promotionPiece,
                                         Variation currentVariation, ParentNode currentNode) {
         if (currentNode == null) {
@@ -284,17 +297,13 @@ public class VariationManager {
                 currentNode.getSan(), currentNode.isRoot());
         log.trace("  currentNode.getNext(): {}",
                 currentNode.getNext() != null ? currentNode.getNext().getSan() : "null");
-        log.trace("  currentNode.getSubVariations() BEFORE:");
 
         if (navigationMode == NavigationMode.BOOK) {
             return createNewVariationForBook(move, piece, isCapture, promotionPiece,
                     currentVariation, currentNode);
         }
 
-        log.trace("createNewVariation - currentNode: {}, currentNode.next: {}",
-                currentNode.getSan(),
-                currentNode.getNext() != null ? currentNode.getNext().getSan() : "null");
-
+        // ========== СОХРАНЯЕМ СТАРУЮ CONTINUATION (если была) ==========
         Variation oldMainVariation = null;
         for (Variation var : currentNode.getSubVariations()) {
             if (var.isMainLine()) {
@@ -337,9 +346,9 @@ public class VariationManager {
                 current = current.getNext();
             }
 
-
             currentNode.setOwningVariation(currentVariation);
 
+            // ========== ДОБАВЛЯЕМ CONTINUATION (пока в конец) ==========
             currentNode.getSubVariations().add(oldMainVariation);
         }
 
@@ -358,7 +367,8 @@ public class VariationManager {
         newNode.setForkNode(currentNode);
         newNode.setOwningVariation(newVar);
 
-        currentNode.getSubVariations().add(newVar);
+        // ========== ВСТАВКА ПЕРЕД CONTINUATION (не в конец!) ==========
+        insertBeforeContinuation(currentNode, newVar);
 
         if (currentVariation == this.mainLine || currentVariation.isMainLine()) {
             if (oldMainVariation != null) {
@@ -370,8 +380,8 @@ public class VariationManager {
             }
         }
 
-        renameVariationsAtNode(currentNode, currentVariation);
-        updateAllVariationNames();
+        // ========== ЛОКАЛЬНОЕ ПЕРЕИМЕНОВАНИЕ (только затронутый узел) ==========
+        namingService.renameFromNodeIterative(currentNode, currentVariation);
 
         log.trace("createNewVariation END");
 
@@ -388,12 +398,11 @@ public class VariationManager {
                 currentNode.getSan(),
                 currentNode.getNext() != null ? currentNode.getNext().getSan() : "null");
 
-        // Сохраняем старую главную линию, если есть
         Variation oldMainVariation = null;
         for (Variation var : currentNode.getSubVariations()) {
             if (var.isMainLine()) {
                 oldMainVariation = var;
-                log.trace("createNewVariationForBook:Found existing main line in subVariations: {}", var.getName());
+                log.trace("createNewVariationForBook: Found existing main line: {}", var.getName());
                 break;
             }
         }
@@ -422,12 +431,10 @@ public class VariationManager {
             log.trace("Added old main line to subVariations");
         }
 
-        // Создаем новый узел
         MoveNode newNode = new MoveNode(move, piece, isCapture, promotionPiece);
         Board boardBefore = boardReconstructor.reconstruct(currentVariation, currentNode);
         setAbsolutePlyForNode(newNode, boardBefore);
 
-        // Создаем новый вариант
         Variation newVar = new Variation("");
         newVar.setNameGenerated(false);
         newVar.addMove(newNode);
@@ -439,10 +446,10 @@ public class VariationManager {
         newNode.setForkNode(currentNode);
         newNode.setOwningVariation(newVar);
 
-        currentNode.getSubVariations().add(newVar);
+        // ========== ВСТАВКА ПЕРЕД CONTINUATION (не в конец!) ==========
+        insertBeforeContinuation(currentNode, newVar);
         log.trace("Added new variation to subVariations");
 
-        // Обновляем главную линию
         if (currentVariation == this.mainLine || currentVariation.isMainLine()) {
             if (oldMainVariation != null) {
                 this.mainLine = oldMainVariation;
@@ -455,9 +462,16 @@ public class VariationManager {
             }
         }
 
+        // ========== ЛОКАЛЬНОЕ ПЕРЕИМЕНОВАНИЕ ==========
+        namingService.renameFromNodeIterative(currentNode, currentVariation);
+
         log.trace("createNewVariationForBook END");
         return newVar;
     }
+
+    // ============================================================
+    // ПЕРЕЗАПИСЬ ВАРИАНТА
+    // ============================================================
 
     public ParentNode overwriteInSpecificVariation(Variation targetVariation, Move move,
                                                    Piece piece, boolean isCapture,
@@ -493,7 +507,8 @@ public class VariationManager {
             newNode.setForkNode(rootNode);
             newNode.setOwningVariation(newRootVar);
 
-            rootNode.getSubVariations().add(newRootVar);
+            // ========== ВСТАВКА ПЕРЕД CONTINUATION ==========
+            insertBeforeContinuation(rootNode, newRootVar);
 
             for (Variation var : rootNode.getSubVariations()) {
                 if (var != newRootVar) {
@@ -505,7 +520,7 @@ public class VariationManager {
             this.mainLine = newRootVar;
             rootNode.setNext(newNode);
 
-            updateAllVariationNames();
+            namingService.renameFromNodeIterative(rootNode, rootVariation);
 
             return newNode;
         }
@@ -521,7 +536,8 @@ public class VariationManager {
             newVar.setParentNodeRef(currentNode);
             newVar.setMainLine(false);
 
-            currentNode.getSubVariations().add(newVar);
+            // ========== ВСТАВКА ПЕРЕД CONTINUATION ==========
+            insertBeforeContinuation(currentNode, newVar);
 
             newNode.setParent(currentNode);
             newNode.setForkNode(currentNode);
@@ -537,8 +553,7 @@ public class VariationManager {
                 current = current.getNext();
             }
 
-            renameVariationsAtNode(currentNode, currentVariation);
-            updateAllVariationNames();
+            namingService.renameFromNodeIterative(currentNode, currentVariation);
 
             return newNode;
         }
@@ -568,7 +583,8 @@ public class VariationManager {
             newMainLine.setParentVariation(currentVariation);
             newMainLine.setParentNodeRef(currentNode);
 
-            currentNode.getSubVariations().add(newMainLine);
+            // ========== ВСТАВКА ПЕРЕД CONTINUATION ==========
+            insertBeforeContinuation(currentNode, newMainLine);
             log.trace("Added new main line: {}", newMainLine.getName());
 
             currentNode.setNext(newNode);
@@ -587,8 +603,7 @@ public class VariationManager {
                 syncForkNodeAtNode(currentNode);
             }
 
-            renameVariationsAtNode(currentNode, currentVariation);
-            updateAllVariationNames();
+            namingService.renameFromNodeIterative(currentNode, currentVariation);
 
             return newNode;
         }
@@ -606,12 +621,21 @@ public class VariationManager {
         newNode.setForkNode(targetVariation.getParentNodeRef());
         newNode.setOwningVariation(targetVariation);
 
-        updateAllVariationNames();
+        namingService.renameFromNodeIterative(
+                targetVariation.getParentNodeRef(),
+                targetVariation.getParentVariation()
+        );
 
         return newNode;
     }
 
+    // ============================================================
+    // СМЕНА ГЛАВНОЙ ЛИНИИ
+    // ============================================================
+
     public VariationStateSnapshot makeCurrentVariationMainLine(Variation selectedVariation) {
+        long t0 = System.currentTimeMillis();
+
         log.trace("makeCurrentVariationMainLine - selectedVariation: {} (id={})",
                 selectedVariation.getName(), selectedVariation.getId());
 
@@ -623,6 +647,7 @@ public class VariationManager {
 
         if (selectedVariation == rootVariation) {
             log.trace("selectedVariation is rootVariation, returning");
+
             return new VariationStateSnapshot(rootNode, rootVariation, mainLine,
                     mainLine, mainLine.getLastNode(), true);
         }
@@ -641,9 +666,6 @@ public class VariationManager {
                 log.error("firstNode is null or root for: {}", currentVar.getName());
                 break;
             }
-
-            log.trace("firstNode: {} (uuid={})", firstNode.getSan(),
-                    firstNode.getNodeUuid().substring(0, 8));
 
             ParentNode forkNode = firstNode.getParent();
             if (forkNode == null) {
@@ -666,19 +688,6 @@ public class VariationManager {
                 if (oldMainLineAtFork != null && oldMainLineAtFork != currentVar) {
                     log.trace("Root Old main line at fork: {}", getVariationPreview(oldMainLineAtFork));
                     oldMainLineAtFork.setMainLine(false);
-
-                    int siblingIndex = 1;
-                    for (Variation sibling : forkNode.getSubVariations()) {
-                        if (sibling == oldMainLineAtFork) break;
-                        if (!sibling.isMainLine()) siblingIndex++;
-                    }
-
-                    String newName = namingService.generateUniqueName(
-                            rootVariation,
-                            siblingIndex
-                    );
-                    oldMainLineAtFork.setName(newName);
-                    log.trace(" Root Renamed old main line to: {}", newName);
 
                     ParentNode oldFirstNode = oldMainLineAtFork.getFirstNode();
                     if (oldFirstNode != null && !oldFirstNode.isRoot()) {
@@ -745,20 +754,6 @@ public class VariationManager {
                 log.trace("Old main line at fork: {}", getVariationPreview(oldMainLineAtFork));
                 oldMainLineAtFork.setMainLine(false);
                 log.trace("Removed isMainLine from old main line");
-
-                int siblingIndex = 1;
-                for (Variation sibling : forkNode.getSubVariations()) {
-                    if (sibling == oldMainLineAtFork) break;
-                    if (!sibling.isMainLine()) siblingIndex++;
-                }
-
-                Variation parentVariation = currentVar.getParentVariation();
-                String newName = namingService.generateUniqueName(
-                        parentVariation,
-                        siblingIndex
-                );
-                oldMainLineAtFork.setName(newName);
-                log.trace("Renamed old main line to: {}", newName);
 
                 ParentNode oldFirstNode = oldMainLineAtFork.getFirstNode();
                 if (oldFirstNode != null && !oldFirstNode.isRoot()) {
@@ -834,6 +829,10 @@ public class VariationManager {
             currentVar = parentVar;
         }
 
+        long t1 = System.currentTimeMillis();
+        log.info("[makeCurrentVariationMainLine] main loop: {} ms", t1 - t0);
+
+
         if (updatedMainLine != null) {
             boolean isRootMainLine = false;
             ParentNode parentNodeRef = updatedMainLine.getParentNodeRef();
@@ -891,13 +890,83 @@ public class VariationManager {
 
         log.trace("Processed {} fork(s): {}", processedForks.size(), processedForks);
 
-        updateAllVariationNames();
+        long t2 = System.currentTimeMillis();
+        // ========== ПОЛНОЕ ПЕРЕИМЕНОВАНИЕ (глобальное изменение) ==========
+        namingService.renameAllIterative(rootNode, rootVariation, true);
+        long t3 = System.currentTimeMillis();
+        log.info("[makeCurrentVariationMainLine] renameAllIterative: {} ms", t3 - t2);
 
         log.trace("makeCurrentVariationMainLine COMPLETED");
+
+        long t4 = System.currentTimeMillis();
+        ParentNode last = this.mainLine.getLastNode();
+        long t5 = System.currentTimeMillis();
+        log.info("[makeCurrentVariationMainLine] getLastNode: {} ms", t5 - t4);
 
         return new VariationStateSnapshot(rootNode, rootVariation, this.mainLine,
                 this.mainLine, this.mainLine.getLastNode(), true);
     }
+
+    // ============================================================
+    // УДАЛЕНИЕ ВАРИАНТА
+    // ============================================================
+
+    public VariationStateSnapshot deleteCurrentVariation(Variation variationToDelete) {
+        log.trace("deleteCurrentVariation - deleting: {}",
+                variationToDelete != null ? variationToDelete.getName() : "null");
+
+        if (variationToDelete == mainLine || variationToDelete == rootVariation) {
+            log.warn("Cannot delete main line or root variation");
+            return new VariationStateSnapshot(rootNode, rootVariation, mainLine,
+                    mainLine, mainLine.getLastNode(), false);
+        }
+
+        assert variationToDelete != null;
+        ParentNode parentNode = variationToDelete.getParentNodeRef();
+        Variation parentVariation = variationToDelete.getParentVariation();
+
+        if (parentNode == null || parentVariation == null) {
+            log.error("Cannot delete - parentNodeRef or parentVariation is null");
+            return new VariationStateSnapshot(rootNode, rootVariation, mainLine,
+                    mainLine, mainLine.getLastNode(), false);
+        }
+
+        log.trace("Deleting variation: {}", variationToDelete.getName());
+
+        boolean removed = parentNode.getSubVariations().remove(variationToDelete);
+        if (removed) {
+            deleteVariationTree(variationToDelete);
+            namingService.renameFromNodeIterative(parentNode, parentVariation);
+        }
+        return new VariationStateSnapshot(rootNode, rootVariation, mainLine,
+                mainLine, mainLine.getLastNode(), true);
+    }
+
+    // ============================================================
+    // ПОЛНОЕ ПЕРЕИМЕНОВАНИЕ (публичный API для PgnParser)
+    // ============================================================
+
+    /**
+     * Пересчитывает имена всех вариантов в дереве.
+     * Делегирует в namingService.renameAllIterative.
+     *
+     * Используется:
+     * - После парсинга PGN (PgnParser.parseMovesWithGuiLogic).
+     * - Если нужен явный полный пересчёт.
+     */
+    public void updateAllVariationNames() {
+        updateAllVariationNames(false);
+    }
+
+    public void updateAllVariationNames(boolean force) {
+        if (rootNode != null && rootVariation != null) {
+            namingService.renameAllIterative(rootNode, rootVariation, force);
+        }
+    }
+
+    // ============================================================
+    // ВСПОМОГАТЕЛЬНЫЕ (findOwningVariation, syncFork, delete и т.д.)
+    // ============================================================
 
     private Variation findRootPathVariation(Variation variation) {
         if (variation == null) return null;
@@ -959,13 +1028,11 @@ public class VariationManager {
 
         Variation owner = findOwningVariation(node);
         if (owner != null && owner == mainLine) {
-            log.trace("isNodeInGlobalMainLine: {} → true (owner == mainLine)", node.getSan());
             return true;
         }
 
         for (ParentNode move : mainLine.getMoves()) {
             if (move == node) {
-                log.trace("isNodeInGlobalMainLine: {} → true (found in mainLine.getMoves())", node.getSan());
                 return true;
             }
         }
@@ -973,40 +1040,24 @@ public class VariationManager {
         ParentNode current = rootNode.getNext();
         while (current != null && !current.isRoot()) {
             if (current == node) {
-                log.trace("isNodeInGlobalMainLine: {} → true (found in root.next chain)", node.getSan());
                 return true;
             }
             current = current.getNext();
         }
 
-        log.trace("isNodeInGlobalMainLine: {} → false", node.getSan());
         return false;
     }
 
     private void syncAllForkNodesInMainLine() {
-        log.trace("Starting syncAllForkNodesInMainLine");
-
-        if (rootNode == null) {
-            log.trace("rootNode is null");
-            return;
-        }
+        if (rootNode == null) return;
 
         ParentNode current = rootNode.getNext();
-        if (current == null || current.isRoot()) {
-            log.trace("No moves in main line");
-            return;
-        }
-
-        log.trace("Traversing main line via next chain");
+        if (current == null || current.isRoot()) return;
 
         while (current != null && !current.isRoot()) {
             if (current.getSubVariations() != null && !current.getSubVariations().isEmpty()) {
-                log.trace("Fork node: {}, subVariations size: {}",
-                        current.getSan(), current.getSubVariations().size());
-
                 if (current.getNext() != null && !current.getNext().isRoot()) {
                     String nextUci = current.getNext().getUciMove();
-                    log.trace("next: {}", current.getNext().getSan());
 
                     Variation mainLineVariation = null;
                     for (Variation var : current.getSubVariations()) {
@@ -1016,8 +1067,6 @@ public class VariationManager {
 
                         if (firstNode.getUciMove().equals(nextUci)) {
                             mainLineVariation = var;
-                            log.trace("Found matching variation: {} (firstMove={})",
-                                    var.getName(), firstNode.getSan());
                             break;
                         }
                     }
@@ -1025,24 +1074,18 @@ public class VariationManager {
                     if (mainLineVariation != null) {
                         if (!mainLineVariation.isMainLine()) {
                             mainLineVariation.setMainLine(true);
-                            log.trace("Set isMainLine=true for {}", mainLineVariation.getName());
                         }
 
                         for (Variation var : current.getSubVariations()) {
                             if (var != null && var != mainLineVariation && var.isMainLine()) {
                                 var.setMainLine(false);
-                                log.trace("Set isMainLine=false for {}", var.getName());
                             }
                         }
-                    } else {
-                        log.warn("No variation found for next: {}", current.getNext().getSan());
                     }
                 } else {
-                    log.trace("No next (end of main line)");
                     for (Variation var : current.getSubVariations()) {
                         if (var != null && var.isMainLine()) {
                             var.setMainLine(false);
-                            log.trace("Set isMainLine=false for {} (end of line)", var.getName());
                         }
                     }
                 }
@@ -1054,8 +1097,6 @@ public class VariationManager {
                 break;
             }
         }
-
-        log.trace("syncAllForkNodesInMainLine completed");
     }
 
     private void removeAllMainLineFlagsRecursively(Variation variation) {
@@ -1068,38 +1109,6 @@ public class VariationManager {
                 removeAllMainLineFlagsRecursively(subVar);
             }
         }
-    }
-
-    public VariationStateSnapshot deleteCurrentVariation(Variation variationToDelete) {
-        log.trace("deleteCurrentVariation - deleting: {}",
-                variationToDelete != null ? variationToDelete.getName() : "null");
-
-        if (variationToDelete == mainLine || variationToDelete == rootVariation) {
-            log.warn("Cannot delete main line or root variation");
-            return new VariationStateSnapshot(rootNode, rootVariation, mainLine,
-                    mainLine, mainLine.getLastNode(), false);
-        }
-
-        assert variationToDelete != null;
-        ParentNode parentNode = variationToDelete.getParentNodeRef();
-        Variation parentVariation = variationToDelete.getParentVariation();
-
-        if (parentNode == null || parentVariation == null) {
-            log.error("Cannot delete - parentNodeRef or parentVariation is null");
-            return new VariationStateSnapshot(rootNode, rootVariation, mainLine,
-                    mainLine, mainLine.getLastNode(), false);
-        }
-
-        log.trace("Deleting variation: {}", variationToDelete.getName());
-
-        boolean removed = parentNode.getSubVariations().remove(variationToDelete);
-        if (removed) {
-            deleteVariationTree(variationToDelete);
-            renameVariationsAtNode(parentNode, parentVariation);
-            updateAllVariationNames();
-        }
-        return new VariationStateSnapshot(rootNode, rootVariation, mainLine,
-                mainLine, mainLine.getLastNode(), true);
     }
 
     private void syncForkNodeAtNode(ParentNode forkNode) {
@@ -1120,19 +1129,10 @@ public class VariationManager {
     public void setForkNodeForTree(ParentNode startNode, ParentNode forkNode, Variation owningVariation) {
         if (startNode == null || startNode.isRoot()) return;
 
-        log.trace("setForkNodeForTree - startNode: {}, forkNode: {}, owningVariation: {}",
-                startNode.getSan(),
-                forkNode.isRoot() ? "ROOT" : forkNode.getSan(),
-                owningVariation == null ? "null" : owningVariation.getName());
-
         ParentNode current = startNode;
         ParentNode prev = forkNode;
 
         while (current != null && !current.isRoot()) {
-            log.trace("setting parent for: {} -> {}",
-                    current.getSan(),
-                    prev.isRoot() ? "ROOT" : prev.getSan());
-
             current.setForkNode(forkNode);
             current.setOwningVariation(owningVariation);
 
@@ -1212,48 +1212,40 @@ public class VariationManager {
         variation.setParentNodeRef(null);
     }
 
-    private void renameVariationsAtNode(ParentNode node, Variation parentVariation) {
-        if (node == null || parentVariation == null) return;
+    /**
+     * Находит continuation в subVariations узла:
+     * тот вариант, чей firstNode совпадает с node.next.
+     */
+    private Variation findContinuationInList(ParentNode node) {
+        ParentNode next = node.getNext();
+        if (next == null || next.isRoot()) return null;
 
-        // ========== ПРОСТО ПРОХОДИМ ПО СПИСКУ И НУМЕРУЕМ ==========
-        int index = 1;
-        for (Variation subVar : node.getSubVariations()) {
-            if (subVar == null) continue;
-
-            if (subVar.isMainLine()) {
-                subVar.setName("~");
-                subVar.setNameGenerated(true);
-                continue;
-            }
-
-            // Проверяем, есть ли уже имя (из PGN)
-            String currentName = subVar.getName();
-            boolean hasCustomName = currentName != null &&
-                    !currentName.isEmpty() &&
-                    !currentName.equals(languageManager.get(LanguageKeys.VARIATION_DEFAULT_NAME)) &&
-                    !currentName.equals(languageManager.get(LanguageKeys.ROOT)) &&
-                    subVar.isNameGenerated();
-
-            if (hasCustomName) {
-                // Имя уже есть, сохраняем
-                log.debug("Preserving nested variation name: {}", currentName);
-                continue;
-            }
-
-            // ========== ГЕНЕРИРУЕМ ИМЯ С ТЕКУЩИМ ИНДЕКСОМ ==========
-            String newName = namingService.generateUniqueName(parentVariation, index);
-            subVar.setName(newName);
-            subVar.setNameGenerated(true);
-
-            index++;
+        for (Variation var : node.getSubVariations()) {
+            if (var == null || var.isEmpty()) continue;
+            ParentNode first = var.getFirstNode();
+            if (first == next) return var;
         }
+        return null;
     }
 
-    public void updateAllVariationNames() {
-        if (rootVariation != null && rootVariation.getFirstNode() != null &&
-                rootVariation.getFirstNode().isRoot()) {
-            namingService.updateAllVariationNames(rootVariation);
+    /**
+     * Вставляет newVar ПЕРЕД continuation в subVariations узла node.
+     * Если continuation нет — добавляет в конец.
+     *
+     * Гарантирует инвариант: continuation последний.
+     */
+    private void insertBeforeContinuation(ParentNode node, Variation newVar) {
+        List<Variation> subVars = node.getSubVariations();
+        Variation continuation = findContinuationInList(node);
+
+        if (continuation != null) {
+            int idx = subVars.indexOf(continuation);
+            if (idx >= 0) {
+                subVars.add(idx, newVar);
+                return;
+            }
         }
+        subVars.add(newVar);
     }
 
     private void setAbsolutePlyForNode(ParentNode node, Board boardBeforeMove) {
@@ -1342,5 +1334,4 @@ public class VariationManager {
         sb.append(" isMainLine=").append(var.isMainLine());
         return sb.toString();
     }
-
 }

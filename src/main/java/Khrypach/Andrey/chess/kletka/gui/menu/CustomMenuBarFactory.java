@@ -533,6 +533,25 @@ public class CustomMenuBarFactory {
             returnFocusToBoard();
         });
 
+        MenuItem clearCommentsItem = new MenuItem(lang.get(MENU_EDIT_CLEAR_COMMENTS));
+        clearCommentsItem.setOnAction(e -> {
+            if (controller != null) {
+                controller.clearGameComments();
+            }
+            returnFocusToBoard();
+        });
+
+        MenuItem clearPgnCommentsItem = new MenuItem(lang.get(MENU_EDIT_CLEAN_PGN_COMMENTS));
+        clearPgnCommentsItem.setAccelerator(
+                new KeyCodeCombination(KeyCode.E,
+                        KeyCombination.CONTROL_DOWN, KeyCombination.ALT_DOWN));
+        clearPgnCommentsItem.setOnAction(e -> {
+            if (controller != null) {
+                controller.clearPgnFileComments();
+            }
+            returnFocusToBoard();
+        });
+
         undoMarkerItem = new MenuItem(lang.get(MENU_EDIT_UNDO_MARKER));
         undoMarkerItem.setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCombination.CONTROL_DOWN));
         undoMarkerItem.setOnAction(e -> {
@@ -566,6 +585,9 @@ public class CustomMenuBarFactory {
                 new SeparatorMenuItem(),
                 undoMarkerItem,
                 redoMarkerItem,
+                new SeparatorMenuItem(),
+                clearCommentsItem,
+                clearPgnCommentsItem,
                 new SeparatorMenuItem(),
                 preferencesItem
         );

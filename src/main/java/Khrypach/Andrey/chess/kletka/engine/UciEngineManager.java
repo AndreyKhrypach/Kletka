@@ -906,4 +906,34 @@ public class UciEngineManager {
             default -> isWhite ? Piece.WHITE_QUEEN : Piece.BLACK_QUEEN;
         };
     }
+
+    /**
+     * Очищает накопленные данные MultiPV.
+     * Вызывать перед каждым новым анализом (смена позиции, рестарт).
+     */
+    public void clearAnalysisInfo() {
+        multiPvInfo.clear();
+        lastDepth = 0;
+        lastScore = 0;
+        lastPv = "";
+        lastSeldepth = 0;
+        lastNodes = 0;
+        lastNps = 0;
+        lastTime = 0;
+        log.debug("Analysis info cleared");
+    }
+
+    /**
+     * Запускает анализ с ограничением по времени (movetime).
+     * Это предпочтительнее depth для тактических позиций —
+     * движок успевает пересмотреть жертвы.
+     */
+    public void startAnalysisWithTime(int moveTimeMs) {
+        try {
+            sendCommand(GO + " " + GO_MOVE_TIME + " " + moveTimeMs);
+            log.info("Analysis with movetime {}ms started", moveTimeMs);
+        } catch (IOException e) {
+            log.error("Failed to start analysis with time: {}", e.getMessage());
+        }
+    }
 }
