@@ -1372,7 +1372,7 @@ public class ZhLanguage implements Language {
         shortcutsContent.append("  Ctrl+Shift+P - 复制局面\n");
         shortcutsContent.append("  Ctrl+Z - 撤销标记\n");
         shortcutsContent.append("  Ctrl+Y - 重做标记\n");
-        shortcutsContent.append("  Ctrl+Alt+E - 清理 PGN 文件中的注释");
+        shortcutsContent.append("  Ctrl+Alt+E - 清理 PGN 文件中的注释\n");
         shortcutsContent.append("  Ctrl+Shift+O - 偏好设置\n");
 
         // 👁️ 视图

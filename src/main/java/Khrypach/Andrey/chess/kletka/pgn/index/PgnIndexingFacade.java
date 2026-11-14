@@ -28,6 +28,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.function.Consumer;
 
@@ -61,6 +63,14 @@ public class PgnIndexingFacade {
     public PgnIndex indexFile(Path pgnPath, Consumer<IndexingProgress> progressCallback) throws IOException {
         log.info("Starting full indexing of: {}", pgnPath);
 
+        // ========== 1. ПРОВЕРКА СУЩЕСТВОВАНИЯ (САМОЕ ПЕРВОЕ) ==========
+        if (!Files.exists(pgnPath)) {
+            throw new IOException("PGN file not found: " + pgnPath);
+        }
+
+        // ========== 2. КОНВЕРТАЦИЯ ==========
+        PgnEncodingConverter.ensureUtf8(pgnPath);
+
         if (progressCallback != null) {
             progressCallback.accept(IndexingProgress.builder()
                     .status(lang.get(INDEXING_STEP1))
@@ -74,6 +84,8 @@ public class PgnIndexingFacade {
         if (progressCallback != null) {
             progressCallback.accept(IndexingProgress.builder()
                     .status(lang.get(INDEXING_STEP2))
+                    .totalGames(0)
+                    .processedGames(0)
                     .build());
         }
 
@@ -83,6 +95,8 @@ public class PgnIndexingFacade {
         if (progressCallback != null) {
             progressCallback.accept(IndexingProgress.builder()
                     .status(lang.get(INDEXING_STEP3))
+                    .totalGames(0)
+                    .processedGames(0)
                     .build());
         }
 
@@ -102,6 +116,19 @@ public class PgnIndexingFacade {
 
         log.info("Indexing completed: {}", index);
         return index;
+    }
+
+    static String hexPreview(Path path, int n) {
+        try (InputStream is = Files.newInputStream(path)) {
+            byte[] buf = is.readNBytes(n);
+            StringBuilder sb = new StringBuilder();
+            for (byte b : buf) {
+                sb.append(String.format("%02X ", b));
+            }
+            return sb.toString().trim();
+        } catch (IOException e) {
+            return "ERR: " + e.getMessage();
+        }
     }
 
     /**

@@ -1387,7 +1387,7 @@ public class EnLanguage implements Language {
         shortcutsContent.append("  Ctrl+Shift+P - Копировать позицию\n");
         shortcutsContent.append("  Ctrl+Z - Undo marker\n");
         shortcutsContent.append("  Ctrl+Y - Redo marker\n");
-        shortcutsContent.append("  Ctrl+Alt+E - Remove comments in PGN file");
+        shortcutsContent.append("  Ctrl+Alt+E - Remove comments in PGN file\n");
         shortcutsContent.append("  Ctrl+Shift+O - Preferences\n");
 
         // 👁️ View

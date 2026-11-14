@@ -1386,7 +1386,7 @@ public class RuLanguage implements Language {
         shortcutsContent.append("  Ctrl+Shift+P - Копировать позицию\n");
         shortcutsContent.append("  Ctrl+Z - Отменить маркер\n");
         shortcutsContent.append("  Ctrl+Y - Вернуть маркер\n");
-        shortcutsContent.append("  Ctrl+Alt+E - Очистить комментарии в PGN-файле");
+        shortcutsContent.append("  Ctrl+Alt+E - Очистить комментарии в PGN-файле\n");
         shortcutsContent.append("  Ctrl+Shift+O - Настройки\n");
 
         // 👁️ Вид

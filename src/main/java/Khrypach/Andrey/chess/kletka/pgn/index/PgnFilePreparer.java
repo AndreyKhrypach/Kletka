@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.nio.charset.MalformedInputException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,6 +34,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.function.Consumer;
 
 import static Khrypach.Andrey.chess.kletka.gui.languages.LanguageKeys.*;
+import static Khrypach.Andrey.chess.kletka.pgn.index.PgnIndexingFacade.hexPreview;
 
 public class PgnFilePreparer {
     private static final Logger log = LoggerFactory.getLogger(PgnFilePreparer.class);
@@ -53,6 +55,7 @@ public class PgnFilePreparer {
     Path prepareFile(Path pgnPath, Consumer<IndexingProgress> progressCallback) throws IOException {
         log.info("Starting file preparation: {}", pgnPath);
 
+
         if (!Files.exists(pgnPath)) {
             throw new IOException("PGN file not found: " + pgnPath);
         }
@@ -61,7 +64,6 @@ public class PgnFilePreparer {
         Path backupPath = pgnPath.getParent().resolve(pgnPath.getFileName() + ".bak");
 
         long fileSize = Files.size(pgnPath);
-        log.debug("File size: {} bytes", fileSize);
 
         // ========== ПРОГРЕСС: НАЧАЛО ==========
         if (progressCallback != null) {
@@ -91,7 +93,7 @@ public class PgnFilePreparer {
 
             String line;
             while ((line = reader.readLine()) != null) {
-                bytesRead += line.length() + 1; // +1 за '\n'
+                bytesRead += line.getBytes(StandardCharsets.UTF_8).length + 1; // +1 за '\n'
 
                 // ========== НАЧАЛО НОВОЙ ПАРТИИ ==========
                 if (line.startsWith("[Event ")) {
@@ -132,8 +134,8 @@ public class PgnFilePreparer {
                     if (percent >= lastProgressPercent + 5) {
                         lastProgressPercent = percent;
                         progressCallback.accept(IndexingProgress.builder()
-                                .totalGames(gameCount + garbageCount)
-                                .processedGames(gameCount + garbageCount)
+                                .totalGames(0)
+                                .processedGames(0)
                                 .bytesProcessed(bytesRead)
                                 .totalBytes(fileSize)
                                 .status(String.format(lang.get(PREPARE_STATUS_PROCESSED),
@@ -144,7 +146,7 @@ public class PgnFilePreparer {
             }
 
             // ========== ФИНАЛЬНАЯ ПАРТИЯ ==========
-            if (inGame && gameBuffer.length() > 0) {
+            if (inGame && !gameBuffer.isEmpty()) {
                 String gameContent = gameBuffer.toString();
                 boolean hasBody = checkGameBody(gameContent);
                 String processed = processGamePart(gameContent, hasBody);
@@ -152,10 +154,10 @@ public class PgnFilePreparer {
                 writer.write('\n');
                 gameCount++;
             }
+        }catch (MalformedInputException e) {
+            throw new IOException(
+                    "File is not valid UTF-8 (conversion failed?): " + pgnPath, e);
         }
-
-        log.info("File preparation completed: {} games processed, {} garbage blocks converted to deleted games",
-                gameCount, garbageCount);
 
         // ========== ПРОГРЕСС: СОХРАНЕНИЕ ==========
         if (progressCallback != null) {
@@ -167,15 +169,29 @@ public class PgnFilePreparer {
         }
 
         // ========== ЗАМЕНА ФАЙЛА ==========
-        Files.deleteIfExists(backupPath);
-        Files.move(pgnPath, backupPath, StandardCopyOption.REPLACE_EXISTING);
-        Files.move(tempPath, pgnPath);
+        // ЛОГИКА ЕДИНОГО БЕКАПА:
+        // 1. Если .bak еще нет — создаем его (сохраняем оригинал).
+        // 2. Если .bak уже есть — НЕ ТРОГАЕМ его (оригинал уже сохранен ранее).
+
+        if (!Files.exists(backupPath)) {
+            // Бекапа нет — создаем. Сохраняем исходный файл в .bak.
+            Files.move(pgnPath, backupPath, StandardCopyOption.REPLACE_EXISTING);
+        } else {
+            // Бекап уже есть — оригинал в безопасности.
+            // Просто удаляем текущий файл (он уже прочитан и обработан).
+            Files.delete(pgnPath);
+        }
+
+        // Переименовываем подготовленный файл на место основного
+        Files.move(tempPath, pgnPath, StandardCopyOption.REPLACE_EXISTING);
 
         // ========== ПРОГРЕСС: ЗАВЕРШЕНО ==========
         if (progressCallback != null) {
             progressCallback.accept(IndexingProgress.builder()
-                    .totalGames(gameCount + garbageCount)
-                    .processedGames(gameCount + garbageCount)
+                    .totalGames(0)
+                    .processedGames(0)
+                    .bytesProcessed(fileSize)
+                    .totalBytes(fileSize)
                     .status(String.format(lang.get(PREPARE_STATUS_COMPLETE),
                             gameCount, garbageCount))
                     .build());

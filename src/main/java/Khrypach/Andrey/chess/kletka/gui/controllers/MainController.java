@@ -91,8 +91,6 @@ import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -425,9 +423,6 @@ public class MainController {
                     result.entriesWritten()
             );
             showNotification(message);
-
-            log.info("Book exported: {} ({} entries, {} duplicates skipped)",
-                    file.getName(), result.entriesWritten(), result.duplicatesSkipped());
 
         } catch (IOException e) {
             log.error("Failed to export tree to book", e);
@@ -1339,12 +1334,11 @@ public class MainController {
 
         new Thread(() -> {
             try {
-                Path preparedPath = prepareFileEncoding(pgnPath);
-                releaseBrowserIndexIfOpen(preparedPath);
+                releaseBrowserIndexIfOpen(pgnPath);
 
                 PgnIndexingFacade facade = new PgnIndexingFacade();
 
-                PgnIndex index = facade.indexFile(preparedPath, progress -> Platform.runLater(() -> {
+                PgnIndex index = facade.indexFile(pgnPath, progress -> Platform.runLater(() -> {
                     if (progressDialog != null) {
                         progressDialog.updateProgress(progress);
                     }
@@ -1373,107 +1367,6 @@ public class MainController {
                 });
             }
         }).start();
-    }
-
-    private Path prepareFileEncoding(Path pgnPath) throws IOException {
-        log.debug("Checking encoding for: {}", pgnPath);
-
-        // 1. Читаем только начало для detectEncoding
-        String detectedEncoding;
-        try (java.io.InputStream is = Files.newInputStream(pgnPath)) {
-            byte[] sample = is.readNBytes(64 * 1024);
-            detectedEncoding = detectEncoding(sample);
-        }
-
-        log.debug("Detected encoding: {}", detectedEncoding);
-
-        // 2. UTF-8 / UTF-8-BOM — конвертация не нужна
-        if ("UTF-8".equals(detectedEncoding) || "UTF-8-BOM".equals(detectedEncoding)) {
-            log.debug("File is already UTF-8, no conversion needed");
-            return pgnPath;
-        }
-
-        // 3. Нужна конвертация — потоково
-        log.debug("Converting from {} to UTF-8", detectedEncoding);
-        Path tempPath = pgnPath.getParent().resolve(pgnPath.getFileName() + ".utf8.tmp");
-        Charset sourceCharset = Charset.forName(detectedEncoding);
-
-        try (java.io.BufferedReader reader = Files.newBufferedReader(pgnPath, sourceCharset);
-             java.io.BufferedWriter writer = Files.newBufferedWriter(tempPath, StandardCharsets.UTF_8)) {
-            char[] buf = new char[8192];
-            int n;
-            while ((n = reader.read(buf)) > 0) {
-                writer.write(buf, 0, n);
-            }
-        }
-
-        Path backupPath = pgnPath.getParent().resolve(pgnPath.getFileName() + ".bak");
-        Files.deleteIfExists(backupPath);
-        Files.move(pgnPath, backupPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-        Files.move(tempPath, pgnPath);
-
-        log.debug("File converted to UTF-8: {}", pgnPath);
-        return pgnPath;
-    }
-
-    private String detectEncoding(byte[] bytes) {
-        // ========== БЕРЁМ ТОЛЬКО ПЕРВЫЕ 64 KB ДЛЯ АНАЛИЗА ==========
-        int sampleSize = Math.min(bytes.length, 64 * 1024);
-        byte[] sample = new byte[sampleSize];
-        System.arraycopy(bytes, 0, sample, 0, sampleSize);
-
-        if (sample.length >= 3 && sample[0] == (byte) 0xEF &&
-                sample[1] == (byte) 0xBB && sample[2] == (byte) 0xBF) {
-            return "UTF-8-BOM";
-        }
-
-        try {
-            String test = new String(sample, StandardCharsets.UTF_8);
-            if (!test.contains("\uFFFD")) {
-                if (containsCyrillic(test) || hasPgnHeaders(test)) {
-                    return "UTF-8";
-                }
-            }
-        } catch (Exception e) {
-        }
-
-        try {
-            String win1251 = new String(sample, Charset.forName("Windows-1251"));
-            if (containsCyrillic(win1251) && hasPgnHeaders(win1251)) {
-                return "Windows-1251";
-            }
-        } catch (Exception e) {
-        }
-
-        try {
-            String koi8r = new String(sample, Charset.forName("KOI8-R"));
-            if (containsCyrillic(koi8r) && hasPgnHeaders(koi8r)) {
-                return "KOI8-R";
-            }
-        } catch (Exception e) {
-        }
-
-        try {
-            String iso8859_5 = new String(sample, Charset.forName("ISO-8859-5"));
-            if (containsCyrillic(iso8859_5) && hasPgnHeaders(iso8859_5)) {
-                return "ISO-8859-5";
-            }
-        } catch (Exception e) {
-        }
-
-        log.warn("Could not detect encoding, using UTF-8 as fallback");
-        return "UTF-8";
-    }
-
-    private boolean containsCyrillic(String text) {
-        if (text == null || text.isEmpty()) return false;
-        return text.codePoints().anyMatch(cp -> cp >= 0x0400 && cp <= 0x04FF);
-    }
-
-    private boolean hasPgnHeaders(String text) {
-        if (text == null || text.isEmpty()) return false;
-        return text.contains("[Event") || text.contains("[White") ||
-                text.contains("[Black") || text.contains("[Result");
     }
 
     private void onGameSelectedFromBrowser(GameData gameData) {
@@ -2183,8 +2076,9 @@ public class MainController {
     private void fullIndexingWithProgress(Path pgnPath, String plainPgn) {
         // 1. Пишем партию
         try {
-            PgnFileEditor editor = new PgnFileEditor(pgnPath, null);
-            editor.appendGame(plainPgn, 1);
+            try (PgnFileEditor editor = new PgnFileEditor(pgnPath, null)) {
+                editor.appendGame(plainPgn, 1);
+            }
         } catch (IOException e) {
             log.error("Failed to append game before indexing", e);
             showError(lang.get(PGN_SAVE_ERROR), e.getMessage());
@@ -2260,8 +2154,10 @@ public class MainController {
         PgnIndex index = indexManager.loadIndex(pgnPath);
         int newId = index.getNextId();
 
-        PgnFileEditor editor = new PgnFileEditor(pgnPath, index);
-        GameIndexEntry newEntry = editor.appendGame(plainPgn, newId);
+        GameIndexEntry newEntry;
+        try (PgnFileEditor editor = new PgnFileEditor(pgnPath, index)) {
+            newEntry = editor.appendGame(plainPgn, newId);
+        }
 
         newEntry.setWhite(gameData.whitePlayer());
         newEntry.setBlack(gameData.blackPlayer());
@@ -2651,27 +2547,6 @@ public class MainController {
                 pgn.contains("♗") || pgn.contains("♘") || pgn.contains("♙") ||
                 pgn.contains("♚") || pgn.contains("♛") || pgn.contains("♜") ||
                 pgn.contains("♝") || pgn.contains("♞") || pgn.contains("♟");
-    }
-
-    private void saveToDatabase(GameData gameData) {
-        // ========== БЛОКИРУЕМ СОХРАНЕНИЕ В РЕЖИМЕ КНИГИ ==========
-        MoveNavigationController navController = boardView.getNavController();
-        if (navController != null && navController.getNavigationMode() == NavigationMode.BOOK) {
-            showNotification(lang.get(BOOK_MODE_NO_SAVE));
-            return;
-        }
-        if (pgnService == null) {
-            showNotification(lang.get(LanguageKeys.MAIN_DB_NOT_INITIALIZED_MSG));
-            return;
-        }
-
-        try {
-            pgnService.saveGame(gameData);
-            showNotification(lang.get(LanguageKeys.MAIN_GAME_SAVED_TO_DB));
-        } catch (PgnException e) {
-            log.error("Failed to save to database", e);
-            showError(lang.get(LanguageKeys.PGN_SAVE_ERROR), e.getMessage());
-        }
     }
 
     private int parsePlyCount(String plyCount) {
@@ -3600,7 +3475,7 @@ public class MainController {
                     // ========== УВЕДОМЛЕНИЕ ==========
                     String msg = String.format(
                             lang.get(CLEAN_PGN_SUCCESS_MSG),
-                            targetPgn.toAbsolutePath().toString(),
+                            targetPgn.toAbsolutePath(),
                             stats.processedGames(),
                             stats.removedComments(),
                             stats.removedNags(),
@@ -3838,7 +3713,7 @@ public class MainController {
                     boardView.updateBookUnsavedIndicator(false);
                     if (menuFactory != null) menuFactory.updateBooksMenu();
                     showNotification(String.format(lang.get(LanguageKeys.BOOK_SAVED),
-                            bookManager.getCurrentBookPath().toAbsolutePath().toString()));
+                            bookManager.getCurrentBookPath().toAbsolutePath()));
                 } catch (IOException e) {
                     log.error("Failed to save book", e);
                     showError(lang.get(LanguageKeys.BOOK_SAVE_ERROR), e.getMessage());

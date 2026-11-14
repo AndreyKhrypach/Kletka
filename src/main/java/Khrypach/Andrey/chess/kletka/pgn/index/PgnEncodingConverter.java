@@ -25,8 +25,8 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
+import java.nio.ByteBuffer;
+import java.nio.charset.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -51,13 +51,10 @@ public final class PgnEncodingConverter {
      */
     public static Path ensureUtf8(Path pgnPath) throws IOException {
         String encoding = detectEncoding(pgnPath);
-        log.debug("Detected encoding for {}: {}", pgnPath.getFileName(), encoding);
 
         if ("UTF-8".equals(encoding) || "UTF-8-BOM".equals(encoding)) {
             return pgnPath;
         }
-
-        log.info("Converting {} from {} to UTF-8", pgnPath.getFileName(), encoding);
 
         Path tempPath = pgnPath.resolveSibling(pgnPath.getFileName() + ".utf8.tmp");
         Path backupPath = pgnPath.resolveSibling(pgnPath.getFileName() + ".bak");
@@ -71,6 +68,9 @@ public final class PgnEncodingConverter {
             }
         }
 
+        // ========== ПРОВЕРКА: файл теперь валидный UTF-8? ==========
+        verifyUtf8(tempPath);
+
         // Атомарная замена с бэкапом
         Files.deleteIfExists(backupPath);
         Files.move(pgnPath, backupPath, StandardCopyOption.REPLACE_EXISTING);
@@ -79,41 +79,151 @@ public final class PgnEncodingConverter {
         return pgnPath;
     }
 
+    /**
+     * Строгая проверка, что файл — валидный UTF-8 (с обрезкой хвоста 0..3 байта).
+     */
+    private static void verifyUtf8(Path path) throws IOException {
+        byte[] sample;
+        try (InputStream is = Files.newInputStream(path)) {
+            sample = is.readNBytes(64 * 1024);
+        }
+        int maxTrim = Math.min(3, sample.length);
+        for (int trim = 0; trim <= maxTrim; trim++) {
+            int len = sample.length - trim;
+            if (len <= 0) continue;
+            CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT);
+            try {
+                decoder.decode(ByteBuffer.wrap(sample, 0, len));
+                return;  // ок
+            } catch (CharacterCodingException ignored) {
+                // пробуем с большим trim
+            }
+        }
+        throw new IOException("Conversion failed: file is not valid UTF-8 after conversion: " + path);
+    }
+
     private static String detectEncoding(Path pgnPath) throws IOException {
         byte[] sample;
         try (InputStream is = Files.newInputStream(pgnPath)) {
             sample = is.readNBytes(64 * 1024);
         }
 
-        if (sample.length >= 3
-                && sample[0] == (byte) 0xEF
-                && sample[1] == (byte) 0xBB
-                && sample[2] == (byte) 0xBF) {
+        // ========== BOM ==========
+        if (sample.length >= 3 && sample[0] == (byte)0xEF && sample[1] == (byte)0xBB && sample[2] == (byte)0xBF) {
             return "UTF-8-BOM";
         }
-
-        // Пробуем UTF-8
-        try {
-            String test = new String(sample, StandardCharsets.UTF_8);
-            if (!test.contains("\uFFFD")) {
-                if (containsCyrillic(test) || hasPgnHeaders(test)) {
-                    return "UTF-8";
-                }
-            }
-        } catch (Exception ignored) {}
-
-        // Пробуем Windows-1251
-        for (String charsetName : new String[]{"Windows-1251", "KOI8-R", "ISO-8859-5"}) {
-            try {
-                String test = new String(sample, Charset.forName(charsetName));
-                if (containsCyrillic(test) && hasPgnHeaders(test)) {
-                    return charsetName;
-                }
-            } catch (Exception ignored) {}
+        if (sample.length >= 2 && sample[0] == (byte)0xFF && sample[1] == (byte)0xFE) {
+            return "UTF-16LE";
+        }
+        if (sample.length >= 2 && sample[0] == (byte)0xFE && sample[1] == (byte)0xFF) {
+            return "UTF-16BE";
         }
 
-        log.warn("Could not detect encoding for {}, using UTF-8 as fallback", pgnPath.getFileName());
+        // ========== UTF-8 (строгая валидация с trim) ==========
+        int maxTrim = Math.min(3, sample.length);
+        for (int trim = 0; trim <= maxTrim; trim++) {
+            int len = sample.length - trim;
+            if (len <= 0) continue;
+            CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT);
+            try {
+                decoder.decode(ByteBuffer.wrap(sample, 0, len));
+                return "UTF-8";
+            } catch (CharacterCodingException e) {
+                log.debug("[ENC-DEBUG] UTF-8 failed at trim={}: {}", trim, e.getMessage());
+            }
+        }
+
+        // ========== CP1251 (единственная авто-определяемая однобайтовая) ==========
+        // KOI8-R и ISO-8859-5 в 2025 для PGN не встречаются.
+        // Если пользователь столкнётся с ними — выберет вручную.
+        String win1251 = new String(sample, Charset.forName("Windows-1251"));
+        double score = scoreCyrillicPlausibility(win1251);
+        if (score > 0) {
+            return "Windows-1251";
+        }
+
+        // ========== Fallback: нет не-ASCII → UTF-8 ==========
         return "UTF-8";
+    }
+
+    /**
+     * Оценка "правдоподобности" кириллического текста (0..1).
+     * Чем выше — тем вероятнее, что это правильная кодировка.
+     *
+     * Логика:
+     *  - Считаем только НЕ-ASCII символы (ASCII одинаков во всех кодировках).
+     *  - cyrillic   — символы в блоке U+0400..U+04FF (русские буквы).
+     *  - latin      — латинские буквы с диакритикой (U+00C0..U+00FF) и обычная латиница.
+     *  - suspicious — символы, которых в русском PGN быть не должно
+     *                 (валюты, геометрические фигуры, спецсимволы).
+     *  - score = cyrRatio - latRatio - 2*susRatio
+     *    Идеал: 100% кириллицы, 0% латиницы, 0% подозрительного → score ≈ 1.0
+     */
+    private static double scoreCyrillicPlausibility(String text) {
+        if (text == null || text.isEmpty()) {
+            return 0;
+        }
+
+        int cyrillic = 0;
+        int latin = 0;
+        int suspicious = 0;
+        int nonAscii = 0;
+
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+
+            // ASCII не считаем — он одинаков во всех однобайтовых кодировках
+            if (c < 0x80) {
+                continue;
+            }
+            nonAscii++;
+
+            if (c >= 0x0400 && c <= 0x04FF) {
+                // Кириллица (русские буквы, ё, украинские, и т.д.)
+                cyrillic++;
+            } else if ((c >= 0x0041 && c <= 0x005A) || (c >= 0x0061 && c <= 0x007A)) {
+                // Обычная латиница (не должно быть в русском тексте после не-ASCII)
+                latin++;
+            } else if (c >= 0x00C0 && c <= 0x00FF) {
+                // Латиница с диакритикой (À, Ð, Ñ, ×, ÷...) —
+                // типичный признак НЕПРАВИЛЬНОЙ кодировки
+                // (CP1251-байты, прочитанные как KOI8-R, дают такие символы)
+                latin++;
+            } else if (c == 0x2116) {
+                // № — допустим в русском тексте
+                cyrillic++;
+            } else if (c >= 0x2500 && c <= 0x257F) {
+                // Псевдографика (─│┌┐) — в PGN не должно быть
+                suspicious++;
+            } else if (c == 0x00A4 || c == 0x00A6 || c == 0x00A7
+                    || c == 0x00A9 || c == 0x00AE || c == 0x00B0
+                    || c == 0x00B1 || c == 0x00B5 || c == 0x00B6
+                    || c == 0x00B7 || c == 0x00A8 || c == 0x00AF) {
+                // ¤ ¦ § © ® ° ± µ ¶ · ¨ ¯ — типичные "мусорные" символы
+                // при неправильной кодировке
+                suspicious++;
+            } else {
+                // Всё остальное (эмодзи, стрелки, математика) —
+                // в обычном PGN маловероятно, но не критично
+                suspicious++;
+            }
+        }
+
+        if (nonAscii == 0) {
+            // Нет не-ASCII → это чистый ASCII, который валиден и в UTF-8, и в CP1251.
+            // Возвращаем -1, чтобы detectEncoding НЕ выбрал эту кодировку.
+            return -1;
+        }
+
+        double cyrRatio = (double) cyrillic / nonAscii;
+        double latRatio = (double) latin / nonAscii;
+        double susRatio = (double) suspicious / nonAscii;
+
+        return cyrRatio - latRatio - 2.0 * susRatio;
     }
 
     private static boolean containsCyrillic(String text) {

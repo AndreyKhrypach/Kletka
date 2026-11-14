@@ -169,7 +169,17 @@ public class IndexingProgressDialog {
                 statusLabel.setText(progress.getStatus());
             }
 
-            if (progress.getTotalGames() > 0) {
+            // ========== ПРИОРИТЕТ 1: Прогресс по байтам (Шаг 1 - Подготовка) ==========
+            if (progress.getTotalBytes() > 0 && progress.getTotalGames() == 0) {
+                double pct = (double) progress.getBytesProcessed() / progress.getTotalBytes();
+                progressBar.setProgress(Math.min(pct, 1.0));
+
+                // Можно выводить проценты в лейбл
+                progressLabel.setText(String.format("Подготовка: %d%%", (int)(pct * 100)));
+                progressIndicator.setVisible(false); // Скрываем крутилку
+
+                // ========== ПРИОРИТЕТ 2: Прогресс по партиям (Шаг 2 - Индексация) ==========
+            } else if (progress.getTotalGames() > 0) {
                 double pct = progress.getProgress();
                 progressBar.setProgress(Math.min(pct, 1.0));
                 progressLabel.setText(String.format(lang.get(INDEXING_DIALOG_PROGRESS_FORMAT),
@@ -178,18 +188,19 @@ public class IndexingProgressDialog {
                         pct * 100));
 
                 progressIndicator.setVisible(!(pct >= 0.01));
+
+                if (progress.getProcessedGames() >= progress.getTotalGames()) {
+                    progressBar.setProgress(1.0);
+                    progressLabel.setText(lang.get(INDEXING_DIALOG_COMPLETE));
+                    progressIndicator.setVisible(false);
+                    cancelButton.setDisable(true);
+                }
+
+                // ========== ПРИОРИТЕТ 3: Неопределенный прогресс (Шаги между этапами) ==========
             } else {
                 progressBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
-                progressLabel.setText(String.format(lang.get(INDEXING_DIALOG_GAMES_PROCESSED),
-                        progress.getProcessedGames()));
-            }
-
-            if (progress.getProcessedGames() >= progress.getTotalGames() &&
-                    progress.getTotalGames() > 0) {
-                progressBar.setProgress(1.0);
-                progressLabel.setText(lang.get(INDEXING_DIALOG_COMPLETE));
-                progressIndicator.setVisible(false);
-                cancelButton.setDisable(true);
+                progressLabel.setText(""); // Или "Ожидание..."
+                progressIndicator.setVisible(true);
             }
         });
     }

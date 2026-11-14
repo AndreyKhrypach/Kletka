@@ -162,6 +162,10 @@ public class PgnFileEditor implements AutoCloseable {
     public GameIndexEntry appendGame(String pgnContent, int newId) throws IOException {
         log.info("Appending new game with ID: {}", newId);
 
+        if (!pgnContent.endsWith("\n")) {
+            pgnContent = pgnContent + "\n";
+        }
+
         byte[] contentBytes = pgnContent.getBytes(StandardCharsets.UTF_8);
         long offset;
         int length;
